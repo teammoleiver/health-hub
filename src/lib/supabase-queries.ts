@@ -73,12 +73,12 @@ export async function getLatestWeight() {
   return data;
 }
 
-export async function logWeight(weightKg: number, options?: { waist_cm?: number; notes?: string; body_fat_pct?: number }) {
+export async function logWeight(weightKg: number, options?: { waist_cm?: number; notes?: string; body_fat_pct?: number }, loggedAt?: string) {
   const heightM = 1.71;
   const bmi = parseFloat((weightKg / (heightM * heightM)).toFixed(1));
   const { data, error } = await supabase
     .from("weight_logs")
-    .insert({ weight_kg: weightKg, bmi, ...options })
+    .insert({ weight_kg: weightKg, bmi, ...options, ...(loggedAt ? { logged_at: loggedAt } : {}) })
     .select()
     .single();
   if (error) console.error("logWeight", error);

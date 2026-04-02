@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
-import { Utensils, Clock, Droplets, Plus } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Utensils, Clock, Droplets, Plus, Minus, Trophy } from "lucide-react";
 import { getFastingStatus } from "@/lib/health-data";
 import { getTodayWaterLog, upsertWaterLog, getTodayMeals, upsertChecklist } from "@/lib/supabase-queries";
+import { playWaterSound, playGoalReachedSound } from "@/lib/water-sound";
 import LogMealModal from "@/components/modals/LogMealModal";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -101,12 +103,54 @@ export default function NutritionModule() {
     getTodayMeals().then(setTodayMeals);
   }, []);
 
-  const handleWaterClick = async (idx: number) => {
-    const newVal = idx + 1;
+  const [lastFilled, setLastFilled] = useState<number | null>(null);
+  const [goalJustReached, setGoalJustReached] = useState(false);
+
+  const handleWaterClick = useCallback(async (idx: number) => {
+    const clickedGlass = idx + 1;
+    // Toggle: if clicking the last filled glass, unfill it
+    const newVal = clickedGlass === waterGlasses ? waterGlasses - 1 : clickedGlass;
+    const increasing = newVal > waterGlasses;
+
+    setWaterGlasses(newVal);
+    if (increasing) {
+      setLastFilled(idx);
+      playWaterSound();
+      setTimeout(() => setLastFilled(null), 600);
+    }
+
+    await upsertWaterLog(newVal);
+
+    if (newVal >= 12 && waterGlasses < 12) {
+      await upsertChecklist({ water_goal_met: true });
+      setGoalJustReached(true);
+      setTimeout(() => playGoalReachedSound(), 300);
+      setTimeout(() => setGoalJustReached(false), 3000);
+    }
+  }, [waterGlasses]);
+
+  const handleAddGlass = useCallback(async () => {
+    if (waterGlasses >= 12) return;
+    const newVal = waterGlasses + 1;
+    setWaterGlasses(newVal);
+    setLastFilled(newVal - 1);
+    playWaterSound();
+    setTimeout(() => setLastFilled(null), 600);
+    await upsertWaterLog(newVal);
+    if (newVal >= 12) {
+      await upsertChecklist({ water_goal_met: true });
+      setGoalJustReached(true);
+      setTimeout(() => playGoalReachedSound(), 300);
+      setTimeout(() => setGoalJustReached(false), 3000);
+    }
+  }, [waterGlasses]);
+
+  const handleRemoveGlass = useCallback(async () => {
+    if (waterGlasses <= 0) return;
+    const newVal = waterGlasses - 1;
     setWaterGlasses(newVal);
     await upsertWaterLog(newVal);
-    if (newVal >= 12) await upsertChecklist({ water_goal_met: true });
-  };
+  }, [waterGlasses]);
 
   const totalCalories = todayMeals.reduce((sum, m) => sum + (m.calories ?? 0), 0);
 
@@ -136,27 +180,115 @@ export default function NutritionModule() {
       )}
 
       {/* Water Tracker */}
-      <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center justify-between mb-3">
+      <div className="glass-card rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
           <h3 className="font-display font-semibold text-foreground flex items-center gap-2">
             <Droplets className="w-5 h-5 text-blue-500" /> Water Tracker
           </h3>
-          <span className="text-sm text-muted-foreground">{waterGlasses}/12 glasses (3L goal)</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">{waterGlasses}/12 glasses</span>
+            <span className="text-xs text-muted-foreground">({(waterGlasses * 250 / 1000).toFixed(1)}L / 3L)</span>
+          </div>
         </div>
+
+        {/* Progress bar */}
+        <div className="relative h-2.5 bg-secondary rounded-full overflow-hidden">
+          <motion.div
+            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-400 to-blue-600"
+            initial={false}
+            animate={{ width: `${(waterGlasses / 12) * 100}%` }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          />
+          {waterGlasses >= 12 && (
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/30 to-blue-400/0"
+              animate={{ x: ["-100%", "200%"] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+            />
+          )}
+        </div>
+
+        {/* Glass grid */}
         <div className="grid grid-cols-6 gap-2">
-          {Array.from({ length: 12 }).map((_, i) => (
+          {Array.from({ length: 12 }).map((_, i) => {
+            const filled = i < waterGlasses;
+            const justFilled = lastFilled === i;
+            return (
+              <motion.button
+                key={i}
+                onClick={() => handleWaterClick(i)}
+                whileTap={{ scale: 0.9 }}
+                className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-200 overflow-hidden ${
+                  filled
+                    ? "bg-blue-500/20 text-blue-400 border-2 border-blue-500/40 shadow-[0_0_12px_rgba(59,130,246,0.15)]"
+                    : "bg-secondary/80 text-muted-foreground/40 border-2 border-transparent hover:border-blue-500/20 hover:text-blue-400/60 hover:bg-blue-500/5"
+                }`}
+              >
+                {/* Fill animation wave */}
+                {justFilled && (
+                  <motion.div
+                    className="absolute inset-x-0 bottom-0 bg-blue-500/20 rounded-xl"
+                    initial={{ height: "0%" }}
+                    animate={{ height: "100%" }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                  />
+                )}
+                {/* Ripple effect */}
+                {justFilled && (
+                  <motion.div
+                    className="absolute inset-0 bg-blue-400/30 rounded-xl"
+                    initial={{ opacity: 0.6, scale: 0.5 }}
+                    animate={{ opacity: 0, scale: 1.2 }}
+                    transition={{ duration: 0.5 }}
+                  />
+                )}
+                <Droplets className={`w-4 h-4 relative z-10 transition-transform ${filled ? "scale-110" : ""}`} />
+                <span className={`text-[9px] mt-0.5 font-medium relative z-10 ${filled ? "text-blue-400" : "text-muted-foreground/30"}`}>
+                  {(i + 1) * 250}ml
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        {/* Quick add/remove + goal celebration */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <button
-              key={i}
-              onClick={() => handleWaterClick(i)}
-              className={`aspect-square rounded-lg flex items-center justify-center transition ${
-                i < waterGlasses
-                  ? "bg-blue-500/20 text-blue-500 border border-blue-500/30"
-                  : "bg-secondary text-muted-foreground border border-transparent hover:border-blue-500/20"
-              }`}
+              onClick={handleRemoveGlass}
+              disabled={waterGlasses <= 0}
+              className="w-9 h-9 rounded-full bg-secondary text-foreground flex items-center justify-center hover:bg-accent transition disabled:opacity-30"
             >
-              <Droplets className="w-4 h-4" />
+              <Minus className="w-4 h-4" />
             </button>
-          ))}
+            <button
+              onClick={handleAddGlass}
+              disabled={waterGlasses >= 12}
+              className="w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 transition disabled:opacity-30 shadow-lg shadow-blue-500/20"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+            <span className="text-xs text-muted-foreground ml-1">Quick add</span>
+          </div>
+
+          <AnimatePresence>
+            {goalJustReached && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, x: 20 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/15 text-blue-400 text-xs font-semibold"
+              >
+                <Trophy className="w-3.5 h-3.5" /> 3L Goal reached!
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {waterGlasses >= 12 && !goalJustReached && (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-medium">
+              <Trophy className="w-3.5 h-3.5" /> Goal complete
+            </span>
+          )}
         </div>
       </div>
 

@@ -2,11 +2,12 @@ import { ReactNode, useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
-  MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
+  MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun, Droplets,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import logoLight from "@/assets/logo-light.png";
 import logoDark from "@/assets/logo-dark.png";
+import { getTodayWaterLog } from "@/lib/supabase-queries";
 
 const navItems = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -32,11 +33,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return false;
   });
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [waterGlasses, setWaterGlasses] = useState(0);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("ht-theme", dark ? "dark" : "light");
   }, [dark]);
+
+  // Poll water intake for sidebar display
+  useEffect(() => {
+    getTodayWaterLog().then((w) => setWaterGlasses(w?.glasses ?? 0));
+    const id = setInterval(() => {
+      getTodayWaterLog().then((w) => setWaterGlasses(w?.glasses ?? 0));
+    }, 10000); // refresh every 10s
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -79,6 +90,41 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+
+        {/* Water progress widget */}
+        <Link
+          to="/nutrition"
+          className="mx-2 mb-2 p-3 rounded-lg bg-sidebar-accent/50 hover:bg-sidebar-accent transition block"
+        >
+          {sidebarOpen ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Droplets className="w-4 h-4 text-blue-400" />
+                  <span className="text-xs font-medium text-sidebar-foreground">Water</span>
+                </div>
+                <span className={`text-xs font-bold ${waterGlasses >= 12 ? "text-blue-400" : "text-sidebar-foreground/70"}`}>
+                  {waterGlasses}/12
+                </span>
+              </div>
+              <div className="h-1.5 bg-sidebar-border rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500"
+                  initial={false}
+                  animate={{ width: `${Math.min((waterGlasses / 12) * 100, 100)}%` }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1">
+              <div className="relative">
+                <Droplets className={`w-4 h-4 ${waterGlasses >= 12 ? "text-blue-400" : "text-sidebar-foreground/50"}`} />
+              </div>
+              <span className="text-[9px] font-bold text-sidebar-foreground/60">{waterGlasses}</span>
+            </div>
+          )}
+        </Link>
 
         <div className="p-3 border-t border-sidebar-border flex items-center gap-2">
           <button
