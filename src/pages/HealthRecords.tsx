@@ -3,30 +3,65 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, ChevronDown, TrendingUp, TrendingDown, AlertTriangle,
   FileText, Upload, Loader2, X, Brain, ShieldAlert, Lightbulb,
-  CheckCircle2, Trash2,
+  CheckCircle2, Trash2, Check, XCircle, Clock, Eye,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { BLOOD_TESTS, BloodTest, HealthMarker } from "@/lib/health-data";
 import { supabase } from "@/integrations/supabase/client";
-import { getUserProfile, getBloodTestRecords, saveBloodTestRecord, deleteBloodTestRecord } from "@/lib/supabase-queries";
+import {
+  getUserProfile, getBloodTestRecords, saveBloodTestRecord,
+  deleteBloodTestRecord, applyBloodTestRecord, declineBloodTestRecord,
+} from "@/lib/supabase-queries";
 import { analyzePDF } from "@/lib/pdf-analyzer";
 import { toast } from "@/hooks/use-toast";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 
-const categories = ["All", "Liver", "Lipids", "Blood", "Metabolic", "Kidney", "Cardiovascular", "Electrolytes", "Thyroid", "Spirometry", "Hormones", "Inflammation", "Other"];
+/* ─── Types ─── */
 
-interface AnalysisResult {
-  summary: string;
-  recommendations: string[];
-  riskFactors: string[];
-  bloodTest: BloodTest;
+interface DBRecord {
+  id: string;
+  test_date: string;
+  source: string;
+  file_name: string | null;
+  weight_kg: number | null;
+  bmi: number | null;
+  markers: any;
+  summary: string | null;
+  recommendations: any;
+  risk_factors: any;
+  pdf_storage_path: string | null;
+  applied: boolean;
+  uploaded_at: string;
+  analyzed_at: string | null;
+  created_at: string | null;
 }
 
-function getAllTests(dbTests: BloodTest[]): BloodTest[] {
-  // Merge hardcoded + DB tests, sorted by date
-  const all = [...BLOOD_TESTS, ...dbTests];
+/* ─── Helpers ─── */
+
+function dbRecordToBloodTest(r: DBRecord): BloodTest {
+  return {
+    id: r.id,
+    date: r.test_date,
+    source: r.source,
+    weightKg: Number(r.weight_kg) || 0,
+    bmi: Number(r.bmi) || 0,
+    markers: (Array.isArray(r.markers) ? r.markers : []).map((m: any) => ({
+      testName: m.testName,
+      value: Number(m.value),
+      unit: m.unit,
+      referenceMin: m.referenceMin != null ? Number(m.referenceMin) : undefined,
+      referenceMax: m.referenceMax != null ? Number(m.referenceMax) : undefined,
+      status: m.status || "normal",
+      category: m.category || "Other",
+    })),
+  };
+}
+
+function getAllAppliedTests(records: DBRecord[]): BloodTest[] {
+  const applied = records.filter((r) => r.applied).map(dbRecordToBloodTest);
+  const all = [...BLOOD_TESTS, ...applied];
   all.sort((a, b) => a.date.localeCompare(b.date));
   return all;
 }
@@ -40,6 +75,8 @@ function getMarkerDelta(allTests: BloodTest[], markerName: string): { from: numb
   const pct = prev.value !== 0 ? (change / prev.value) * 100 : 0;
   return { from: prev.value, to: curr.value, change, pct };
 }
+
+/* ─── Marker Trend Chart ─── */
 
 function MarkerTrendChart({ markerName, allTests }: { markerName: string; allTests: BloodTest[] }) {
   const data = allTests.map((bt) => {
@@ -63,8 +100,10 @@ function MarkerTrendChart({ markerName, allTests }: { markerName: string; allTes
   );
 }
 
-function TestDateCard({ test, allTests, isExpanded, onToggle, isFromDB, onDelete }: {
-  test: BloodTest; allTests: BloodTest[]; isExpanded: boolean; onToggle: () => void; isFromDB?: boolean; onDelete?: () => void;
+/* ─── Expandable Blood Test Card (for hardcoded + applied DB tests) ─── */
+
+function TestDateCard({ test, allTests, isExpanded, onToggle }: {
+  test: BloodTest; allTests: BloodTest[]; isExpanded: boolean; onToggle: () => void;
 }) {
   const [filterCat, setFilterCat] = useState("All");
   const filtered = filterCat === "All" ? test.markers : test.markers.filter((m) => m.category === filterCat);
@@ -84,20 +123,8 @@ function TestDateCard({ test, allTests, isExpanded, onToggle, isFromDB, onDelete
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {isFromDB && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">AI Analyzed</span>
-          )}
           {alertCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">{alertCount} alert{alertCount > 1 ? "s" : ""}</span>}
           {test.bmi ? <span className="text-xs text-muted-foreground">BMI {test.bmi} · {test.weightKg}kg</span> : null}
-          {isFromDB && onDelete && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1 text-muted-foreground hover:text-destructive transition"
-              title="Delete record"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
           <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
         </div>
       </button>
@@ -143,161 +170,217 @@ function TestDateCard({ test, allTests, isExpanded, onToggle, isFromDB, onDelete
   );
 }
 
-function AnalysisPanel({ result, onClose }: { result: AnalysisResult; onClose: () => void }) {
+/* ─── Uploaded Report Card (DB record — shows analysis, Accept/Decline) ─── */
+
+function ReportCard({ record, onApply, onDecline, onDelete, onViewDetails, isExpanded, onToggle }: {
+  record: DBRecord;
+  onApply: () => void;
+  onDecline: () => void;
+  onDelete: () => void;
+  onViewDetails: () => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const markers = Array.isArray(record.markers) ? record.markers : [];
+  const criticalMarkers = markers.filter((m: any) => m.status === "critical" || m.status === "high");
+  const recommendations = Array.isArray(record.recommendations) ? record.recommendations : [];
+  const riskFactors = Array.isArray(record.risk_factors) ? record.risk_factors : [];
+  const uploadDate = new Date(record.uploaded_at);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="glass-card rounded-xl overflow-hidden border-2 border-primary/30"
+      className={`glass-card rounded-xl overflow-hidden ${record.applied ? "border-l-4 border-l-primary" : "border-l-4 border-l-warning"}`}
     >
-      <div className="bg-primary/5 p-4 flex items-center justify-between border-b border-border">
+      {/* Header */}
+      <button onClick={onToggle} className="w-full p-4 flex items-center justify-between hover:bg-accent/50 transition">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${record.applied ? "bg-primary/10" : "bg-warning/10"}`}>
+            <Brain className={`w-5 h-5 ${record.applied ? "text-primary" : "text-warning"}`} />
+          </div>
+          <div className="text-left">
+            <p className="font-display font-semibold text-foreground text-sm">
+              {new Date(record.test_date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+            </p>
+            <p className="text-xs text-muted-foreground">{record.source}</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+              Uploaded {uploadDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} at {uploadDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5 text-primary" />
-          <h3 className="font-display font-semibold text-foreground">AI Analysis Results</h3>
+          {record.applied ? (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center gap-1">
+              <Check className="w-3 h-3" /> Applied
+            </span>
+          ) : (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20 flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Pending
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">{markers.length} markers</span>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
         </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-      </div>
+      </button>
 
-      <div className="p-4 space-y-4">
-        {/* Summary */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <FileText className="w-4 h-4 text-primary" />
-            Summary
-          </div>
-          <p className="text-sm text-muted-foreground leading-relaxed">{result.summary}</p>
-        </div>
-
-        {/* Markers overview */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <CheckCircle2 className="w-4 h-4 text-primary" />
-            {result.bloodTest.markers.length} Markers Extracted
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {result.bloodTest.markers
-              .filter((m) => m.status === "critical" || m.status === "high")
-              .map((m) => (
-                <span key={m.testName} className="text-xs px-2 py-1 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
-                  {m.testName}: {m.value} {m.unit}
-                </span>
-              ))}
-            {result.bloodTest.markers
-              .filter((m) => m.status === "low")
-              .map((m) => (
-                <span key={m.testName} className="text-xs px-2 py-1 rounded-full bg-warning/10 text-warning border border-warning/20">
-                  {m.testName}: {m.value} {m.unit}
-                </span>
-              ))}
-            {result.bloodTest.markers
-              .filter((m) => m.status === "normal" || m.status === "borderline")
-              .length > 0 && (
-              <span className="text-xs px-2 py-1 rounded-full bg-success/10 text-success border border-success/20">
-                {result.bloodTest.markers.filter((m) => m.status === "normal" || m.status === "borderline").length} markers normal
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Risk Factors */}
-        {result.riskFactors.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <ShieldAlert className="w-4 h-4 text-destructive" />
-              Risk Factors
-            </div>
-            <div className="space-y-1.5">
-              {result.riskFactors.map((r, i) => (
-                <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
-                  <span>{r}</span>
+      {/* Expanded Content */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-t border-border"
+          >
+            <div className="p-4 space-y-4">
+              {/* File info */}
+              {record.file_name && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <FileText className="w-3.5 h-3.5" />
+                  {record.file_name}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              )}
 
-        {/* Recommendations */}
-        {result.recommendations.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Lightbulb className="w-4 h-4 text-warning" />
-              Recommendations
-            </div>
-            <div className="space-y-1.5">
-              {result.recommendations.map((r, i) => (
-                <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <span className="text-primary font-bold shrink-0">{i + 1}.</span>
-                  <span>{r}</span>
+              {/* Summary */}
+              {record.summary && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <FileText className="w-4 h-4 text-primary" /> Summary
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{record.summary}</p>
                 </div>
-              ))}
+              )}
+
+              {/* Critical markers */}
+              {criticalMarkers.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <AlertTriangle className="w-4 h-4 text-destructive" /> Flagged Markers
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {criticalMarkers.map((m: any) => (
+                      <span key={m.testName} className="text-xs px-2 py-1 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+                        {m.testName}: {m.value} {m.unit}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Risk Factors */}
+              {riskFactors.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <ShieldAlert className="w-4 h-4 text-destructive" /> Risk Factors
+                  </div>
+                  <div className="space-y-1">
+                    {riskFactors.map((r: string, i: number) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
+                        <span>{r}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {recommendations.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Lightbulb className="w-4 h-4 text-warning" /> Recommendations
+                  </div>
+                  <div className="space-y-1">
+                    {recommendations.map((r: string, i: number) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <span className="text-primary font-bold shrink-0">{i + 1}.</span>
+                        <span>{r}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-2 border-t border-border">
+                {!record.applied ? (
+                  <>
+                    <button
+                      onClick={onApply}
+                      className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition flex items-center justify-center gap-2"
+                    >
+                      <Check className="w-4 h-4" /> Apply to System
+                    </button>
+                    <button
+                      onClick={onDelete}
+                      className="py-2 px-4 rounded-lg bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition flex items-center justify-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" /> Discard
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={onDecline}
+                      className="flex-1 py-2 rounded-lg bg-warning/10 text-warning text-sm font-medium hover:bg-warning/20 transition flex items-center justify-center gap-2"
+                    >
+                      <XCircle className="w-4 h-4" /> Remove from System
+                    </button>
+                    <button
+                      onClick={onDelete}
+                      className="py-2 px-4 rounded-lg bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition flex items-center justify-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </motion.div>
   );
 }
 
+/* ─── Main Page ─── */
+
 export default function HealthRecords() {
   const [expandedTest, setExpandedTest] = useState<string | null>(null);
+  const [expandedReport, setExpandedReport] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState("");
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [dbTests, setDbTests] = useState<BloodTest[]>([]);
-  const [dbRecordIds, setDbRecordIds] = useState<Record<string, string>>({});
+  const [dbRecords, setDbRecords] = useState<DBRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load saved blood tests from Supabase
+  // Load records from Supabase on mount
   useEffect(() => {
-    loadDbTests();
+    loadRecords();
   }, []);
 
-  const loadDbTests = async () => {
+  const loadRecords = async () => {
     try {
       const records = await getBloodTestRecords();
-      const tests: BloodTest[] = records.map((r: any) => ({
-        id: `db_${r.id}`,
-        date: r.test_date,
-        source: r.source,
-        weightKg: Number(r.weight_kg) || 0,
-        bmi: Number(r.bmi) || 0,
-        markers: (r.markers as any[] || []).map((m: any) => ({
-          testName: m.testName,
-          value: Number(m.value),
-          unit: m.unit,
-          referenceMin: m.referenceMin != null ? Number(m.referenceMin) : undefined,
-          referenceMax: m.referenceMax != null ? Number(m.referenceMax) : undefined,
-          status: m.status || "normal",
-          category: m.category || "Other",
-        })),
-      }));
-      const idMap: Record<string, string> = {};
-      records.forEach((r: any) => { idMap[`db_${r.id}`] = r.id; });
-      setDbRecordIds(idMap);
-      setDbTests(tests);
-      // Auto-expand newest
-      if (tests.length > 0) {
-        const all = getAllTests(tests);
-        setExpandedTest(all[all.length - 1].id);
-      }
+      setDbRecords(records as DBRecord[]);
     } catch (err) {
-      // Table might not exist yet — that's OK
       console.warn("Could not load blood test records:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const allTests = getAllTests(dbTests);
+  // Active tests = hardcoded + applied DB records
+  const allAppliedTests = getAllAppliedTests(dbRecords);
 
-  // Compute alerts from the two most recent tests
+  // Compute alerts from the two most recent applied tests
   const alerts: { marker: string; pct: number }[] = [];
-  if (allTests.length >= 2) {
-    const latest = allTests[allTests.length - 1];
+  if (allAppliedTests.length >= 2) {
+    const latest = allAppliedTests[allAppliedTests.length - 1];
     latest.markers.forEach((m) => {
-      const delta = getMarkerDelta(allTests, m.testName);
+      const delta = getMarkerDelta(allAppliedTests, m.testName);
       if (delta && delta.pct > 20) alerts.push({ marker: m.testName, pct: delta.pct });
     });
   }
@@ -306,22 +389,8 @@ export default function HealthRecords() {
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
       setUploadedFile(file);
-      setAnalysisResult(null);
     } else {
       toast({ title: "Invalid file", description: "Please select a PDF file", variant: "destructive" });
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!uploadedFile) return;
-    setUploading(true);
-    const fileName = `${Date.now()}_${uploadedFile.name}`;
-    const { error } = await supabase.storage.from("health-records").upload(fileName, uploadedFile);
-    setUploading(false);
-    if (error) {
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "PDF uploaded", description: "File stored securely in Supabase Storage" });
     }
   };
 
@@ -335,28 +404,27 @@ export default function HealthRecords() {
     }
 
     setAnalyzing(true);
-    setAnalysisResult(null);
 
     try {
+      // 1. Upload PDF to Supabase storage
+      setAnalysisProgress("Uploading PDF to storage...");
+      const storagePath = `${Date.now()}_${uploadedFile.name}`;
+      const { error: uploadError } = await supabase.storage.from("health-records").upload(storagePath, uploadedFile);
+      if (uploadError) console.warn("Storage upload failed:", uploadError.message);
+
+      // 2. Extract text and analyze with AI
       setAnalysisProgress("Extracting text from PDF...");
-      // Small delay for UX
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 200));
 
       setAnalysisProgress("Analyzing with AI — this may take 10-20 seconds...");
       const result = await analyzePDF(uploadedFile, profile.openai_api_key);
 
-      setAnalysisResult(result);
-      setAnalysisProgress("");
-
-      // Save to Supabase
-      setAnalysisProgress("Saving to database...");
-      const storagePath = `${Date.now()}_${uploadedFile.name}`;
-      // Upload PDF if not already uploaded
-      await supabase.storage.from("health-records").upload(storagePath, uploadedFile).catch(() => {});
-
-      await saveBloodTestRecord({
+      // 3. Save to Supabase DB
+      setAnalysisProgress("Saving results...");
+      const saved = await saveBloodTestRecord({
         test_date: result.bloodTest.date,
         source: result.bloodTest.source,
+        file_name: uploadedFile.name,
         weight_kg: result.bloodTest.weightKg || null,
         bmi: result.bloodTest.bmi || null,
         markers: result.bloodTest.markers,
@@ -366,10 +434,15 @@ export default function HealthRecords() {
         pdf_storage_path: storagePath,
       });
 
-      // Reload from DB
-      await loadDbTests();
+      // 4. Reload records and expand the new one
+      await loadRecords();
+      if (saved) setExpandedReport(saved.id);
+      setUploadedFile(null);
 
-      toast({ title: "Analysis complete", description: `Extracted ${result.bloodTest.markers.length} markers from your report` });
+      toast({
+        title: "Report analyzed successfully",
+        description: `${result.bloodTest.markers.length} markers extracted. Review and apply to your system.`,
+      });
     } catch (err: any) {
       console.error("Analysis failed:", err);
       toast({ title: "Analysis failed", description: err.message || "An error occurred", variant: "destructive" });
@@ -379,16 +452,27 @@ export default function HealthRecords() {
     }
   };
 
-  const handleDeleteRecord = async (testId: string) => {
-    const dbId = dbRecordIds[testId];
-    if (!dbId) return;
-    await deleteBloodTestRecord(dbId);
-    await loadDbTests();
-    toast({ title: "Record deleted" });
+  const handleApply = async (id: string) => {
+    await applyBloodTestRecord(id);
+    await loadRecords();
+    toast({ title: "Report applied", description: "This data is now active across your dashboard and health system." });
+  };
+
+  const handleDecline = async (id: string) => {
+    await declineBloodTestRecord(id);
+    await loadRecords();
+    toast({ title: "Report removed from system", description: "The data is no longer active but the report is kept." });
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteBloodTestRecord(id);
+    await loadRecords();
+    toast({ title: "Report deleted" });
   };
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Health Records</h1>
         <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition">
@@ -397,38 +481,54 @@ export default function HealthRecords() {
         <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
       </div>
 
-      {/* Upload Preview */}
-      {uploadedFile && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileText className="w-8 h-8 text-primary" />
-              <div>
-                <p className="text-sm font-medium text-foreground">{uploadedFile.name}</p>
-                <p className="text-xs text-muted-foreground">{(uploadedFile.size / 1024).toFixed(0)} KB</p>
-              </div>
-            </div>
-            <button onClick={() => { setUploadedFile(null); setAnalysisResult(null); }} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleUpload} disabled={uploading || analyzing} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50 flex items-center justify-center gap-2">
-              {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</> : <><Upload className="w-4 h-4" /> Upload to Storage</>}
-            </button>
-            <button onClick={handleAnalyze} disabled={analyzing || uploading} className="flex-1 py-2 rounded-lg bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-sm font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2">
-              {analyzing ? <><Loader2 className="w-4 h-4 animate-spin" /> {analysisProgress || "Analyzing..."}</> : <><Brain className="w-4 h-4" /> Analyze with AI</>}
-            </button>
-          </div>
-        </motion.div>
-      )}
-
-      {/* AI Analysis Results */}
+      {/* Upload + Analyze */}
       <AnimatePresence>
-        {analysisResult && (
-          <AnalysisPanel result={analysisResult} onClose={() => setAnalysisResult(null)} />
+        {uploadedFile && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="glass-card rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="w-8 h-8 text-primary" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">{uploadedFile.name}</p>
+                  <p className="text-xs text-muted-foreground">{(uploadedFile.size / 1024).toFixed(0)} KB</p>
+                </div>
+              </div>
+              <button onClick={() => setUploadedFile(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            </div>
+            <button
+              onClick={handleAnalyze}
+              disabled={analyzing}
+              className="w-full py-2.5 rounded-lg bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-sm font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {analyzing
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> {analysisProgress || "Analyzing..."}</>
+                : <><Brain className="w-4 h-4" /> Upload &amp; Analyze with AI</>
+              }
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Auto-alerts */}
+      {/* ── Uploaded Reports Section ── */}
+      {dbRecords.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-display font-semibold text-muted-foreground uppercase tracking-wider">Uploaded Reports</h2>
+          {[...dbRecords].reverse().map((record) => (
+            <ReportCard
+              key={record.id}
+              record={record}
+              onApply={() => handleApply(record.id)}
+              onDecline={() => handleDecline(record.id)}
+              onDelete={() => handleDelete(record.id)}
+              onViewDetails={() => {}}
+              isExpanded={expandedReport === record.id}
+              onToggle={() => setExpandedReport(expandedReport === record.id ? null : record.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── Auto-alerts (from applied tests) ── */}
       {alerts.length > 0 && (
         <div className="danger-gradient rounded-xl p-4 text-destructive-foreground">
           <div className="flex items-start gap-3">
@@ -443,19 +543,25 @@ export default function HealthRecords() {
         </div>
       )}
 
-      {/* Test Dates */}
-      <div className="space-y-4">
-        {[...allTests].reverse().map((test) => (
-          <TestDateCard
-            key={test.id}
-            test={test}
-            allTests={allTests}
-            isExpanded={expandedTest === test.id}
-            onToggle={() => setExpandedTest(expandedTest === test.id ? null : test.id)}
-            isFromDB={test.id.startsWith("db_")}
-            onDelete={test.id.startsWith("db_") ? () => handleDeleteRecord(test.id) : undefined}
-          />
-        ))}
+      {/* ── Active Blood Tests (hardcoded + applied DB) ── */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-display font-semibold text-muted-foreground uppercase tracking-wider">Active Blood Tests</h2>
+        {loading ? (
+          <div className="glass-card rounded-xl p-8 text-center">
+            <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary mb-2" />
+            <p className="text-sm text-muted-foreground">Loading records...</p>
+          </div>
+        ) : (
+          [...allAppliedTests].reverse().map((test) => (
+            <TestDateCard
+              key={test.id}
+              test={test}
+              allTests={allAppliedTests}
+              isExpanded={expandedTest === test.id}
+              onToggle={() => setExpandedTest(expandedTest === test.id ? null : test.id)}
+            />
+          ))
+        )}
       </div>
     </div>
   );

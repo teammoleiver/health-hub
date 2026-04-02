@@ -19,6 +19,7 @@ export type Database = {
           id: string
           test_date: string
           source: string
+          file_name: string | null
           weight_kg: number | null
           bmi: number | null
           markers: Json
@@ -26,12 +27,16 @@ export type Database = {
           recommendations: Json
           risk_factors: Json
           pdf_storage_path: string | null
+          applied: boolean
+          uploaded_at: string
+          analyzed_at: string | null
           created_at: string | null
         }
         Insert: {
           id?: string
           test_date: string
           source?: string
+          file_name?: string | null
           weight_kg?: number | null
           bmi?: number | null
           markers?: Json
@@ -39,12 +44,16 @@ export type Database = {
           recommendations?: Json
           risk_factors?: Json
           pdf_storage_path?: string | null
+          applied?: boolean
+          uploaded_at?: string
+          analyzed_at?: string | null
           created_at?: string | null
         }
         Update: {
           id?: string
           test_date?: string
           source?: string
+          file_name?: string | null
           weight_kg?: number | null
           bmi?: number | null
           markers?: Json
@@ -52,6 +61,9 @@ export type Database = {
           recommendations?: Json
           risk_factors?: Json
           pdf_storage_path?: string | null
+          applied?: boolean
+          uploaded_at?: string
+          analyzed_at?: string | null
           created_at?: string | null
         }
         Relationships: []

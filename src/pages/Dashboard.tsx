@@ -13,7 +13,7 @@ import {
 } from "@/lib/health-data";
 import {
   getTodayWaterLog, getTodayMeals, getTodayExercise, getLatestWeight,
-  getTodayChecklist, upsertChecklist, getBloodTestRecords,
+  getTodayChecklist, upsertChecklist, getAppliedBloodTestRecords,
 } from "@/lib/supabase-queries";
 import profilePhoto from "@/assets/profile-photo.jpg";
 import { Link } from "react-router-dom";
@@ -64,18 +64,18 @@ export default function Dashboard() {
   const [exerciseModal, setExerciseModal] = useState(false);
   const [mealModal, setMealModal] = useState(false);
 
-  // Load blood test records from DB
+  // Load only APPLIED blood test records from DB
   useEffect(() => {
     (async () => {
       try {
-        const records = await getBloodTestRecords();
+        const records = await getAppliedBloodTestRecords();
         const dbTests: BloodTest[] = records.map((r: any) => ({
-          id: `db_${r.id}`,
+          id: r.id,
           date: r.test_date,
           source: r.source,
           weightKg: Number(r.weight_kg) || 0,
           bmi: Number(r.bmi) || 0,
-          markers: (r.markers as any[] || []).map((m: any) => ({
+          markers: (Array.isArray(r.markers) ? r.markers : []).map((m: any) => ({
             testName: m.testName,
             value: Number(m.value),
             unit: m.unit,
@@ -89,7 +89,7 @@ export default function Dashboard() {
         setAllTests(merged);
         setTrends(computeKeyTrends(merged));
       } catch {
-        // DB table may not exist yet
+        // Table may not exist yet
       }
     })();
   }, []);

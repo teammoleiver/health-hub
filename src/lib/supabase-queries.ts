@@ -265,9 +265,20 @@ export async function getBloodTestRecords() {
   return data ?? [];
 }
 
+export async function getAppliedBloodTestRecords() {
+  const { data, error } = await supabase
+    .from("blood_test_records")
+    .select("*")
+    .eq("applied", true)
+    .order("test_date", { ascending: true });
+  if (error) console.error("getAppliedBloodTestRecords", error);
+  return data ?? [];
+}
+
 export async function saveBloodTestRecord(record: {
   test_date: string;
   source: string;
+  file_name?: string;
   weight_kg?: number | null;
   bmi?: number | null;
   markers: any;
@@ -281,6 +292,7 @@ export async function saveBloodTestRecord(record: {
     .insert({
       test_date: record.test_date,
       source: record.source,
+      file_name: record.file_name,
       weight_kg: record.weight_kg,
       bmi: record.bmi,
       markers: record.markers,
@@ -288,10 +300,34 @@ export async function saveBloodTestRecord(record: {
       recommendations: record.recommendations ?? [],
       risk_factors: record.risk_factors ?? [],
       pdf_storage_path: record.pdf_storage_path,
+      applied: false,
+      analyzed_at: new Date().toISOString(),
     })
     .select()
     .single();
   if (error) console.error("saveBloodTestRecord", error);
+  return data;
+}
+
+export async function applyBloodTestRecord(id: string) {
+  const { data, error } = await supabase
+    .from("blood_test_records")
+    .update({ applied: true })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) console.error("applyBloodTestRecord", error);
+  return data;
+}
+
+export async function declineBloodTestRecord(id: string) {
+  const { data, error } = await supabase
+    .from("blood_test_records")
+    .update({ applied: false })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) console.error("declineBloodTestRecord", error);
   return data;
 }
 
