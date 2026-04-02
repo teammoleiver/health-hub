@@ -14,6 +14,7 @@ import ExerciseModule from "./pages/ExerciseModule";
 import BodyMetrics from "./pages/BodyMetrics";
 import GoalsModule from "./pages/GoalsModule";
 import AssistantModule from "./pages/AssistantModule";
+import SleepModule from "./pages/SleepModule";
 import SettingsModule from "./pages/SettingsModule";
 import NotFound from "./pages/NotFound";
 
@@ -40,6 +41,7 @@ const App = () => {
             <Route path="/nutrition" element={<NutritionModule />} />
             <Route path="/exercise" element={<ExerciseModule />} />
             <Route path="/body" element={<BodyMetrics />} />
+            <Route path="/sleep" element={<SleepModule />} />
             <Route path="/goals" element={<GoalsModule />} />
             <Route path="/assistant" element={<AssistantModule />} />
             <Route path="/settings" element={<SettingsModule />} />

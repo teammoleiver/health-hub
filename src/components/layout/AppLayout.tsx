@@ -15,6 +15,7 @@ const navItems = [
   { path: "/nutrition", icon: Utensils, label: "Nutrition" },
   { path: "/fasting", icon: Timer, label: "Fasting" },
   { path: "/exercise", icon: Dumbbell, label: "Exercise" },
+  { path: "/sleep", icon: Moon, label: "Sleep" },
   { path: "/health", icon: HeartPulse, label: "Health" },
   { path: "/body", icon: BarChart3, label: "Body" },
   { path: "/goals", icon: Target, label: "Goals" },
@@ -22,7 +23,7 @@ const navItems = [
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
-const mobileNavItems = navItems.slice(0, 5); // Dashboard, Nutrition, Fasting, Exercise, Health
+const mobileNavItems = navItems.slice(0, 6); // Dashboard, Nutrition, Fasting, Exercise, Sleep, Health
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();

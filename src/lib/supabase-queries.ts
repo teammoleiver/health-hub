@@ -376,6 +376,58 @@ export async function deleteBloodTestRecord(id: string) {
   if (error) console.error("deleteBloodTestRecord", error);
 }
 
+// ── Sleep Logs ──
+export async function getSleepLogs(limit = 30) {
+  const { data, error } = await supabase
+    .from("sleep_logs")
+    .select("*")
+    .order("date", { ascending: false })
+    .limit(limit);
+  if (error) console.error("getSleepLogs", error);
+  return data ?? [];
+}
+
+export async function saveSleepLog(log: {
+  date: string;
+  bedtime: string;
+  wake_time: string;
+  total_hours: number;
+  quality: number;
+  wake_ups?: number;
+  notes?: string;
+  late_eating?: boolean;
+  exercise_today?: boolean;
+  screen_before_bed?: boolean;
+  caffeine_after_2pm?: boolean;
+  stress_level?: number;
+  morning_feeling?: number;
+}) {
+  // Upsert by date (unique)
+  const { data: existing } = await supabase
+    .from("sleep_logs")
+    .select("id")
+    .eq("date", log.date)
+    .maybeSingle();
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from("sleep_logs")
+      .update(log)
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error) console.error("saveSleepLog update", error);
+    return data;
+  }
+  const { data, error } = await supabase
+    .from("sleep_logs")
+    .insert(log)
+    .select()
+    .single();
+  if (error) console.error("saveSleepLog insert", error);
+  return data;
+}
+
 // ── Checklist Stats ──
 export async function getChecklistStats() {
   const { data, error } = await supabase
