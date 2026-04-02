@@ -2,16 +2,24 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle, Droplets, Utensils, Dumbbell, Scale,
-  TrendingUp, TrendingDown, ArrowRight, Heart, Timer, Plus,
+  TrendingUp, TrendingDown, ArrowRight, Heart, Timer, Plus, Check,
 } from "lucide-react";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   USER_PROFILE, KEY_TRENDS, getHealthScore,
-  getFastingStatus, getMotivationalMessage, EGYM_DATA,
+  getFastingStatus, getMotivationalMessage,
 } from "@/lib/health-data";
+import {
+  getTodayWaterLog, getTodayMeals, getTodayExercise, getLatestWeight,
+  getTodayChecklist, upsertChecklist,
+} from "@/lib/supabase-queries";
 import profilePhoto from "@/assets/profile-photo.jpg";
 import { Link } from "react-router-dom";
+import LogWaterModal from "@/components/modals/LogWaterModal";
+import LogWeightModal from "@/components/modals/LogWeightModal";
+import LogExerciseModal from "@/components/modals/LogExerciseModal";
+import LogMealModal from "@/components/modals/LogMealModal";
 
 function useCurrentTime() {
   const [time, setTime] = useState(new Date());
@@ -22,26 +30,81 @@ function useCurrentTime() {
   return time;
 }
 
+type ChecklistKey = "water_goal_met" | "exercise_done" | "no_alcohol" | "no_fried_food" | "sunlight_done" | "bedtime_ok" | "healthy_breakfast";
+
+const checklistItems: { key: ChecklistKey; label: string; emoji: string }[] = [
+  { key: "water_goal_met", label: "Water goal (3L)", emoji: "💧" },
+  { key: "exercise_done", label: "Exercise done", emoji: "🏋️" },
+  { key: "no_alcohol", label: "No alcohol", emoji: "🚫" },
+  { key: "no_fried_food", label: "No fried food", emoji: "🥗" },
+  { key: "sunlight_done", label: "15min sunlight", emoji: "☀️" },
+  { key: "bedtime_ok", label: "Bed by 11pm", emoji: "🌙" },
+  { key: "healthy_breakfast", label: "IF 16:8 followed", emoji: "⏰" },
+];
+
 export default function Dashboard() {
   const time = useCurrentTime();
   const fasting = getFastingStatus();
   const healthScore = getHealthScore();
   const motivation = getMotivationalMessage();
 
-  const waterGlasses = 4; // placeholder
-  const mealsLogged = 2;
-  const exerciseDone = false;
-  const currentWeight = 88;
+  const [waterGlasses, setWaterGlasses] = useState(0);
+  const [mealsLogged, setMealsLogged] = useState(0);
+  const [exerciseDone, setExerciseDone] = useState(false);
+  const [currentWeight, setCurrentWeight] = useState(88);
+  const [checklist, setChecklist] = useState<Record<string, boolean>>({});
+  const [checklistId, setChecklistId] = useState<string | null>(null);
+
+  const [waterModal, setWaterModal] = useState(false);
+  const [weightModal, setWeightModal] = useState(false);
+  const [exerciseModal, setExerciseModal] = useState(false);
+  const [mealModal, setMealModal] = useState(false);
+
+  const loadData = async () => {
+    const [water, meals, exercise, weight, cl] = await Promise.all([
+      getTodayWaterLog(),
+      getTodayMeals(),
+      getTodayExercise(),
+      getLatestWeight(),
+      getTodayChecklist(),
+    ]);
+    setWaterGlasses(water?.glasses ?? 0);
+    setMealsLogged(meals?.length ?? 0);
+    setExerciseDone(!!exercise);
+    if (weight) setCurrentWeight(Number(weight.weight_kg));
+    if (cl) {
+      setChecklistId(cl.id);
+      setChecklist({
+        water_goal_met: cl.water_goal_met ?? false,
+        exercise_done: cl.exercise_done ?? false,
+        no_alcohol: cl.no_alcohol ?? false,
+        no_fried_food: cl.no_fried_food ?? false,
+        sunlight_done: cl.sunlight_done ?? false,
+        bedtime_ok: cl.bedtime_ok ?? false,
+        healthy_breakfast: cl.healthy_breakfast ?? false,
+      });
+    } else {
+      const newCl = await upsertChecklist({});
+      if (newCl) setChecklistId(newCl.id);
+    }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const toggleChecklist = async (key: ChecklistKey) => {
+    const newVal = !checklist[key];
+    setChecklist((prev) => ({ ...prev, [key]: newVal }));
+    await upsertChecklist({ [key]: newVal });
+  };
+
+  const completedItems = Object.values(checklist).filter(Boolean).length;
+  const checklistPct = Math.round((completedItems / checklistItems.length) * 100);
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <img
-          src={profilePhoto}
-          alt={USER_PROFILE.name}
-          className="w-12 h-12 rounded-full object-cover border-2 border-primary"
-        />
+        <img src={profilePhoto} alt={USER_PROFILE.name} className="w-12 h-12 rounded-full object-cover border-2 border-primary" />
         <div className="flex-1 min-w-0">
           <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">
             Good {time.getHours() < 12 ? "morning" : time.getHours() < 18 ? "afternoon" : "evening"}, Saleh
@@ -51,58 +114,37 @@ export default function Dashboard() {
       </div>
 
       {/* Critical Alert */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.97 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="danger-gradient rounded-xl p-4 text-destructive-foreground"
-      >
+      <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="danger-gradient rounded-xl p-4 text-destructive-foreground">
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 animate-pulse-glow" />
           <div>
             <p className="font-semibold text-sm">Critical: ALT rose 83% in 52 days</p>
-            <p className="text-xs opacity-90 mt-1">
-              55 → 101 UI/L (Feb 4 → Mar 27). Immediate lifestyle intervention needed.
-              Consult Dr. Pujol Ruiz for follow-up testing.
-            </p>
+            <p className="text-xs opacity-90 mt-1">55 → 101 UI/L (Feb 4 → Mar 27). Immediate lifestyle intervention needed. Consult Dr. Pujol Ruiz for follow-up testing.</p>
           </div>
         </div>
       </motion.div>
 
-      {/* Health Score + Fasting Side by Side */}
+      {/* Health Score + Fasting */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Health Score */}
         <div className="glass-card rounded-xl p-5 flex items-center gap-5">
-          <ProgressRing
-            progress={healthScore}
-            size={100}
-            strokeWidth={10}
-            color={healthScore < 50 ? "hsl(var(--destructive))" : healthScore < 70 ? "hsl(var(--warning))" : undefined}
-          >
+          <ProgressRing progress={healthScore} size={100} strokeWidth={10} color={healthScore < 50 ? "hsl(var(--destructive))" : healthScore < 70 ? "hsl(var(--warning))" : undefined}>
             <div className="text-center">
-              <div className="text-2xl font-display font-bold text-foreground animate-count-up">{healthScore}</div>
+              <div className="text-2xl font-display font-bold text-foreground">{healthScore}</div>
               <div className="text-[10px] text-muted-foreground">/ 100</div>
             </div>
           </ProgressRing>
           <div>
             <h3 className="font-display font-semibold text-foreground">Health Score</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Based on blood work, body metrics, fitness data and lifestyle factors
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Based on blood work, body metrics, fitness data and lifestyle factors</p>
             <div className="flex gap-2 mt-3">
               <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Liver ⚠</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning">BMI 30.1</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning">BMI {(currentWeight / (1.71 * 1.71)).toFixed(1)}</span>
             </div>
           </div>
         </div>
 
-        {/* Fasting Widget */}
         <Link to="/fasting" className="glass-card rounded-xl p-5 flex items-center gap-5 hover:border-primary/30 transition">
-          <ProgressRing
-            progress={fasting.progressPct}
-            size={100}
-            strokeWidth={10}
-            color={fasting.state === "fasting" ? "hsl(var(--warning))" : "hsl(var(--primary))"}
-          >
+          <ProgressRing progress={fasting.progressPct} size={100} strokeWidth={10} color={fasting.state === "fasting" ? "hsl(var(--warning))" : "hsl(var(--primary))"}>
             <div className="text-center">
               <Timer className="w-5 h-5 mx-auto text-foreground mb-0.5" />
               <div className="text-[10px] text-muted-foreground">{fasting.state === "fasting" ? "16:8" : "EAT"}</div>
@@ -110,11 +152,7 @@ export default function Dashboard() {
           </ProgressRing>
           <div>
             <div className="flex items-center gap-2">
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                fasting.state === "fasting"
-                  ? "bg-warning/15 text-warning"
-                  : "bg-success/15 text-success"
-              }`}>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${fasting.state === "fasting" ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
                 {fasting.label}
               </span>
             </div>
@@ -140,39 +178,47 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Daily Checklist */}
+      <div className="glass-card rounded-xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-display font-semibold text-foreground">Daily Checklist</h3>
+          <span className="text-sm font-bold text-primary">{checklistPct}%</span>
+        </div>
+        <div className="space-y-2">
+          {checklistItems.map((item) => (
+            <button
+              key={item.key}
+              onClick={() => toggleChecklist(item.key)}
+              className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 transition"
+            >
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition ${checklist[item.key] ? "bg-primary border-primary" : "border-muted-foreground/30"}`}>
+                {checklist[item.key] && <Check className="w-3 h-3 text-primary-foreground" />}
+              </div>
+              <span className="text-sm text-foreground">{item.emoji} {item.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Trend Comparison */}
       <div className="glass-card rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display font-semibold text-foreground">
             Trend: Feb 4 → Mar 27 <span className="text-xs text-muted-foreground font-normal">(52 days)</span>
           </h3>
-          <Link to="/health" className="text-xs text-primary flex items-center gap-1 hover:underline">
-            View all <ArrowRight className="w-3 h-3" />
-          </Link>
+          <Link to="/health" className="text-xs text-primary flex items-center gap-1 hover:underline">View all <ArrowRight className="w-3 h-3" /></Link>
         </div>
         <div className="space-y-3">
           {KEY_TRENDS.map((t) => (
             <div key={t.marker} className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
-                {t.direction === "up" && t.severity === "critical" ? (
-                  <TrendingUp className="w-4 h-4 text-destructive shrink-0" />
-                ) : t.direction === "down" ? (
-                  <TrendingDown className="w-4 h-4 text-success shrink-0" />
-                ) : (
-                  <TrendingUp className="w-4 h-4 text-warning shrink-0" />
-                )}
+                {t.direction === "up" && t.severity === "critical" ? <TrendingUp className="w-4 h-4 text-destructive shrink-0" /> : t.direction === "down" ? <TrendingDown className="w-4 h-4 text-success shrink-0" /> : <TrendingUp className="w-4 h-4 text-warning shrink-0" />}
                 <span className="text-sm text-foreground">{t.marker}</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">
-                  {t.from} → {t.to} {t.unit}
-                </span>
-                <StatusBadge
-                  status={t.severity === "critical" ? "critical" : t.severity === "improved" ? "improved" : "borderline"}
-                />
-                <span className={`text-xs font-medium ${
-                  t.changePct > 0 && t.severity === "critical" ? "text-destructive" : t.changePct < 0 ? "text-success" : "text-warning"
-                }`}>
+                <span className="text-xs text-muted-foreground">{t.from} → {t.to} {t.unit}</span>
+                <StatusBadge status={t.severity === "critical" ? "critical" : t.severity === "improved" ? "improved" : "borderline"} />
+                <span className={`text-xs font-medium ${t.changePct > 0 && t.severity === "critical" ? "text-destructive" : t.changePct < 0 ? "text-success" : "text-warning"}`}>
                   {t.changePct > 0 ? "+" : ""}{t.changePct.toFixed(1)}%
                 </span>
               </div>
@@ -187,10 +233,7 @@ export default function Dashboard() {
           <Heart className="w-5 h-5 shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold text-sm">BioAge: 48 years (you are 33)</p>
-            <p className="text-xs opacity-90 mt-1">
-              Your body functions like someone 15 years older. Lower body age: 70 — most critical.
-              Focus on legs, core, and cardio to reduce biological age.
-            </p>
+            <p className="text-xs opacity-90 mt-1">Your body functions like someone 15 years older. Lower body age: 70 — most critical. Focus on legs, core, and cardio.</p>
           </div>
         </div>
       </div>
@@ -198,20 +241,23 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Log Water", icon: Droplets, color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
-          { label: "Log Meal", icon: Utensils, color: "bg-primary/10 text-primary border-primary/20" },
-          { label: "Log Exercise", icon: Dumbbell, color: "bg-warning/10 text-warning border-warning/20" },
-          { label: "Log Weight", icon: Scale, color: "bg-foreground/10 text-foreground border-foreground/20" },
+          { label: "Log Water", icon: Droplets, color: "bg-blue-500/10 text-blue-500 border-blue-500/20", onClick: () => setWaterModal(true) },
+          { label: "Log Meal", icon: Utensils, color: "bg-primary/10 text-primary border-primary/20", onClick: () => setMealModal(true) },
+          { label: "Log Exercise", icon: Dumbbell, color: "bg-warning/10 text-warning border-warning/20", onClick: () => setExerciseModal(true) },
+          { label: "Log Weight", icon: Scale, color: "bg-foreground/10 text-foreground border-foreground/20", onClick: () => setWeightModal(true) },
         ].map((action) => (
-          <button
-            key={action.label}
-            className={`flex items-center gap-2 p-3 rounded-xl border transition hover:scale-[1.02] active:scale-[0.98] ${action.color}`}
-          >
+          <button key={action.label} onClick={action.onClick} className={`flex items-center gap-2 p-3 rounded-xl border transition hover:scale-[1.02] active:scale-[0.98] ${action.color}`}>
             <Plus className="w-4 h-4" />
             <span className="text-sm font-medium">{action.label}</span>
           </button>
         ))}
       </div>
+
+      {/* Modals */}
+      <LogWaterModal open={waterModal} onClose={() => setWaterModal(false)} currentGlasses={waterGlasses} onUpdated={(g) => { setWaterGlasses(g); if (g >= 12) upsertChecklist({ water_goal_met: true }); }} />
+      <LogWeightModal open={weightModal} onClose={() => setWeightModal(false)} onLogged={loadData} />
+      <LogExerciseModal open={exerciseModal} onClose={() => setExerciseModal(false)} onLogged={loadData} />
+      <LogMealModal open={mealModal} onClose={() => setMealModal(false)} onLogged={loadData} />
     </div>
   );
 }

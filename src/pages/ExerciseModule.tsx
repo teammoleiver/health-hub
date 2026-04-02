@@ -1,9 +1,12 @@
+import { useState, useEffect } from "react";
 import { Dumbbell, AlertTriangle, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { EGYM_DATA, USER_PROFILE } from "@/lib/health-data";
+import { EGYM_DATA } from "@/lib/health-data";
 import { ProgressRing } from "@/components/ui/ProgressRing";
+import { getMonthExerciseLogs } from "@/lib/supabase-queries";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
+import LogExerciseModal from "@/components/modals/LogExerciseModal";
 
 const bioAgeData = [
   { name: "Strength", age: EGYM_DATA.bioAge.strength, color: "hsl(var(--warning))" },
@@ -15,9 +18,19 @@ const bioAgeData = [
 ];
 
 export default function ExerciseModule() {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [monthCount, setMonthCount] = useState(0);
+
+  useEffect(() => {
+    getMonthExerciseLogs().then((logs) => setMonthCount(logs.length));
+  }, []);
+
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
-      <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Exercise & Gym</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Exercise & Gym</h1>
+        <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">{monthCount} sessions this month</span>
+      </div>
 
       {/* BioAge Alert */}
       <div className="danger-gradient rounded-xl p-4 text-destructive-foreground">
@@ -25,9 +38,7 @@ export default function ExerciseModule() {
           <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">Your body is 15 years older than you</p>
-            <p className="text-xs opacity-90 mt-1">
-              BioAge: 48 years (real age: 33). Lower body at age 70 — most critical area.
-            </p>
+            <p className="text-xs opacity-90 mt-1">BioAge: 48 years (real age: 33). Lower body at age 70 — most critical area.</p>
           </div>
         </div>
       </div>
@@ -36,8 +47,7 @@ export default function ExerciseModule() {
       <div className="glass-card rounded-xl p-5">
         <h3 className="font-display font-semibold text-foreground mb-4">EGYM BioAge Breakdown</h3>
         <div className="flex items-center gap-4 mb-4">
-          <ProgressRing progress={100 - ((EGYM_DATA.bioAge.overall - 33) / 33) * 100} size={90} strokeWidth={8}
-            color="hsl(var(--warning))">
+          <ProgressRing progress={100 - ((EGYM_DATA.bioAge.overall - 33) / 33) * 100} size={90} strokeWidth={8} color="hsl(var(--warning))">
             <div className="text-center">
               <div className="text-xl font-display font-bold text-foreground">{EGYM_DATA.bioAge.overall}</div>
               <div className="text-[9px] text-muted-foreground">BioAge</div>
@@ -53,19 +63,9 @@ export default function ExerciseModule() {
             <BarChart data={bioAgeData} layout="vertical">
               <XAxis type="number" domain={[0, 80]} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
               <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                formatter={(v: number) => [`${v} years`, "BioAge"]}
-              />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [`${v} years`, "BioAge"]} />
               <Bar dataKey="age" radius={[0, 4, 4, 0]}>
-                {bioAgeData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
+                {bioAgeData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -78,14 +78,8 @@ export default function ExerciseModule() {
         <div className="space-y-3">
           {EGYM_DATA.muscleImbalances.map((imb) => (
             <div key={imb.weak} className="flex items-center justify-between p-3 bg-warning/5 rounded-lg border border-warning/15">
-              <div>
-                <span className="text-sm text-foreground">
-                  <strong className="text-destructive">{imb.weak}</strong> weak vs <strong className="text-success">{imb.strong}</strong> strong
-                </span>
-              </div>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-warning/15 text-warning font-medium">
-                Focus: {imb.focus}
-              </span>
+              <span className="text-sm text-foreground"><strong className="text-destructive">{imb.weak}</strong> weak vs <strong className="text-success">{imb.strong}</strong> strong</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-warning/15 text-warning font-medium">Focus: {imb.focus}</span>
             </div>
           ))}
         </div>
@@ -100,13 +94,7 @@ export default function ExerciseModule() {
               <span className="text-sm text-foreground">{s.exercise}</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-foreground">{s.weight}kg</span>
-                {s.trend === "up" ? (
-                  <TrendingUp className="w-3 h-3 text-success" />
-                ) : s.trend === "down" ? (
-                  <TrendingDown className="w-3 h-3 text-destructive" />
-                ) : (
-                  <Minus className="w-3 h-3 text-muted-foreground" />
-                )}
+                {s.trend === "up" ? <TrendingUp className="w-3 h-3 text-success" /> : s.trend === "down" ? <TrendingDown className="w-3 h-3 text-destructive" /> : <Minus className="w-3 h-3 text-muted-foreground" />}
               </div>
             </div>
           ))}
@@ -114,9 +102,11 @@ export default function ExerciseModule() {
       </div>
 
       {/* Log Exercise */}
-      <button className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:bg-primary-dark transition">
+      <button onClick={() => setModalOpen(true)} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:bg-primary-dark transition">
         <Dumbbell className="w-4 h-4" /> Log Exercise
       </button>
+
+      <LogExerciseModal open={modalOpen} onClose={() => setModalOpen(false)} onLogged={() => getMonthExerciseLogs().then((l) => setMonthCount(l.length))} />
     </div>
   );
 }

@@ -1,8 +1,20 @@
-import { User, Key, Globe, Bell, Download, Heart } from "lucide-react";
+import { useState, useEffect } from "react";
+import { User, Key, Globe, Bell, Download, Heart, Check } from "lucide-react";
 import { USER_PROFILE } from "@/lib/health-data";
+import { getUserProfile } from "@/lib/supabase-queries";
 import profilePhoto from "@/assets/profile-photo.jpg";
+import ApiKeyModal from "@/components/modals/ApiKeyModal";
 
 export default function SettingsModule() {
+  const [apiKeyModal, setApiKeyModal] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(false);
+
+  useEffect(() => {
+    getUserProfile().then((p) => {
+      if (p?.openai_api_key) setHasApiKey(true);
+    });
+  }, []);
+
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-3xl mx-auto">
       <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Settings</h1>
@@ -24,14 +36,17 @@ export default function SettingsModule() {
         {
           icon: Key,
           title: "OpenAI API Key",
-          desc: "Required for AI Health Assistant and health record analysis",
-          action: "Configure",
+          desc: hasApiKey ? "Connected — AI assistant is ready" : "Required for AI Health Assistant and health record analysis",
+          action: hasApiKey ? "Connected" : "Configure",
+          badge: hasApiKey,
+          onClick: () => setApiKeyModal(true),
         },
         {
           icon: Heart,
           title: "Fasting Protocol",
           desc: "16:8 active. 5:2 disabled. Manage in Fasting module.",
           action: "Manage",
+          onClick: () => window.location.href = "/fasting",
         },
         {
           icon: Globe,
@@ -58,11 +73,21 @@ export default function SettingsModule() {
               <item.icon className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground">{item.title}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-foreground">{item.title}</p>
+                {"badge" in item && item.badge && (
+                  <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-success/15 text-success">
+                    <Check className="w-3 h-3" /> Connected
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">{item.desc}</p>
             </div>
           </div>
-          <button className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-foreground hover:bg-accent transition font-medium">
+          <button
+            onClick={"onClick" in item ? item.onClick : undefined}
+            className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-foreground hover:bg-accent transition font-medium"
+          >
             {item.action}
           </button>
         </div>
@@ -93,7 +118,7 @@ export default function SettingsModule() {
         </div>
       </div>
 
-      {/* Future Integrations */}
+      {/* Connected Apps */}
       <div className="glass-card rounded-xl p-5">
         <h3 className="font-display font-semibold text-foreground mb-3">Connected Apps</h3>
         <div className="space-y-2 text-sm text-muted-foreground">
@@ -102,6 +127,8 @@ export default function SettingsModule() {
           <p>💬 WhatsApp Reminders — <em>Coming soon</em></p>
         </div>
       </div>
+
+      <ApiKeyModal open={apiKeyModal} onClose={() => { setApiKeyModal(false); getUserProfile().then((p) => setHasApiKey(!!p?.openai_api_key)); }} />
     </div>
   );
 }

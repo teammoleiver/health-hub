@@ -1,5 +1,8 @@
-import { useState } from "react";
-import { Send, Bot, User } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Send, Bot, User, Trash2, Loader2 } from "lucide-react";
+import { getChatHistory, saveChatMessage, clearChatHistory, getTodayWaterLog, getTodayMeals, getTodayExercise, getLatestWeight } from "@/lib/supabase-queries";
+import { getFastingStatus } from "@/lib/health-data";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -17,34 +20,141 @@ const WELCOME = `Hi Saleh! 👋 I'm your Health Track AI assistant. I have acces
 Ask me anything about your health — for example:
 - "Can I eat a croissant today?"
 - "How is my liver doing?"
-- "What exercise should I focus on?"
+- "What exercise should I focus on?"`;
 
-⚠️ *Note: AI features require connecting your OpenAI API key in Settings.*`;
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-chat`;
 
 export default function AssistantModule() {
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: WELCOME },
   ]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const send = () => {
-    if (!input.trim()) return;
+  useEffect(() => {
+    getChatHistory(100).then((history) => {
+      if (history.length > 0) {
+        setMessages(history.map((h) => ({ role: h.role as "user" | "assistant", content: h.content })));
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  const buildHealthContext = async () => {
+    const [water, meals, exercise, weight] = await Promise.all([
+      getTodayWaterLog(), getTodayMeals(), getTodayExercise(), getLatestWeight(),
+    ]);
+    const fasting = getFastingStatus();
+    return `TODAY'S LIVE DATA:
+- Current weight: ${weight ? weight.weight_kg + 'kg' : '88kg (last known)'}
+- Water today: ${water?.glasses ?? 0}/12 glasses
+- Meals logged today: ${meals?.length ?? 0} (${meals?.map(m => m.food_name).join(', ') || 'none'})
+- Exercise today: ${exercise ? 'Yes - ' + exercise.exercise_type + ' ' + exercise.duration_min + 'min' : 'Not yet'}
+- Fasting status: ${fasting.label} — ${fasting.message}
+- Current time: ${new Date().toLocaleTimeString()}`;
+  };
+
+  const send = async () => {
+    if (!input.trim() || isLoading) return;
+
     const userMsg: Message = { role: "user", content: input };
-    setMessages([...messages, userMsg, {
-      role: "assistant",
-      content: "⚠️ AI assistant requires connecting your OpenAI API key in Settings. Once connected, I'll be able to analyze your health data and provide personalized advice.\n\nIn the meantime, here's a general tip: Stay consistent with your IF 16:8 window and prioritize liver-friendly foods (leafy greens, lean protein, no fried foods).",
-    }]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInput("");
+    setIsLoading(true);
+
+    await saveChatMessage("user", input, "assistant");
+
+    try {
+      const healthContext = await buildHealthContext();
+      const apiMessages = newMessages.slice(-20).map((m) => ({ role: m.role, content: m.content }));
+
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ messages: apiMessages, healthContext }),
+      });
+
+      if (!resp.ok || !resp.body) {
+        const errData = await resp.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errData.error || `HTTP ${resp.status}`);
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantSoFar = "";
+      let textBuffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantSoFar += content;
+              setMessages((prev) => {
+                const last = prev[prev.length - 1];
+                if (last?.role === "assistant" && prev.length > newMessages.length) {
+                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                }
+                return [...prev, { role: "assistant", content: assistantSoFar }];
+              });
+            }
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      if (assistantSoFar) {
+        await saveChatMessage("assistant", assistantSoFar, "assistant");
+      }
+    } catch (e: any) {
+      const errorMsg = `Sorry, I encountered an error: ${e.message}. Please try again.`;
+      setMessages((prev) => [...prev, { role: "assistant", content: errorMsg }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClear = async () => {
+    await clearChatHistory();
+    setMessages([{ role: "assistant", content: WELCOME }]);
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen max-w-3xl mx-auto">
-      <div className="p-4 border-b border-border">
-        <h1 className="text-xl font-display font-bold text-foreground">AI Health Assistant</h1>
-        <p className="text-xs text-muted-foreground">Powered by OpenAI — knows your complete health profile</p>
+      <div className="p-4 border-b border-border flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-display font-bold text-foreground">AI Health Assistant</h1>
+          <p className="text-xs text-muted-foreground">Powered by AI — knows your complete health profile</p>
+        </div>
+        <button onClick={handleClear} className="text-muted-foreground hover:text-foreground p-2" title="Clear chat">
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
             {msg.role === "assistant" && (
@@ -52,12 +162,14 @@ export default function AssistantModule() {
                 <Bot className="w-4 h-4 text-primary" />
               </div>
             )}
-            <div className={`max-w-[80%] rounded-xl p-3 text-sm ${
-              msg.role === "user"
-                ? "bg-primary text-primary-foreground"
-                : "glass-card text-foreground"
-            }`}>
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+            <div className={`max-w-[80%] rounded-xl p-3 text-sm ${msg.role === "user" ? "bg-primary text-primary-foreground" : "glass-card text-foreground"}`}>
+              {msg.role === "assistant" ? (
+                <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
             </div>
             {msg.role === "user" && (
               <div className="w-7 h-7 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
@@ -66,6 +178,16 @@ export default function AssistantModule() {
             )}
           </div>
         ))}
+        {isLoading && messages[messages.length - 1]?.role === "user" && (
+          <div className="flex gap-3">
+            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4 text-primary" />
+            </div>
+            <div className="glass-card rounded-xl p-3">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="p-4 border-t border-border">
@@ -74,14 +196,12 @@ export default function AssistantModule() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
             placeholder="Ask about your health..."
-            className="flex-1 px-4 py-2.5 rounded-xl bg-secondary text-foreground text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+            disabled={isLoading}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-secondary text-foreground text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
           />
-          <button
-            onClick={send}
-            className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary-dark transition"
-          >
+          <button onClick={send} disabled={isLoading || !input.trim()} className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary-dark transition disabled:opacity-50">
             <Send className="w-4 h-4" />
           </button>
         </div>
