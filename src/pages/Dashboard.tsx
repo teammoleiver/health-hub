@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle, Droplets, Utensils, Dumbbell, Scale,
   TrendingUp, TrendingDown, ArrowRight, Heart, Timer, Plus, Check,
 } from "lucide-react";
+import { onSync } from "@/lib/sync-events";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
@@ -36,11 +37,6 @@ type ChecklistKey = "water_goal_met" | "exercise_done" | "no_alcohol" | "no_frie
 const checklistItems: { key: ChecklistKey; label: string; emoji: string }[] = [
   { key: "water_goal_met", label: "Water goal (3L)", emoji: "💧" },
   { key: "exercise_done", label: "Exercise done", emoji: "🏋️" },
-  { key: "no_alcohol", label: "No alcohol", emoji: "🚫" },
-  { key: "no_fried_food", label: "No fried food", emoji: "🥗" },
-  { key: "sunlight_done", label: "15min sunlight", emoji: "☀️" },
-  { key: "bedtime_ok", label: "Bed by 11pm", emoji: "🌙" },
-  { key: "healthy_breakfast", label: "IF 16:8 followed", emoji: "⏰" },
 ];
 
 export default function Dashboard() {
@@ -55,6 +51,9 @@ export default function Dashboard() {
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [mealsLogged, setMealsLogged] = useState(0);
   const [exerciseDone, setExerciseDone] = useState(false);
+  const [exerciseCalories, setExerciseCalories] = useState(0);
+  const [mealCalories, setMealCalories] = useState(0);
+  const [weightLoggedToday, setWeightLoggedToday] = useState(false);
   const [currentWeight, setCurrentWeight] = useState(88);
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [checklistId, setChecklistId] = useState<string | null>(null);
@@ -104,8 +103,14 @@ export default function Dashboard() {
     ]);
     setWaterGlasses(water?.glasses ?? 0);
     setMealsLogged(meals?.length ?? 0);
+    setMealCalories((meals ?? []).reduce((s: number, m: any) => s + (m.calories ?? 0), 0));
     setExerciseDone(!!exercise);
-    if (weight) setCurrentWeight(Number(weight.weight_kg));
+    setExerciseCalories(exercise?.calories ?? 0);
+    if (weight) {
+      setCurrentWeight(Number(weight.weight_kg));
+      const today = new Date().toISOString().split("T")[0];
+      setWeightLoggedToday(weight.logged_at?.startsWith(today) ?? false);
+    }
     if (cl) {
       setChecklistId(cl.id);
       setChecklist({
@@ -124,6 +129,11 @@ export default function Dashboard() {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  // Re-fetch dashboard data when ANY module logs something
+  useEffect(() => {
+    return onSync("sync:all", loadData);
+  }, []);
 
   const toggleChecklist = async (key: ChecklistKey) => {
     const newVal = !checklist[key];
@@ -146,23 +156,6 @@ export default function Dashboard() {
           <p className="text-sm text-muted-foreground truncate">{motivation}</p>
         </div>
       </div>
-
-      {/* Critical Alert — dynamic from trends */}
-      {trends.filter(t => t.severity === "critical" && t.direction === "up").length > 0 && (
-        <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="danger-gradient rounded-xl p-4 text-destructive-foreground">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 animate-pulse-glow" />
-            <div>
-              {trends.filter(t => t.severity === "critical" && t.direction === "up").slice(0, 1).map(t => (
-                <div key={t.marker}>
-                  <p className="font-semibold text-sm">Critical: {t.marker} rose {Math.abs(t.changePct)}%</p>
-                  <p className="text-xs opacity-90 mt-1">{t.from} → {t.to} {t.unit}. Immediate lifestyle intervention needed. Consult your doctor for follow-up testing.</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
 
       {/* Health Score + Fasting */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -205,18 +198,63 @@ export default function Dashboard() {
       {/* Today At a Glance */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Droplets, label: "Water", value: `${(waterGlasses * 250 / 1000).toFixed(1)}L`, sub: "of 3L", color: "text-blue-500" },
-          { icon: Utensils, label: "Meals", value: `${mealsLogged}/4`, sub: "logged", color: "text-primary" },
-          { icon: Dumbbell, label: "Exercise", value: exerciseDone ? "Done" : "Pending", sub: "today", color: exerciseDone ? "text-success" : "text-muted-foreground" },
-          { icon: Scale, label: "Weight", value: `${currentWeight}`, sub: "kg", color: "text-foreground" },
+          { icon: Droplets, label: "Water", value: `${(waterGlasses * 250 / 1000).toFixed(1)}L`, sub: "of 3L", done: waterGlasses * 250 >= 3000 },
+          { icon: Utensils, label: "Meals", value: `${mealsLogged}/4`, sub: "logged", done: mealsLogged >= 4 },
+          { icon: Dumbbell, label: "Exercise", value: exerciseDone ? "Done" : "Pending", sub: "today", done: exerciseDone },
+          { icon: Scale, label: "Weight", value: `${currentWeight}`, sub: weightLoggedToday ? "logged today" : "kg", done: weightLoggedToday },
         ].map((item) => (
-          <div key={item.label} className="glass-card rounded-xl p-4 text-center">
-            <item.icon className={`w-5 h-5 mx-auto mb-2 ${item.color}`} />
-            <div className="text-lg font-display font-bold text-foreground">{item.value}</div>
-            <div className="text-xs text-muted-foreground">{item.sub}</div>
+          <div key={item.label} className={`rounded-xl p-4 text-center border-2 transition-all ${
+            item.done
+              ? "bg-success/10 border-success/30"
+              : "glass-card border-transparent"
+          }`}>
+            <item.icon className={`w-5 h-5 mx-auto mb-2 ${item.done ? "text-success" : "text-muted-foreground"}`} />
+            <div className={`text-lg font-display font-bold ${item.done ? "text-success" : "text-foreground"}`}>{item.value}</div>
+            <div className={`text-xs ${item.done ? "text-success/70" : "text-muted-foreground"}`}>{item.sub}</div>
           </div>
         ))}
       </div>
+
+      {/* Today's Energy Balance */}
+      {(mealCalories > 0 || exerciseCalories > 0) && (
+        <div className="glass-card rounded-xl p-5">
+          <h3 className="font-display font-semibold text-foreground mb-3">Today's Energy Balance</h3>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Eaten</div>
+              <div className="text-lg font-display font-bold text-foreground">{mealCalories}</div>
+              <div className="text-[10px] text-muted-foreground">kcal in</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Burned</div>
+              <div className="text-lg font-display font-bold text-warning">{exerciseCalories}</div>
+              <div className="text-[10px] text-muted-foreground">kcal out</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Net</div>
+              <div className={`text-lg font-display font-bold ${mealCalories - exerciseCalories > 1800 ? "text-warning" : "text-success"}`}>
+                {mealCalories - exerciseCalories}
+              </div>
+              <div className="text-[10px] text-muted-foreground">kcal net</div>
+            </div>
+          </div>
+          {/* Progress bar: eaten vs target (BMR 1708) */}
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+              <span>Net intake vs BMR (1708 kcal)</span>
+              <span className={mealCalories - exerciseCalories <= 1708 ? "text-success" : "text-warning"}>
+                {mealCalories - exerciseCalories <= 1708 ? "Deficit (losing weight)" : "Surplus"}
+              </span>
+            </div>
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${mealCalories - exerciseCalories <= 1708 ? "bg-success" : "bg-warning"}`}
+                style={{ width: `${Math.min(((mealCalories - exerciseCalories) / 1708) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Daily Checklist */}
       <div className="glass-card rounded-xl p-5">

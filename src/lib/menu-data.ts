@@ -1,5 +1,18 @@
 // ── Types ──
 
+export interface CookingStep {
+  step: number;
+  instruction: string;
+}
+
+export interface CookingMethod {
+  method: string;
+  whyHealthiest: string;
+  steps: CookingStep[];
+  tips: string[];
+  avoidMethod?: string;
+}
+
 export interface MealItem {
   type: string;
   typeEs: string;
@@ -13,6 +26,7 @@ export interface MealItem {
   keyNutrients: string[];
   timeWindow: string;
   timingUrgency: "normal" | "warn";
+  cooking?: CookingMethod;
 }
 
 export interface DayMenu {
@@ -185,7 +199,7 @@ const IMG = {
   turkey_skewers: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=320&h=200&fit=crop",
   salmon_baked: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=320&h=200&fit=crop",
   chicken_shredded: "https://images.unsplash.com/photo-1532550907401-a500c9a57435?w=320&h=200&fit=crop",
-  chicken_thighs: "https://images.unsplash.com/photo-1598103442097-8b74f1570104?w=320&h=200&fit=crop",
+  chicken_thighs: "https://images.unsplash.com/photo-1532550907401-a500c9a57435?w=320&h=200&fit=crop",
   legume_burger: "https://images.unsplash.com/photo-1550547660-d9450f859349?w=320&h=200&fit=crop",
   lentil_stew: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=320&h=200&fit=crop",
   tuna_baked: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=320&h=200&fit=crop",
@@ -204,10 +218,10 @@ const IMG = {
   spinach_omelette: "https://images.unsplash.com/photo-1510693206972-df098062cb71?w=320&h=200&fit=crop",
   ratatouille: "https://images.unsplash.com/photo-1572453800999-e8d2d1589b7c?w=320&h=200&fit=crop",
   eggplant_mozz: "https://images.unsplash.com/photo-1574484284002-952d92456975?w=320&h=200&fit=crop",
-  olives: "https://images.unsplash.com/photo-1593030103066-0093718e7177?w=320&h=200&fit=crop",
+  olives: "https://images.unsplash.com/photo-1445282768818-728615cc910a?w=320&h=200&fit=crop",
   almonds: "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=320&h=200&fit=crop",
   walnuts: "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=320&h=200&fit=crop",
-  persimmon: "https://images.unsplash.com/photo-1604251370785-4e5e5e446e4d?w=320&h=200&fit=crop",
+  persimmon: "https://images.unsplash.com/photo-1603064752734-4c48eff53d05?w=320&h=200&fit=crop",
   plum: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=320&h=200&fit=crop",
   broth: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=320&h=200&fit=crop",
   pumpkin_soup: "https://images.unsplash.com/photo-1476718406336-bb5a9690ee2a?w=320&h=200&fit=crop",
@@ -223,6 +237,7 @@ function meal(
   exp: { why: string; nutrition: string; liver: string; timing: string },
   calories: number, keyNutrients: string[],
   timeWindow: string, timingUrgency: "normal" | "warn" = "normal",
+  cooking?: CookingMethod,
 ): MealItem {
   return {
     type, typeEs, items, imageUrl,
@@ -230,9 +245,181 @@ function meal(
     nutritionExplanation: exp.nutrition,
     liverBenefit: exp.liver,
     timingReason: exp.timing,
-    calories, keyNutrients, timeWindow, timingUrgency,
+    calories, keyNutrients, timeWindow, timingUrgency, cooking,
   };
 }
+
+// ── Cooking methods database ──
+
+const COOK: Record<string, CookingMethod> = {
+  omelette: {
+    method: "Non-stick pan, low-medium heat",
+    whyHealthiest: "Low heat preserves choline in the egg yolks. High heat denatures proteins and creates oxidized cholesterol which stresses the liver. A non-stick pan means you need zero added oil beyond your 1 tbsp EVOO.",
+    steps: [
+      { step: 1, instruction: "Crack eggs into a bowl. Whisk gently with a fork — do NOT over-beat (keeps it fluffy)." },
+      { step: 2, instruction: "Heat non-stick pan on LOW-MEDIUM heat. Add 1 tsp of your EVOO allowance." },
+      { step: 3, instruction: "Pour eggs in. Let sit 30 seconds until edges set." },
+      { step: 4, instruction: "Gently push cooked edges toward center, tilting pan to let raw egg flow to edges." },
+      { step: 5, instruction: "When top is barely set (still slightly glossy), fold in half. Slide onto plate." },
+    ],
+    tips: ["Never cook eggs on high heat — creates harmful compounds", "Add a pinch of turmeric for extra liver protection", "Season with black pepper, never pre-salted"],
+    avoidMethod: "Do NOT fry in butter or regular oil. Do NOT cook on high heat until brown — this creates advanced glycation end products (AGEs) that damage liver cells.",
+  },
+  scramble: {
+    method: "Low heat, gentle stirring",
+    whyHealthiest: "Scrambled eggs on low heat keeps the curds soft and preserves maximum choline. The gentle method prevents oxidation of the egg fats.",
+    steps: [
+      { step: 1, instruction: "Crack 3 eggs into a bowl. Add 1 tbsp water. Whisk gently." },
+      { step: 2, instruction: "Heat non-stick pan on LOW heat. Add 1 tsp EVOO." },
+      { step: 3, instruction: "Pour eggs in. Wait 20 seconds." },
+      { step: 4, instruction: "With a spatula, gently push from edges to center in slow, wide strokes." },
+      { step: 5, instruction: "Remove from heat while still slightly wet — residual heat finishes cooking." },
+    ],
+    tips: ["Remove from heat BEFORE they look fully done", "Add asparagus/vegetables in step 3 for the combined meal"],
+    avoidMethod: "Never cook on high heat until dry and rubbery — destroys nutrients and creates harmful compounds.",
+  },
+  baked_fish: {
+    method: "Oven baked at 180°C (356°F)",
+    whyHealthiest: "Baking preserves omega-3 fatty acids better than any other method. Frying fish destroys up to 85% of EPA/DHA. Baking at moderate temperature retains 90%+ of these liver-protective fats.",
+    steps: [
+      { step: 1, instruction: "Preheat oven to 180°C (356°F). Line a baking tray with parchment paper." },
+      { step: 2, instruction: "Pat fish dry with paper towels. Place on tray." },
+      { step: 3, instruction: "Drizzle with 1 tsp EVOO, squeeze of lemon juice, pinch of black pepper." },
+      { step: 4, instruction: "Add fresh herbs if available: dill, parsley, or thyme on top." },
+      { step: 5, instruction: "Bake 15-18 minutes (salmon/tuna), 12-15 minutes (cod/hake/sea bass) until it flakes easily with a fork." },
+    ],
+    tips: ["Never exceed 200°C — high temperatures oxidize omega-3s", "Lemon juice added BEFORE cooking helps preserve omega-3s (citric acid acts as antioxidant)", "Pair with roasted vegetables on the same tray to save time"],
+    avoidMethod: "NEVER deep-fry or pan-fry fish in oil. Frying destroys 70-85% of omega-3 EPA/DHA and creates trans fats that directly worsen fatty liver.",
+  },
+  pan_seared_poultry: {
+    method: "Non-stick pan, medium heat, minimal oil",
+    whyHealthiest: "Medium heat searing creates a flavorful surface without charring. No extra oil needed beyond your EVOO allowance since poultry releases its own juices. Avoids the carcinogens created by grilling or high-heat cooking.",
+    steps: [
+      { step: 1, instruction: "Pound chicken/turkey to even thickness (about 1.5cm) for even cooking." },
+      { step: 2, instruction: "Season with spices: paprika, cumin, garlic powder, black pepper." },
+      { step: 3, instruction: "Heat non-stick pan on MEDIUM heat. Add 1 tsp EVOO." },
+      { step: 4, instruction: "Place poultry in pan. Cook 4-5 minutes without moving." },
+      { step: 5, instruction: "Flip once. Cook another 4-5 minutes until internal temp reaches 74°C (165°F)." },
+      { step: 6, instruction: "Rest for 3 minutes before slicing — keeps juices inside." },
+    ],
+    tips: ["Only flip ONCE — multiple flips dry it out", "Use a meat thermometer to avoid overcooking", "Add mushrooms or vegetables to the same pan in the last 3 minutes"],
+    avoidMethod: "Do NOT grill over open flame (creates HCAs and PAHs — carcinogenic compounds). Do NOT bread and fry.",
+  },
+  roasted_vegetables: {
+    method: "Oven roasted at 190°C (375°F)",
+    whyHealthiest: "Roasting caramelizes natural sugars in vegetables, making them delicious without added sugar. The moderate heat preserves most vitamins while making minerals more bioavailable. Lycopene in tomatoes increases 5x when cooked.",
+    steps: [
+      { step: 1, instruction: "Preheat oven to 190°C (375°F)." },
+      { step: 2, instruction: "Cut vegetables into similar-sized pieces for even cooking." },
+      { step: 3, instruction: "Toss with 1 tsp EVOO, pinch of salt, pepper, and herbs (rosemary, thyme)." },
+      { step: 4, instruction: "Spread in a single layer on parchment-lined baking tray — do NOT overcrowd." },
+      { step: 5, instruction: "Roast 25-35 minutes, flipping halfway, until edges are golden." },
+    ],
+    tips: ["Overcrowding steams instead of roasts — use two trays if needed", "Add garlic cloves in the last 10 minutes (allicin is heat-sensitive)", "Drizzle remaining EVOO AFTER cooking to preserve polyphenols"],
+    avoidMethod: "Do NOT deep-fry vegetables. Do NOT boil (loses 40-70% of water-soluble vitamins into the water).",
+  },
+  boiled_vegetables: {
+    method: "Steam or light boil (3-5 minutes)",
+    whyHealthiest: "Steaming retains 90% of nutrients vs boiling which loses 40-70%. For green beans, asparagus, and carrots, a quick steam keeps them crisp-tender and nutrient-dense.",
+    steps: [
+      { step: 1, instruction: "Bring a pot of water to boil. Place steamer basket on top." },
+      { step: 2, instruction: "Add vegetables. Cover with lid." },
+      { step: 3, instruction: "Steam 3-5 minutes for asparagus/green beans, 5-7 for carrots/broccoli." },
+      { step: 4, instruction: "Remove when still bright in color and slightly firm (al dente)." },
+      { step: 5, instruction: "Drizzle with EVOO and lemon juice immediately after steaming." },
+    ],
+    tips: ["If boiling, use minimal water and save it for soups (contains leached nutrients)", "Ice bath after steaming preserves bright color if meal-prepping", "Add EVOO after cooking — fat helps absorb fat-soluble vitamins A, D, E, K"],
+    avoidMethod: "Do NOT boil in large amounts of water for extended time — vitamins B and C are destroyed.",
+  },
+  stew: {
+    method: "Low and slow simmer (30-45 minutes)",
+    whyHealthiest: "Slow simmering breaks down legume fibers making them easier to digest, and the cooking liquid retains all the nutrients. Unlike boiling vegetables where you discard the water, in a stew you eat everything.",
+    steps: [
+      { step: 1, instruction: "Sauté onion and garlic in 1 tsp EVOO on low heat for 3-4 minutes." },
+      { step: 2, instruction: "Add diced vegetables (carrots, zucchini, peppers). Cook 5 minutes." },
+      { step: 3, instruction: "Add cooked lentils/legumes and enough water or broth to cover." },
+      { step: 4, instruction: "Season with cumin, paprika, bay leaf, black pepper." },
+      { step: 5, instruction: "Simmer on LOW heat 30-40 minutes. The longer, the more flavors meld." },
+    ],
+    tips: ["Add a splash of vinegar at the end — increases iron absorption from legumes by 50%", "Make a large batch and refrigerate — reheated stew has more resistant starch (better for liver)", "Never add salt until the end (salt toughens legume skins)"],
+    avoidMethod: "Do NOT pressure-cook at maximum — destroys some B vitamins. Low-slow is better.",
+  },
+  garlic_meat: {
+    method: "Low-medium pan with sliced garlic",
+    whyHealthiest: "The ajillo method infuses garlic's allicin into the oil at low temperature. Allicin is destroyed above 60°C, so adding garlic to a raging hot pan eliminates its liver-protective benefits.",
+    steps: [
+      { step: 1, instruction: "Slice garlic thinly (3-4 cloves). Do NOT mince — slices infuse better." },
+      { step: 2, instruction: "Add 1 tbsp EVOO to cold pan. Add garlic slices. Turn heat to LOW." },
+      { step: 3, instruction: "Let garlic slowly turn golden (3-4 minutes). Remove garlic, set aside." },
+      { step: 4, instruction: "Increase to MEDIUM. Add seasoned veal/beef slices. Sear 2-3 min per side." },
+      { step: 5, instruction: "Return garlic to pan in the last 30 seconds. Serve immediately." },
+    ],
+    tips: ["Start garlic in COLD oil — hot oil burns it instantly, creating bitter acrolein", "The garlic oil becomes infused with allicin compounds before it breaks down from heat", "Add a splash of white wine or lemon juice to deglaze — adds flavor without fat"],
+    avoidMethod: "NEVER burn the garlic — burned garlic creates acrolein which is toxic to liver cells. If garlic turns dark brown, discard and start over.",
+  },
+  meatballs: {
+    method: "Oven-baked meatballs, sauce on stovetop",
+    whyHealthiest: "Baking meatballs instead of frying them reduces fat content by 40%. The excess fat drips away on the baking tray. The zucchini sauce is made separately to preserve its pectin fiber.",
+    steps: [
+      { step: 1, instruction: "Preheat oven to 190°C. Mix ground turkey with egg, spices (cumin, oregano, garlic), 1 tbsp breadcrumbs." },
+      { step: 2, instruction: "Form small balls (walnut-size). Place on parchment-lined tray." },
+      { step: 3, instruction: "Bake 18-20 minutes until golden and cooked through." },
+      { step: 4, instruction: "Meanwhile: sauté diced zucchini and onion in 1 tsp EVOO. Add passata or crushed tomato. Simmer 15 min." },
+      { step: 5, instruction: "Add baked meatballs to sauce. Simmer together 5 minutes to absorb flavors." },
+    ],
+    tips: ["Baking instead of frying saves 100+ calories per serving", "Add grated zucchini INTO the meatball mix for extra moisture and fiber", "Make a double batch — freeze half for next week"],
+    avoidMethod: "Do NOT deep-fry meatballs. Frying in oil adds 100-150 extra calories and creates inflammatory compounds.",
+  },
+  ratatouille: {
+    method: "Slow stovetop simmer with EVOO",
+    whyHealthiest: "The slow combination cooking of tomatoes, peppers, zucchini, and eggplant creates a synergistic antioxidant effect. Lycopene from tomatoes becomes 5x more bioavailable when cooked with olive oil.",
+    steps: [
+      { step: 1, instruction: "Dice all vegetables into 2cm cubes: eggplant, zucchini, red pepper, green pepper, onion." },
+      { step: 2, instruction: "In a large pan, sauté onion and peppers in 1 tsp EVOO on medium heat for 5 min." },
+      { step: 3, instruction: "Add eggplant and zucchini. Cook 5 more minutes." },
+      { step: 4, instruction: "Add crushed tomato (or 4 diced fresh tomatoes), herbs (basil, thyme), black pepper." },
+      { step: 5, instruction: "Reduce heat to LOW. Cover and simmer 20-25 minutes until all vegetables are soft." },
+      { step: 6, instruction: "Make 2 wells in the ratatouille. Crack eggs into wells. Cover and cook 4-5 min until eggs set." },
+    ],
+    tips: ["The longer it simmers, the more nutrients become bioavailable", "Eggplant skin contains nasunin — a powerful liver-protective antioxidant, so do NOT peel", "Leftovers taste even better the next day as flavors develop"],
+    avoidMethod: "Do NOT fry the eggplant separately in oil first (traditional method) — eggplant absorbs oil like a sponge, tripling the calorie count.",
+  },
+  broth: {
+    method: "Slow simmer from scratch (or quality store-bought)",
+    whyHealthiest: "Homemade vegetable broth retains glutamine and minerals that support gut barrier integrity. Store-bought is acceptable if low-sodium and without MSG or artificial additives.",
+    steps: [
+      { step: 1, instruction: "In a large pot, combine: 2 carrots, 2 celery stalks, 1 onion, 1 leek, 2 garlic cloves (all roughly chopped)." },
+      { step: 2, instruction: "Add 1.5L cold water. Bring to a gentle boil." },
+      { step: 3, instruction: "Reduce to LOW simmer. Add bay leaf, peppercorns, parsley stems." },
+      { step: 4, instruction: "Simmer uncovered 40-60 minutes. Longer = more flavor." },
+      { step: 5, instruction: "Strain through a fine sieve. Season lightly with salt." },
+    ],
+    tips: ["Make a large batch on Sunday — freeze in 300ml portions for the week", "Save vegetable scraps (onion ends, carrot peels, celery leaves) in a freezer bag all week, then make broth", "For cream soups: blend the strained vegetables back into the broth"],
+    avoidMethod: "Avoid bouillon cubes — most contain excessive sodium, MSG, and palm oil which stresses the liver.",
+  },
+  salad_assembly: {
+    method: "Fresh assembly, no cooking required",
+    whyHealthiest: "Raw greens retain maximum folate, vitamin C, and chlorophyll — all of which are heat-sensitive. The combination with EVOO dressing ensures fat-soluble nutrient absorption.",
+    steps: [
+      { step: 1, instruction: "Wash greens thoroughly in cold water. Spin dry or pat with clean towel." },
+      { step: 2, instruction: "Tear (don't cut) leafy greens — cutting with a knife causes oxidation at the edges." },
+      { step: 3, instruction: "Arrange greens on plate. Add crackers, protein component." },
+      { step: 4, instruction: "Drizzle with 1 tbsp EVOO. Add squeeze of lemon." },
+      { step: 5, instruction: "Season with pinch of salt, black pepper. Serve immediately." },
+    ],
+    tips: ["Add EVOO just before eating — it starts oxidizing once exposed to air", "Lemon juice on greens prevents enzymatic browning and adds vitamin C", "If using avocado, add last and squeeze lemon on it to prevent browning"],
+    avoidMethod: "Do NOT use commercial salad dressings — most contain refined seed oils, sugar, and preservatives that stress the liver.",
+  },
+  no_cook: {
+    method: "No cooking — ready to eat",
+    whyHealthiest: "This item requires no cooking. Eat as-is for maximum nutritional benefit.",
+    steps: [
+      { step: 1, instruction: "Portion out the recommended serving size." },
+      { step: 2, instruction: "Enjoy as a snack between meals." },
+    ],
+    tips: ["Store in a cool, dry place", "Pre-portion into small containers for the week"],
+  },
+};
 
 // ── MENU V1: Control Plan ──
 
@@ -370,6 +557,79 @@ const V2_DAYS: DayMenu[] = [
   },
 ];
 
+/** Auto-assign cooking method based on meal content */
+function assignCooking(m: MealItem): MealItem {
+  const l = m.items.toLowerCase();
+  // Snacks / raw items
+  if (m.type === "SNACK" || l.includes("olive") || l.includes("almond") || l.includes("walnut") || l.includes("plum") || l.includes("persimmon")) {
+    return { ...m, cooking: COOK.no_cook };
+  }
+  // Salad / raw assembly lunches
+  if ((m.type === "LUNCH") && (l.includes("arugula") || l.includes("alfalfa") || l.includes("sliced tomato") || l.includes("turkey slices") || l.includes("smoked salmon"))) {
+    return { ...m, cooking: COOK.salad_assembly };
+  }
+  // Omelettes / tortilla
+  if (l.includes("omelette") || l.includes("tortilla")) {
+    return { ...m, cooking: COOK.omelette };
+  }
+  // Scramble
+  if (l.includes("scramble")) {
+    return { ...m, cooking: COOK.scramble };
+  }
+  // Ratatouille / pisto
+  if (l.includes("ratatouille") || l.includes("pisto")) {
+    return { ...m, cooking: COOK.ratatouille };
+  }
+  // Meatballs
+  if (l.includes("meatball")) {
+    return { ...m, cooking: COOK.meatballs };
+  }
+  // Garlic beef/veal
+  if (l.includes("garlic veal") || l.includes("garlic beef") || l.includes("ajillo")) {
+    return { ...m, cooking: COOK.garlic_meat };
+  }
+  // Baked fish
+  if (l.includes("baked") && (l.includes("salmon") || l.includes("tuna") || l.includes("cod") || l.includes("hake") || l.includes("sea bass"))) {
+    return { ...m, cooking: COOK.baked_fish };
+  }
+  // Stew / lentils
+  if (l.includes("stew") || l.includes("lentil")) {
+    return { ...m, cooking: COOK.stew };
+  }
+  // Pan-seared poultry
+  if (l.includes("pan-seared") || l.includes("seared") || l.includes("shredded chicken") || (l.includes("chicken") && l.includes("mushroom")) || l.includes("spiced turkey") || l.includes("honey chicken")) {
+    return { ...m, cooking: COOK.pan_seared_poultry };
+  }
+  // Roasted poultry (chicken thighs, skewers)
+  if (l.includes("skewer") || l.includes("thigh") || l.includes("roasted") || l.includes("orange")) {
+    return { ...m, cooking: COOK.pan_seared_poultry };
+  }
+  // Legume burger
+  if (l.includes("legume burger")) {
+    return { ...m, cooking: COOK.pan_seared_poultry }; // pan method
+  }
+  // Broth / cream soup
+  if (l.includes("broth") || l.includes("cream soup") || l.includes("puree") || l.includes("pumpkin")) {
+    return { ...m, cooking: COOK.broth };
+  }
+  // Eggplant mozzarella
+  if (l.includes("eggplant") && l.includes("mozzarella")) {
+    return { ...m, cooking: COOK.roasted_vegetables };
+  }
+  // Free meal
+  if (l.includes("free meal")) {
+    return m; // no cooking instructions for free meal
+  }
+  return m;
+}
+
+function applyAllCooking(days: DayMenu[]): DayMenu[] {
+  return days.map((d) => ({
+    ...d,
+    meals: d.meals.map(assignCooking),
+  }));
+}
+
 // ── Exported menu versions ──
 
 export const MENU_VERSIONS: MenuVersion[] = [
@@ -378,14 +638,14 @@ export const MENU_VERSIONS: MenuVersion[] = [
     name: "Control Plan",
     description: "Original plan — Arugula/Spinach base, classic proteins",
     startDate: "2026-02-01",
-    days: V1_DAYS,
+    days: applyAllCooking(V1_DAYS),
   },
   {
     id: "v2",
     name: "Updated Plan",
     description: "New plan — Alfalfa base, new proteins (veal, cod, sea bass)",
     startDate: "2026-04-01",
-    days: V2_DAYS,
+    days: applyAllCooking(V2_DAYS),
   },
 ];
 

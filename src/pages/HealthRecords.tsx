@@ -6,7 +6,7 @@ import {
   CheckCircle2, Trash2, Check, XCircle, Clock, Eye,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { BLOOD_TESTS, BloodTest, HealthMarker } from "@/lib/health-data";
+import { BLOOD_TESTS, BloodTest, HealthMarker, computeKeyTrends } from "@/lib/health-data";
 import { supabase } from "@/integrations/supabase/client";
 import {
   getUserProfile, getBloodTestRecords, saveBloodTestRecord,
@@ -480,6 +480,28 @@ export default function HealthRecords() {
         </button>
         <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
       </div>
+
+      {/* Critical trend alerts */}
+      {(() => {
+        const trends = computeKeyTrends(allAppliedTests);
+        const critical = trends.filter(t => t.severity === "critical" && t.direction === "up");
+        if (critical.length === 0) return null;
+        return (
+          <div className="danger-gradient rounded-xl p-4 text-destructive-foreground">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+              <div>
+                {critical.slice(0, 2).map(t => (
+                  <div key={t.marker} className="mb-1 last:mb-0">
+                    <p className="font-semibold text-sm">Critical: {t.marker} rose {Math.abs(t.changePct)}%</p>
+                    <p className="text-xs opacity-90">{t.from} → {t.to} {t.unit}. Consult your doctor for follow-up testing.</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Upload + Analyze */}
       <AnimatePresence>

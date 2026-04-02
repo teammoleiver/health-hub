@@ -1,18 +1,22 @@
 import { useState } from "react";
-import { Dumbbell, X } from "lucide-react";
+import { Dumbbell, X, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import { logExercise } from "@/lib/supabase-queries";
 import { toast } from "@/hooks/use-toast";
 
 const EXERCISE_TYPES = [
   "Treadmill Walk", "Treadmill Intervals", "Bodyweight Circuit",
-  "Gym Strength", "Outdoor Walk", "Swimming", "Other",
+  "Gym Strength", "Outdoor Walk", "Swimming", "Cycling", "Yoga", "Other",
 ];
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onLogged: () => void;
+}
+
+function formatDateForInput(d: Date): string {
+  return d.toISOString().split("T")[0];
 }
 
 export default function LogExerciseModal({ open, onClose, onLogged }: Props) {
@@ -22,9 +26,12 @@ export default function LogExerciseModal({ open, onClose, onLogged }: Props) {
   const [calories, setCalories] = useState("");
   const [isTrainingDay, setIsTrainingDay] = useState(false);
   const [notes, setNotes] = useState("");
+  const [logDate, setLogDate] = useState(formatDateForInput(new Date()));
   const [saving, setSaving] = useState(false);
 
   if (!open) return null;
+
+  const isToday = logDate === formatDateForInput(new Date());
 
   const save = async () => {
     if (!duration) {
@@ -32,6 +39,11 @@ export default function LogExerciseModal({ open, onClose, onLogged }: Props) {
       return;
     }
     setSaving(true);
+
+    // Build timestamp for the selected date
+    const d = new Date(logDate);
+    const logTimestamp = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0).toISOString();
+
     const result = await logExercise({
       exercise_type: exerciseType,
       duration_min: parseInt(duration),
@@ -39,13 +51,15 @@ export default function LogExerciseModal({ open, onClose, onLogged }: Props) {
       calories: calories ? parseInt(calories) : undefined,
       is_training_day: isTrainingDay,
       notes: notes || undefined,
+      logged_at: logTimestamp,
     });
     setSaving(false);
     if (result) {
-      toast({ title: "Exercise logged", description: `${exerciseType} — ${duration} min` });
+      toast({ title: "Exercise logged", description: `${exerciseType} — ${duration} min${!isToday ? ` on ${new Date(logDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}` });
       onLogged();
       onClose();
       setDuration(""); setSpeed(""); setCalories(""); setNotes("");
+      setLogDate(formatDateForInput(new Date()));
     }
   };
 
@@ -60,6 +74,25 @@ export default function LogExerciseModal({ open, onClose, onLogged }: Props) {
         </div>
 
         <div className="space-y-3">
+          {/* Date picker */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Calendar className="w-3 h-3" /> Date
+            </label>
+            <input
+              type="date"
+              value={logDate}
+              max={formatDateForInput(new Date())}
+              onChange={(e) => setLogDate(e.target.value)}
+              className="w-full mt-1 px-3 py-2.5 rounded-lg bg-secondary text-foreground text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {!isToday && (
+              <p className="text-[10px] text-warning mt-1 flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> Logging for: {new Date(logDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+              </p>
+            )}
+          </div>
+
           <div>
             <label className="text-xs font-medium text-muted-foreground">Exercise Type *</label>
             <select value={exerciseType} onChange={(e) => setExerciseType(e.target.value)} className="w-full mt-1 px-3 py-2.5 rounded-lg bg-secondary text-foreground text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30">
@@ -93,7 +126,7 @@ export default function LogExerciseModal({ open, onClose, onLogged }: Props) {
         </div>
 
         <button onClick={save} disabled={saving} className="w-full mt-5 py-2.5 rounded-xl bg-warning text-warning-foreground font-semibold hover:opacity-90 transition disabled:opacity-50">
-          {saving ? "Saving..." : "Log Exercise"}
+          {saving ? "Saving..." : `Log Exercise${!isToday ? ` (${new Date(logDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })})` : ""}`}
         </button>
       </motion.div>
     </div>

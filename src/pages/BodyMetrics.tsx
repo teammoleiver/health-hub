@@ -3,6 +3,7 @@ import { Scale, TrendingDown, TrendingUp, Calendar, Sun, Clock, Sunset, Moon, Ar
 import { EGYM_DATA, BLOOD_TESTS } from "@/lib/health-data";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { getWeightHistory, getAppliedBloodTestRecords } from "@/lib/supabase-queries";
+import { onSync } from "@/lib/sync-events";
 import { motion } from "framer-motion";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -132,6 +133,7 @@ export default function BodyMetrics() {
   };
 
   useEffect(() => { loadWeights(); }, []);
+  useEffect(() => onSync("weight:logged", loadWeights), []);
 
   const realEntries = weightData.filter((w) => !w.isProjection);
   const latestWeight = realEntries.length > 0 ? realEntries[realEntries.length - 1].weight : 88;

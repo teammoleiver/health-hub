@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { emitSync } from "./sync-events";
 
 // ── Helpers ──
 const today = () => new Date().toISOString().split("T")[0];
@@ -42,6 +43,7 @@ export async function upsertWaterLog(glasses: number, mlTotal?: number) {
       .select()
       .single();
     if (error) console.error("upsertWaterLog update", error);
+    if (data) emitSync("water:updated");
     return data;
   }
   const { data, error } = await supabase
@@ -50,7 +52,18 @@ export async function upsertWaterLog(glasses: number, mlTotal?: number) {
     .select()
     .single();
   if (error) console.error("upsertWaterLog insert", error);
+  if (data) emitSync("water:updated");
   return data;
+}
+
+export async function getWaterHistory(limit = 30) {
+  const { data, error } = await supabase
+    .from("water_logs")
+    .select("*")
+    .order("logged_date", { ascending: false })
+    .limit(limit);
+  if (error) console.error("getWaterHistory", error);
+  return data ?? [];
 }
 
 // ── Weight Logs ──
@@ -83,6 +96,7 @@ export async function logWeight(weightKg: number, options?: { waist_cm?: number;
     .select()
     .single();
   if (error) console.error("logWeight", error);
+  if (data) emitSync("weight:logged");
   return data;
 }
 
@@ -90,8 +104,10 @@ export async function logWeight(weightKg: number, options?: { waist_cm?: number;
 export async function logExercise(entry: TablesInsert<"exercise_logs">) {
   const { data, error } = await supabase.from("exercise_logs").insert(entry).select().single();
   if (error) console.error("logExercise", error);
-  // Auto-mark checklist
-  if (data) await upsertChecklist({ exercise_done: true });
+  if (data) {
+    await upsertChecklist({ exercise_done: true });
+    emitSync("exercise:logged");
+  }
   return data;
 }
 
@@ -117,10 +133,21 @@ export async function getMonthExerciseLogs() {
   return data ?? [];
 }
 
+export async function getAllExerciseLogs(limit = 90) {
+  const { data, error } = await supabase
+    .from("exercise_logs")
+    .select("*")
+    .order("logged_at", { ascending: false })
+    .limit(limit);
+  if (error) console.error("getAllExerciseLogs", error);
+  return data ?? [];
+}
+
 // ── Meal Logs ──
 export async function logMeal(entry: TablesInsert<"meal_logs">) {
   const { data, error } = await supabase.from("meal_logs").insert(entry).select().single();
   if (error) console.error("logMeal", error);
+  if (data) emitSync("meal:logged");
   return data;
 }
 
@@ -132,6 +159,16 @@ export async function getTodayMeals() {
     .lte("logged_at", today() + "T23:59:59")
     .order("logged_at", { ascending: true });
   if (error) console.error("getTodayMeals", error);
+  return data ?? [];
+}
+
+export async function getAllMealLogs(limit = 90) {
+  const { data, error } = await supabase
+    .from("meal_logs")
+    .select("*")
+    .order("logged_at", { ascending: false })
+    .limit(limit);
+  if (error) console.error("getAllMealLogs", error);
   return data ?? [];
 }
 
@@ -156,6 +193,7 @@ export async function upsertChecklist(updates: Partial<TablesUpdate<"daily_check
       .select()
       .single();
     if (error) console.error("upsertChecklist update", error);
+    if (data) emitSync("checklist:updated");
     return data;
   }
   const { data, error } = await supabase
@@ -164,6 +202,7 @@ export async function upsertChecklist(updates: Partial<TablesUpdate<"daily_check
     .select()
     .single();
   if (error) console.error("upsertChecklist insert", error);
+  if (data) emitSync("checklist:updated");
   return data;
 }
 

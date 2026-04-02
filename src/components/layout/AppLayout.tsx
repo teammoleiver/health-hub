@@ -1,5 +1,6 @@
 import { ReactNode, useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
+import { onSync } from "@/lib/sync-events";
 import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun, Droplets,
@@ -42,7 +43,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   const [waterMl, setWaterMl] = useState(0);
 
-  // Poll water intake for sidebar display
+  // Poll water intake for sidebar display + sync on water events
   useEffect(() => {
     const load = () => getTodayWaterLog().then((w) => {
       setWaterGlasses(w?.glasses ?? 0);
@@ -50,7 +51,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     });
     load();
     const id = setInterval(load, 10000);
-    return () => clearInterval(id);
+    const unsub = onSync("water:updated", load);
+    return () => { clearInterval(id); unsub(); };
   }, []);
 
   return (
