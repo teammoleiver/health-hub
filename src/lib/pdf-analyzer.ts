@@ -1,8 +1,9 @@
 import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorker from "pdfjs-dist/pdf.worker.min.mjs?url";
 import type { HealthMarker, BloodTest } from "./health-data";
 
-// Use the bundled worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+// Use the local bundled worker via Vite's ?url import
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 /** Extract all text from a PDF file */
 export async function extractTextFromPDF(file: File): Promise<string> {
