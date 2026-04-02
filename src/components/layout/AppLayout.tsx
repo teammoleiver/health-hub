@@ -40,12 +40,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     localStorage.setItem("ht-theme", dark ? "dark" : "light");
   }, [dark]);
 
+  const [waterMl, setWaterMl] = useState(0);
+
   // Poll water intake for sidebar display
   useEffect(() => {
-    getTodayWaterLog().then((w) => setWaterGlasses(w?.glasses ?? 0));
-    const id = setInterval(() => {
-      getTodayWaterLog().then((w) => setWaterGlasses(w?.glasses ?? 0));
-    }, 10000); // refresh every 10s
+    const load = () => getTodayWaterLog().then((w) => {
+      setWaterGlasses(w?.glasses ?? 0);
+      setWaterMl(w?.ml_total ?? (w?.glasses ?? 0) * 250);
+    });
+    load();
+    const id = setInterval(load, 10000);
     return () => clearInterval(id);
   }, []);
 
@@ -103,15 +107,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   <Droplets className="w-4 h-4 text-blue-400" />
                   <span className="text-xs font-medium text-sidebar-foreground">Water</span>
                 </div>
-                <span className={`text-xs font-bold ${waterGlasses >= 12 ? "text-blue-400" : "text-sidebar-foreground/70"}`}>
-                  {waterGlasses}/12
+                <span className={`text-xs font-bold ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/70"}`}>
+                  {(waterMl / 1000).toFixed(1)}L
                 </span>
               </div>
               <div className="h-1.5 bg-sidebar-border rounded-full overflow-hidden">
                 <motion.div
                   className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500"
                   initial={false}
-                  animate={{ width: `${Math.min((waterGlasses / 12) * 100, 100)}%` }}
+                  animate={{ width: `${Math.min((waterMl / 3000) * 100, 100)}%` }}
                   transition={{ type: "spring", stiffness: 300, damping: 25 }}
                 />
               </div>
@@ -119,9 +123,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           ) : (
             <div className="flex flex-col items-center gap-1">
               <div className="relative">
-                <Droplets className={`w-4 h-4 ${waterGlasses >= 12 ? "text-blue-400" : "text-sidebar-foreground/50"}`} />
+                <Droplets className={`w-4 h-4 ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/50"}`} />
               </div>
-              <span className="text-[9px] font-bold text-sidebar-foreground/60">{waterGlasses}</span>
+              <span className="text-[9px] font-bold text-sidebar-foreground/60">{(waterMl / 1000).toFixed(1)}L</span>
             </div>
           )}
         </Link>

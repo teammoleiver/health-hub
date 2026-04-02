@@ -31,12 +31,13 @@ export async function getTodayWaterLog() {
   return data;
 }
 
-export async function upsertWaterLog(glasses: number) {
+export async function upsertWaterLog(glasses: number, mlTotal?: number) {
+  const ml = mlTotal ?? glasses * 250;
   const existing = await getTodayWaterLog();
   if (existing) {
     const { data, error } = await supabase
       .from("water_logs")
-      .update({ glasses, ml_total: glasses * 250 })
+      .update({ glasses, ml_total: ml })
       .eq("id", existing.id)
       .select()
       .single();
@@ -45,7 +46,7 @@ export async function upsertWaterLog(glasses: number) {
   }
   const { data, error } = await supabase
     .from("water_logs")
-    .insert({ glasses, ml_total: glasses * 250, logged_date: today() })
+    .insert({ glasses, ml_total: ml, logged_date: today() })
     .select()
     .single();
   if (error) console.error("upsertWaterLog insert", error);

@@ -205,7 +205,7 @@ export default function Dashboard() {
       {/* Today At a Glance */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Droplets, label: "Water", value: `${waterGlasses}/12`, sub: "glasses", color: "text-blue-500" },
+          { icon: Droplets, label: "Water", value: `${(waterGlasses * 250 / 1000).toFixed(1)}L`, sub: "of 3L", color: "text-blue-500" },
           { icon: Utensils, label: "Meals", value: `${mealsLogged}/4`, sub: "logged", color: "text-primary" },
           { icon: Dumbbell, label: "Exercise", value: exerciseDone ? "Done" : "Pending", sub: "today", color: exerciseDone ? "text-success" : "text-muted-foreground" },
           { icon: Scale, label: "Weight", value: `${currentWeight}`, sub: "kg", color: "text-foreground" },

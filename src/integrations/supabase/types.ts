@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_snapshots: {
+        Row: {
+          id: string
+          snapshot_date: string
+          water_ml: number
+          water_glasses: number
+          water_goal_met: boolean
+          meals_logged: number
+          total_calories: number
+          exercise_done: boolean
+          exercise_type: string | null
+          exercise_duration_min: number | null
+          exercise_calories: number | null
+          weight_kg: number | null
+          bmi: number | null
+          fasting_completed: boolean
+          fasting_hours: number | null
+          checklist_completed: number
+          checklist_total: number
+          checklist_pct: number
+          no_alcohol: boolean
+          no_fried_food: boolean
+          health_score: number | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          snapshot_date: string
+          water_ml?: number
+          water_glasses?: number
+          water_goal_met?: boolean
+          meals_logged?: number
+          total_calories?: number
+          exercise_done?: boolean
+          exercise_type?: string | null
+          exercise_duration_min?: number | null
+          exercise_calories?: number | null
+          weight_kg?: number | null
+          bmi?: number | null
+          fasting_completed?: boolean
+          fasting_hours?: number | null
+          checklist_completed?: number
+          checklist_total?: number
+          checklist_pct?: number
+          no_alcohol?: boolean
+          no_fried_food?: boolean
+          health_score?: number | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          snapshot_date?: string
+          water_ml?: number
+          water_glasses?: number
+          water_goal_met?: boolean
+          meals_logged?: number
+          total_calories?: number
+          exercise_done?: boolean
+          exercise_type?: string | null
+          exercise_duration_min?: number | null
+          exercise_calories?: number | null
+          weight_kg?: number | null
+          bmi?: number | null
+          fasting_completed?: boolean
+          fasting_hours?: number | null
+          checklist_completed?: number
+          checklist_total?: number
+          checklist_pct?: number
+          no_alcohol?: boolean
+          no_fried_food?: boolean
+          health_score?: number | null
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       blood_test_records: {
         Row: {
           id: string

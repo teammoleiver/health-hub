@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppLayout from "@/components/layout/AppLayout";
+import { scheduleEndOfDaySnapshot, checkMissedSnapshot } from "@/lib/daily-snapshot";
 import Dashboard from "./pages/Dashboard";
 import HealthRecords from "./pages/HealthRecords";
 import FastingModule from "./pages/FastingModule";
@@ -17,7 +19,14 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  // Schedule end-of-day snapshot at 23:59 & check for missed yesterday
+  useEffect(() => {
+    scheduleEndOfDaySnapshot();
+    checkMissedSnapshot();
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -40,6 +49,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
