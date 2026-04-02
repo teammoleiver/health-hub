@@ -3,8 +3,17 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import AppLayout from "@/components/layout/AppLayout";
+import Dashboard from "./pages/Dashboard";
+import HealthRecords from "./pages/HealthRecords";
+import FastingModule from "./pages/FastingModule";
+import NutritionModule from "./pages/NutritionModule";
+import ExerciseModule from "./pages/ExerciseModule";
+import BodyMetrics from "./pages/BodyMetrics";
+import GoalsModule from "./pages/GoalsModule";
+import AssistantModule from "./pages/AssistantModule";
+import SettingsModule from "./pages/SettingsModule";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -14,11 +23,20 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/health" element={<HealthRecords />} />
+            <Route path="/fasting" element={<FastingModule />} />
+            <Route path="/nutrition" element={<NutritionModule />} />
+            <Route path="/exercise" element={<ExerciseModule />} />
+            <Route path="/body" element={<BodyMetrics />} />
+            <Route path="/goals" element={<GoalsModule />} />
+            <Route path="/assistant" element={<AssistantModule />} />
+            <Route path="/settings" element={<SettingsModule />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AppLayout>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
