@@ -1,36 +1,53 @@
-import { useState, useRef } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, ChevronDown, TrendingUp, TrendingDown, AlertTriangle,
-  FileText, Upload, Loader2, X,
+  FileText, Upload, Loader2, X, Brain, ShieldAlert, Lightbulb,
+  CheckCircle2, Trash2,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { BLOOD_TESTS, BloodTest, HealthMarker } from "@/lib/health-data";
 import { supabase } from "@/integrations/supabase/client";
-import { getUserProfile } from "@/lib/supabase-queries";
+import { getUserProfile, getBloodTestRecords, saveBloodTestRecord, deleteBloodTestRecord } from "@/lib/supabase-queries";
+import { analyzePDF } from "@/lib/pdf-analyzer";
 import { toast } from "@/hooks/use-toast";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 
-const categories = ["All", "Liver", "Lipids", "Blood", "Metabolic", "Kidney", "Cardiovascular", "Electrolytes", "Thyroid", "Spirometry"];
+const categories = ["All", "Liver", "Lipids", "Blood", "Metabolic", "Kidney", "Cardiovascular", "Electrolytes", "Thyroid", "Spirometry", "Hormones", "Inflammation", "Other"];
 
-function getMarkerDelta(markerName: string): { from: number; to: number; change: number; pct: number } | null {
-  const bt1 = BLOOD_TESTS[0].markers.find((m) => m.testName === markerName);
-  const bt2 = BLOOD_TESTS[1].markers.find((m) => m.testName === markerName);
-  if (!bt1 || !bt2) return null;
-  const change = bt2.value - bt1.value;
-  const pct = (change / bt1.value) * 100;
-  return { from: bt1.value, to: bt2.value, change, pct };
+interface AnalysisResult {
+  summary: string;
+  recommendations: string[];
+  riskFactors: string[];
+  bloodTest: BloodTest;
 }
 
-function MarkerTrendChart({ markerName }: { markerName: string }) {
-  const data = BLOOD_TESTS.map((bt) => {
+function getAllTests(dbTests: BloodTest[]): BloodTest[] {
+  // Merge hardcoded + DB tests, sorted by date
+  const all = [...BLOOD_TESTS, ...dbTests];
+  all.sort((a, b) => a.date.localeCompare(b.date));
+  return all;
+}
+
+function getMarkerDelta(allTests: BloodTest[], markerName: string): { from: number; to: number; change: number; pct: number } | null {
+  if (allTests.length < 2) return null;
+  const prev = allTests[allTests.length - 2].markers.find((m) => m.testName === markerName);
+  const curr = allTests[allTests.length - 1].markers.find((m) => m.testName === markerName);
+  if (!prev || !curr) return null;
+  const change = curr.value - prev.value;
+  const pct = prev.value !== 0 ? (change / prev.value) * 100 : 0;
+  return { from: prev.value, to: curr.value, change, pct };
+}
+
+function MarkerTrendChart({ markerName, allTests }: { markerName: string; allTests: BloodTest[] }) {
+  const data = allTests.map((bt) => {
     const m = bt.markers.find((x) => x.testName === markerName);
-    return { date: bt.date.slice(5), value: m?.value ?? null };
-  }).filter((d) => d.value !== null);
+    return m ? { date: bt.date.slice(5), value: m.value } : null;
+  }).filter(Boolean) as { date: string; value: number }[];
   if (data.length < 2) return null;
-  const marker = BLOOD_TESTS[1].markers.find((m) => m.testName === markerName) ?? BLOOD_TESTS[0].markers.find((m) => m.testName === markerName);
+  const latest = allTests[allTests.length - 1].markers.find((m) => m.testName === markerName) ?? allTests[0].markers.find((m) => m.testName === markerName);
   return (
     <div className="h-24 mt-2">
       <ResponsiveContainer width="100%" height="100%">
@@ -38,15 +55,17 @@ function MarkerTrendChart({ markerName }: { markerName: string }) {
           <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
           <YAxis hide />
           <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-          {marker?.referenceMax && <ReferenceLine y={marker.referenceMax} stroke="hsl(var(--destructive))" strokeDasharray="3 3" />}
-          <Line type="monotone" dataKey="value" stroke={marker?.status === "critical" || marker?.status === "high" ? "hsl(var(--destructive))" : marker?.status === "borderline" || marker?.status === "low" ? "hsl(var(--warning))" : "hsl(var(--primary))"} strokeWidth={2} dot={{ r: 4 }} />
+          {latest?.referenceMax && <ReferenceLine y={latest.referenceMax} stroke="hsl(var(--destructive))" strokeDasharray="3 3" />}
+          <Line type="monotone" dataKey="value" stroke={latest?.status === "critical" || latest?.status === "high" ? "hsl(var(--destructive))" : latest?.status === "borderline" || latest?.status === "low" ? "hsl(var(--warning))" : "hsl(var(--primary))"} strokeWidth={2} dot={{ r: 4 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>
   );
 }
 
-function TestDateCard({ test, isExpanded, onToggle }: { test: BloodTest; isExpanded: boolean; onToggle: () => void }) {
+function TestDateCard({ test, allTests, isExpanded, onToggle, isFromDB, onDelete }: {
+  test: BloodTest; allTests: BloodTest[]; isExpanded: boolean; onToggle: () => void; isFromDB?: boolean; onDelete?: () => void;
+}) {
   const [filterCat, setFilterCat] = useState("All");
   const filtered = filterCat === "All" ? test.markers : test.markers.filter((m) => m.category === filterCat);
   const alertCount = test.markers.filter((m) => m.status === "critical" || m.status === "high").length;
@@ -58,13 +77,27 @@ function TestDateCard({ test, isExpanded, onToggle }: { test: BloodTest; isExpan
         <div className="flex items-center gap-3">
           <Calendar className="w-5 h-5 text-primary" />
           <div className="text-left">
-            <p className="font-display font-semibold text-foreground">{new Date(test.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
+            <p className="font-display font-semibold text-foreground">
+              {new Date(test.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+            </p>
             <p className="text-xs text-muted-foreground">{test.source}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {isFromDB && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">AI Analyzed</span>
+          )}
           {alertCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">{alertCount} alert{alertCount > 1 ? "s" : ""}</span>}
-          <span className="text-xs text-muted-foreground">BMI {test.bmi} · {test.weightKg}kg</span>
+          {test.bmi ? <span className="text-xs text-muted-foreground">BMI {test.bmi} · {test.weightKg}kg</span> : null}
+          {isFromDB && onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="p-1 text-muted-foreground hover:text-destructive transition"
+              title="Delete record"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
           <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
         </div>
       </button>
@@ -77,7 +110,7 @@ function TestDateCard({ test, isExpanded, onToggle }: { test: BloodTest; isExpan
           </div>
           <div className="divide-y divide-border">
             {filtered.map((marker) => {
-              const delta = getMarkerDelta(marker.testName);
+              const delta = getMarkerDelta(allTests, marker.testName);
               return (
                 <div key={marker.testName} className="p-4">
                   <div className="flex items-center justify-between mb-1">
@@ -99,7 +132,7 @@ function TestDateCard({ test, isExpanded, onToggle }: { test: BloodTest; isExpan
                       </span>
                     )}
                   </div>
-                  <MarkerTrendChart markerName={marker.testName} />
+                  <MarkerTrendChart markerName={marker.testName} allTests={allTests} />
                 </div>
               );
             })}
@@ -110,23 +143,170 @@ function TestDateCard({ test, isExpanded, onToggle }: { test: BloodTest; isExpan
   );
 }
 
+function AnalysisPanel({ result, onClose }: { result: AnalysisResult; onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="glass-card rounded-xl overflow-hidden border-2 border-primary/30"
+    >
+      <div className="bg-primary/5 p-4 flex items-center justify-between border-b border-border">
+        <div className="flex items-center gap-2">
+          <Brain className="w-5 h-5 text-primary" />
+          <h3 className="font-display font-semibold text-foreground">AI Analysis Results</h3>
+        </div>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Summary */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <FileText className="w-4 h-4 text-primary" />
+            Summary
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">{result.summary}</p>
+        </div>
+
+        {/* Markers overview */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <CheckCircle2 className="w-4 h-4 text-primary" />
+            {result.bloodTest.markers.length} Markers Extracted
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {result.bloodTest.markers
+              .filter((m) => m.status === "critical" || m.status === "high")
+              .map((m) => (
+                <span key={m.testName} className="text-xs px-2 py-1 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+                  {m.testName}: {m.value} {m.unit}
+                </span>
+              ))}
+            {result.bloodTest.markers
+              .filter((m) => m.status === "low")
+              .map((m) => (
+                <span key={m.testName} className="text-xs px-2 py-1 rounded-full bg-warning/10 text-warning border border-warning/20">
+                  {m.testName}: {m.value} {m.unit}
+                </span>
+              ))}
+            {result.bloodTest.markers
+              .filter((m) => m.status === "normal" || m.status === "borderline")
+              .length > 0 && (
+              <span className="text-xs px-2 py-1 rounded-full bg-success/10 text-success border border-success/20">
+                {result.bloodTest.markers.filter((m) => m.status === "normal" || m.status === "borderline").length} markers normal
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Risk Factors */}
+        {result.riskFactors.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <ShieldAlert className="w-4 h-4 text-destructive" />
+              Risk Factors
+            </div>
+            <div className="space-y-1.5">
+              {result.riskFactors.map((r, i) => (
+                <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
+                  <span>{r}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recommendations */}
+        {result.recommendations.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Lightbulb className="w-4 h-4 text-warning" />
+              Recommendations
+            </div>
+            <div className="space-y-1.5">
+              {result.recommendations.map((r, i) => (
+                <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <span className="text-primary font-bold shrink-0">{i + 1}.</span>
+                  <span>{r}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function HealthRecords() {
-  const [expandedTest, setExpandedTest] = useState<string | null>("bt2");
+  const [expandedTest, setExpandedTest] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState("");
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [dbTests, setDbTests] = useState<BloodTest[]>([]);
+  const [dbRecordIds, setDbRecordIds] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Load saved blood tests from Supabase
+  useEffect(() => {
+    loadDbTests();
+  }, []);
+
+  const loadDbTests = async () => {
+    try {
+      const records = await getBloodTestRecords();
+      const tests: BloodTest[] = records.map((r: any) => ({
+        id: `db_${r.id}`,
+        date: r.test_date,
+        source: r.source,
+        weightKg: Number(r.weight_kg) || 0,
+        bmi: Number(r.bmi) || 0,
+        markers: (r.markers as any[] || []).map((m: any) => ({
+          testName: m.testName,
+          value: Number(m.value),
+          unit: m.unit,
+          referenceMin: m.referenceMin != null ? Number(m.referenceMin) : undefined,
+          referenceMax: m.referenceMax != null ? Number(m.referenceMax) : undefined,
+          status: m.status || "normal",
+          category: m.category || "Other",
+        })),
+      }));
+      const idMap: Record<string, string> = {};
+      records.forEach((r: any) => { idMap[`db_${r.id}`] = r.id; });
+      setDbRecordIds(idMap);
+      setDbTests(tests);
+      // Auto-expand newest
+      if (tests.length > 0) {
+        const all = getAllTests(tests);
+        setExpandedTest(all[all.length - 1].id);
+      }
+    } catch (err) {
+      // Table might not exist yet — that's OK
+      console.warn("Could not load blood test records:", err);
+    }
+  };
+
+  const allTests = getAllTests(dbTests);
+
+  // Compute alerts from the two most recent tests
   const alerts: { marker: string; pct: number }[] = [];
-  BLOOD_TESTS[1].markers.forEach((m) => {
-    const delta = getMarkerDelta(m.testName);
-    if (delta && delta.pct > 20) alerts.push({ marker: m.testName, pct: delta.pct });
-  });
+  if (allTests.length >= 2) {
+    const latest = allTests[allTests.length - 1];
+    latest.markers.forEach((m) => {
+      const delta = getMarkerDelta(allTests, m.testName);
+      if (delta && delta.pct > 20) alerts.push({ marker: m.testName, pct: delta.pct });
+    });
+  }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
       setUploadedFile(file);
+      setAnalysisResult(null);
     } else {
       toast({ title: "Invalid file", description: "Please select a PDF file", variant: "destructive" });
     }
@@ -146,16 +326,65 @@ export default function HealthRecords() {
   };
 
   const handleAnalyze = async () => {
+    if (!uploadedFile) return;
+
     const profile = await getUserProfile();
     if (!profile?.openai_api_key) {
       toast({ title: "API key required", description: "Configure your OpenAI API key in Settings first", variant: "destructive" });
       return;
     }
+
     setAnalyzing(true);
-    setTimeout(() => {
+    setAnalysisResult(null);
+
+    try {
+      setAnalysisProgress("Extracting text from PDF...");
+      // Small delay for UX
+      await new Promise((r) => setTimeout(r, 300));
+
+      setAnalysisProgress("Analyzing with AI — this may take 10-20 seconds...");
+      const result = await analyzePDF(uploadedFile, profile.openai_api_key);
+
+      setAnalysisResult(result);
+      setAnalysisProgress("");
+
+      // Save to Supabase
+      setAnalysisProgress("Saving to database...");
+      const storagePath = `${Date.now()}_${uploadedFile.name}`;
+      // Upload PDF if not already uploaded
+      await supabase.storage.from("health-records").upload(storagePath, uploadedFile).catch(() => {});
+
+      await saveBloodTestRecord({
+        test_date: result.bloodTest.date,
+        source: result.bloodTest.source,
+        weight_kg: result.bloodTest.weightKg || null,
+        bmi: result.bloodTest.bmi || null,
+        markers: result.bloodTest.markers,
+        summary: result.summary,
+        recommendations: result.recommendations,
+        risk_factors: result.riskFactors,
+        pdf_storage_path: storagePath,
+      });
+
+      // Reload from DB
+      await loadDbTests();
+
+      toast({ title: "Analysis complete", description: `Extracted ${result.bloodTest.markers.length} markers from your report` });
+    } catch (err: any) {
+      console.error("Analysis failed:", err);
+      toast({ title: "Analysis failed", description: err.message || "An error occurred", variant: "destructive" });
+    } finally {
       setAnalyzing(false);
-      toast({ title: "Coming soon", description: "AI-powered blood test extraction will be available in a future update" });
-    }, 2000);
+      setAnalysisProgress("");
+    }
+  };
+
+  const handleDeleteRecord = async (testId: string) => {
+    const dbId = dbRecordIds[testId];
+    if (!dbId) return;
+    await deleteBloodTestRecord(dbId);
+    await loadDbTests();
+    toast({ title: "Record deleted" });
   };
 
   return (
@@ -170,7 +399,7 @@ export default function HealthRecords() {
 
       {/* Upload Preview */}
       {uploadedFile && (
-        <div className="glass-card rounded-xl p-4 space-y-3">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <FileText className="w-8 h-8 text-primary" />
@@ -179,18 +408,25 @@ export default function HealthRecords() {
                 <p className="text-xs text-muted-foreground">{(uploadedFile.size / 1024).toFixed(0)} KB</p>
               </div>
             </div>
-            <button onClick={() => setUploadedFile(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            <button onClick={() => { setUploadedFile(null); setAnalysisResult(null); }} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleUpload} disabled={uploading} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50 flex items-center justify-center gap-2">
+            <button onClick={handleUpload} disabled={uploading || analyzing} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50 flex items-center justify-center gap-2">
               {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</> : <><Upload className="w-4 h-4" /> Upload to Storage</>}
             </button>
-            <button onClick={handleAnalyze} disabled={analyzing} className="flex-1 py-2 rounded-lg bg-secondary text-foreground text-sm font-medium hover:bg-accent transition disabled:opacity-50 flex items-center justify-center gap-2">
-              {analyzing ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing...</> : "🤖 Analyze with AI"}
+            <button onClick={handleAnalyze} disabled={analyzing || uploading} className="flex-1 py-2 rounded-lg bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-sm font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2">
+              {analyzing ? <><Loader2 className="w-4 h-4 animate-spin" /> {analysisProgress || "Analyzing..."}</> : <><Brain className="w-4 h-4" /> Analyze with AI</>}
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
+
+      {/* AI Analysis Results */}
+      <AnimatePresence>
+        {analysisResult && (
+          <AnalysisPanel result={analysisResult} onClose={() => setAnalysisResult(null)} />
+        )}
+      </AnimatePresence>
 
       {/* Auto-alerts */}
       {alerts.length > 0 && (
@@ -209,8 +445,16 @@ export default function HealthRecords() {
 
       {/* Test Dates */}
       <div className="space-y-4">
-        {[...BLOOD_TESTS].reverse().map((test) => (
-          <TestDateCard key={test.id} test={test} isExpanded={expandedTest === test.id} onToggle={() => setExpandedTest(expandedTest === test.id ? null : test.id)} />
+        {[...allTests].reverse().map((test) => (
+          <TestDateCard
+            key={test.id}
+            test={test}
+            allTests={allTests}
+            isExpanded={expandedTest === test.id}
+            onToggle={() => setExpandedTest(expandedTest === test.id ? null : test.id)}
+            isFromDB={test.id.startsWith("db_")}
+            onDelete={test.id.startsWith("db_") ? () => handleDeleteRecord(test.id) : undefined}
+          />
         ))}
       </div>
     </div>

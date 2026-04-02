@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      blood_test_records: {
+        Row: {
+          id: string
+          test_date: string
+          source: string
+          weight_kg: number | null
+          bmi: number | null
+          markers: Json
+          summary: string | null
+          recommendations: Json
+          risk_factors: Json
+          pdf_storage_path: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          test_date: string
+          source?: string
+          weight_kg?: number | null
+          bmi?: number | null
+          markers?: Json
+          summary?: string | null
+          recommendations?: Json
+          risk_factors?: Json
+          pdf_storage_path?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          test_date?: string
+          source?: string
+          weight_kg?: number | null
+          bmi?: number | null
+          markers?: Json
+          summary?: string | null
+          recommendations?: Json
+          risk_factors?: Json
+          pdf_storage_path?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       ai_chat_history: {
         Row: {
           content: string

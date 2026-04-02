@@ -167,15 +167,26 @@ export const KEY_TRENDS = [
   { marker: "Cholesterol", from: 212, to: 197, unit: "mg/dL", change: -15, changePct: -7.1, direction: "down" as const, severity: "improved" as const },
 ];
 
-export function getHealthScore(): number {
-  // Simplified scoring: starts at 100, deductions for issues
+export function getHealthScore(allTests?: BloodTest[]): number {
+  const tests = allTests && allTests.length > 0 ? allTests : BLOOD_TESTS;
+  const latest = tests[tests.length - 1];
   let score = 100;
-  score -= 15; // ALT critical
-  score -= 10; // BMI obese
-  score -= 5; // weight gain
-  score -= 8; // BioAge gap (48 vs 33)
-  score -= 3; // low MCV persistent
-  score -= 2; // spirometry concern
+
+  // Dynamic deductions based on actual markers
+  for (const m of latest.markers) {
+    if (m.status === "critical") score -= 15;
+    else if (m.status === "high") score -= 5;
+    else if (m.status === "low") score -= 3;
+    else if (m.status === "borderline") score -= 2;
+  }
+
+  // BMI deduction
+  if (latest.bmi >= 30) score -= 10;
+  else if (latest.bmi >= 25) score -= 5;
+
+  // BioAge gap (static for now)
+  score -= 8;
+
   return Math.max(0, Math.min(100, score));
 }
 
@@ -218,9 +229,81 @@ export function getFastingStatus() {
   }
 }
 
-export function getMotivationalMessage(): string {
-  const score = getHealthScore();
+export function getMotivationalMessage(allTests?: BloodTest[]): string {
+  const score = getHealthScore(allTests);
   if (score < 50) return "Your health needs attention, but every step forward counts. Focus on what you can control today.";
   if (score < 70) return "You're making progress! Keep up with your fasting window and gym routine.";
   return "Great work, Saleh! Your dedication is showing in the numbers.";
+}
+
+export interface KeyTrend {
+  marker: string;
+  from: number;
+  to: number;
+  unit: string;
+  change: number;
+  changePct: number;
+  direction: "up" | "down";
+  severity: "critical" | "improved" | "warning";
+}
+
+export function computeKeyTrends(allTests?: BloodTest[]): KeyTrend[] {
+  const tests = allTests && allTests.length >= 2 ? allTests : BLOOD_TESTS;
+  if (tests.length < 2) return KEY_TRENDS;
+
+  const prev = tests[tests.length - 2];
+  const curr = tests[tests.length - 1];
+  const trends: KeyTrend[] = [];
+
+  // Weight/BMI trends
+  if (prev.weightKg && curr.weightKg && prev.weightKg > 0) {
+    const change = curr.weightKg - prev.weightKg;
+    const pct = (change / prev.weightKg) * 100;
+    trends.push({
+      marker: "Weight",
+      from: prev.weightKg, to: curr.weightKg, unit: "kg",
+      change, changePct: parseFloat(pct.toFixed(1)),
+      direction: change > 0 ? "up" : "down",
+      severity: Math.abs(pct) > 3 ? "critical" : change < 0 ? "improved" : "warning",
+    });
+  }
+  if (prev.bmi && curr.bmi && prev.bmi > 0) {
+    const change = curr.bmi - prev.bmi;
+    const pct = (change / prev.bmi) * 100;
+    trends.push({
+      marker: "BMI",
+      from: prev.bmi, to: curr.bmi, unit: "",
+      change: parseFloat(change.toFixed(2)), changePct: parseFloat(pct.toFixed(1)),
+      direction: change > 0 ? "up" : "down",
+      severity: curr.bmi >= 30 ? "critical" : change < 0 ? "improved" : "warning",
+    });
+  }
+
+  // Marker trends — find common markers that changed significantly
+  for (const cm of curr.markers) {
+    const pm = prev.markers.find((m) => m.testName === cm.testName);
+    if (!pm || pm.value === 0) continue;
+    const change = cm.value - pm.value;
+    const pct = (change / pm.value) * 100;
+    if (Math.abs(pct) < 5) continue; // skip small changes
+    trends.push({
+      marker: cm.testName,
+      from: pm.value, to: cm.value, unit: cm.unit,
+      change: parseFloat(change.toFixed(1)),
+      changePct: parseFloat(pct.toFixed(1)),
+      direction: change > 0 ? "up" : "down",
+      severity: cm.status === "critical" || (pct > 20 && (cm.status === "high" || cm.status === "critical"))
+        ? "critical"
+        : pct < -10 ? "improved" : "warning",
+    });
+  }
+
+  // Sort: critical first, then by absolute change %
+  trends.sort((a, b) => {
+    if (a.severity === "critical" && b.severity !== "critical") return -1;
+    if (b.severity === "critical" && a.severity !== "critical") return 1;
+    return Math.abs(b.changePct) - Math.abs(a.changePct);
+  });
+
+  return trends.slice(0, 7); // Top 7 trends
 }

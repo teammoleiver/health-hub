@@ -255,6 +255,51 @@ export async function updateGoal(id: string, updates: TablesUpdate<"goals">) {
   return data;
 }
 
+// ── Blood Test Records ──
+export async function getBloodTestRecords() {
+  const { data, error } = await supabase
+    .from("blood_test_records")
+    .select("*")
+    .order("test_date", { ascending: true });
+  if (error) console.error("getBloodTestRecords", error);
+  return data ?? [];
+}
+
+export async function saveBloodTestRecord(record: {
+  test_date: string;
+  source: string;
+  weight_kg?: number | null;
+  bmi?: number | null;
+  markers: any;
+  summary?: string;
+  recommendations?: string[];
+  risk_factors?: string[];
+  pdf_storage_path?: string;
+}) {
+  const { data, error } = await supabase
+    .from("blood_test_records")
+    .insert({
+      test_date: record.test_date,
+      source: record.source,
+      weight_kg: record.weight_kg,
+      bmi: record.bmi,
+      markers: record.markers,
+      summary: record.summary,
+      recommendations: record.recommendations ?? [],
+      risk_factors: record.risk_factors ?? [],
+      pdf_storage_path: record.pdf_storage_path,
+    })
+    .select()
+    .single();
+  if (error) console.error("saveBloodTestRecord", error);
+  return data;
+}
+
+export async function deleteBloodTestRecord(id: string) {
+  const { error } = await supabase.from("blood_test_records").delete().eq("id", id);
+  if (error) console.error("deleteBloodTestRecord", error);
+}
+
 // ── Checklist Stats ──
 export async function getChecklistStats() {
   const { data, error } = await supabase

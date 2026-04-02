@@ -7,12 +7,13 @@ import {
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
-  USER_PROFILE, KEY_TRENDS, getHealthScore,
-  getFastingStatus, getMotivationalMessage,
+  USER_PROFILE, BLOOD_TESTS, KEY_TRENDS, getHealthScore,
+  getFastingStatus, getMotivationalMessage, computeKeyTrends,
+  type BloodTest, type KeyTrend,
 } from "@/lib/health-data";
 import {
   getTodayWaterLog, getTodayMeals, getTodayExercise, getLatestWeight,
-  getTodayChecklist, upsertChecklist,
+  getTodayChecklist, upsertChecklist, getBloodTestRecords,
 } from "@/lib/supabase-queries";
 import profilePhoto from "@/assets/profile-photo.jpg";
 import { Link } from "react-router-dom";
@@ -45,8 +46,11 @@ const checklistItems: { key: ChecklistKey; label: string; emoji: string }[] = [
 export default function Dashboard() {
   const time = useCurrentTime();
   const fasting = getFastingStatus();
-  const healthScore = getHealthScore();
-  const motivation = getMotivationalMessage();
+
+  const [allTests, setAllTests] = useState<BloodTest[]>(BLOOD_TESTS);
+  const [trends, setTrends] = useState<KeyTrend[]>(KEY_TRENDS);
+  const healthScore = getHealthScore(allTests);
+  const motivation = getMotivationalMessage(allTests);
 
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [mealsLogged, setMealsLogged] = useState(0);
@@ -59,6 +63,36 @@ export default function Dashboard() {
   const [weightModal, setWeightModal] = useState(false);
   const [exerciseModal, setExerciseModal] = useState(false);
   const [mealModal, setMealModal] = useState(false);
+
+  // Load blood test records from DB
+  useEffect(() => {
+    (async () => {
+      try {
+        const records = await getBloodTestRecords();
+        const dbTests: BloodTest[] = records.map((r: any) => ({
+          id: `db_${r.id}`,
+          date: r.test_date,
+          source: r.source,
+          weightKg: Number(r.weight_kg) || 0,
+          bmi: Number(r.bmi) || 0,
+          markers: (r.markers as any[] || []).map((m: any) => ({
+            testName: m.testName,
+            value: Number(m.value),
+            unit: m.unit,
+            referenceMin: m.referenceMin != null ? Number(m.referenceMin) : undefined,
+            referenceMax: m.referenceMax != null ? Number(m.referenceMax) : undefined,
+            status: m.status || "normal",
+            category: m.category || "Other",
+          })),
+        }));
+        const merged = [...BLOOD_TESTS, ...dbTests].sort((a, b) => a.date.localeCompare(b.date));
+        setAllTests(merged);
+        setTrends(computeKeyTrends(merged));
+      } catch {
+        // DB table may not exist yet
+      }
+    })();
+  }, []);
 
   const loadData = async () => {
     const [water, meals, exercise, weight, cl] = await Promise.all([
@@ -113,16 +147,22 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Critical Alert */}
-      <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="danger-gradient rounded-xl p-4 text-destructive-foreground">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 animate-pulse-glow" />
-          <div>
-            <p className="font-semibold text-sm">Critical: ALT rose 83% in 52 days</p>
-            <p className="text-xs opacity-90 mt-1">55 → 101 UI/L (Feb 4 → Mar 27). Immediate lifestyle intervention needed. Consult Dr. Pujol Ruiz for follow-up testing.</p>
+      {/* Critical Alert — dynamic from trends */}
+      {trends.filter(t => t.severity === "critical" && t.direction === "up").length > 0 && (
+        <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="danger-gradient rounded-xl p-4 text-destructive-foreground">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 animate-pulse-glow" />
+            <div>
+              {trends.filter(t => t.severity === "critical" && t.direction === "up").slice(0, 1).map(t => (
+                <div key={t.marker}>
+                  <p className="font-semibold text-sm">Critical: {t.marker} rose {Math.abs(t.changePct)}%</p>
+                  <p className="text-xs opacity-90 mt-1">{t.from} → {t.to} {t.unit}. Immediate lifestyle intervention needed. Consult your doctor for follow-up testing.</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
 
       {/* Health Score + Fasting */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -200,16 +240,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Trend Comparison */}
+      {/* Trend Comparison — dynamic */}
       <div className="glass-card rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display font-semibold text-foreground">
-            Trend: Feb 4 → Mar 27 <span className="text-xs text-muted-foreground font-normal">(52 days)</span>
+            Trend{allTests.length >= 2 && (
+              <span className="text-xs text-muted-foreground font-normal ml-1">
+                {new Date(allTests[allTests.length - 2].date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} → {new Date(allTests[allTests.length - 1].date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+              </span>
+            )}
           </h3>
           <Link to="/health" className="text-xs text-primary flex items-center gap-1 hover:underline">View all <ArrowRight className="w-3 h-3" /></Link>
         </div>
         <div className="space-y-3">
-          {KEY_TRENDS.map((t) => (
+          {trends.map((t) => (
             <div key={t.marker} className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
                 {t.direction === "up" && t.severity === "critical" ? <TrendingUp className="w-4 h-4 text-destructive shrink-0" /> : t.direction === "down" ? <TrendingDown className="w-4 h-4 text-success shrink-0" /> : <TrendingUp className="w-4 h-4 text-warning shrink-0" />}
