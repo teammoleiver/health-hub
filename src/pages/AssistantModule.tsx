@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Send, Bot, User, Trash2, Loader2 } from "lucide-react";
-import { getChatHistory, saveChatMessage, clearChatHistory, getTodayWaterLog, getTodayMeals, getTodayExercise, getLatestWeight } from "@/lib/supabase-queries";
-import { getFastingStatus } from "@/lib/health-data";
+import { getChatHistory, saveChatMessage } from "@/lib/supabase-queries";
+import { clearChatHistory } from "@/lib/supabase-queries";
+import { gatherHealthIntelligence, buildAIContextFromIntelligence } from "@/lib/health-intelligence";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
