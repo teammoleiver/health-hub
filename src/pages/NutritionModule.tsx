@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Utensils, Clock, Droplets, Plus, Minus, Trophy, Flame, Loader2 } from "lucide-react";
+import { Utensils, Clock, Droplets, Plus, Minus, Trophy, Flame, Loader2, X } from "lucide-react";
 import { getFastingStatus } from "@/lib/health-data";
-import { getTodayWaterLog, upsertWaterLog, getTodayMeals, getAllMealLogs, upsertChecklist } from "@/lib/supabase-queries";
+import { getTodayWaterLog, upsertWaterLog, getTodayMeals, getAllMealLogs, upsertChecklist, logMeal } from "@/lib/supabase-queries";
 import { onSync } from "@/lib/sync-events";
 import { playWaterSound, playGoalReachedSound } from "@/lib/water-sound";
 import { VossBottle, VossBottleMini } from "@/components/ui/VossBottle";
