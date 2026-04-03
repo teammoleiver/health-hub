@@ -188,6 +188,9 @@ export default function NutritionModule() {
         )}
       </div>
 
+      {/* ── Nutrition Plan Upload ── */}
+      <NutritionPlanUpload />
+
       {/* Log Meal Button */}
       <button onClick={() => setMealModalOpen(true)} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:bg-primary-dark transition">
         <Plus className="w-4 h-4" /> Log Meal
