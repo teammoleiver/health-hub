@@ -19,6 +19,8 @@ import GoalsModule from "./pages/GoalsModule";
 import AssistantModule from "./pages/AssistantModule";
 import SleepModule from "./pages/SleepModule";
 import SettingsModule from "./pages/SettingsModule";
+import ProjectsModule from "./pages/ProjectsModule";
+import TasksModule from "./pages/TasksModule";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
@@ -88,6 +90,8 @@ function AppRoutes() {
       <Route path="/sleep" element={<ProtectedRoute><AppLayout><SleepModule /></AppLayout></ProtectedRoute>} />
       <Route path="/goals" element={<ProtectedRoute><AppLayout><GoalsModule /></AppLayout></ProtectedRoute>} />
       <Route path="/assistant" element={<ProtectedRoute><AppLayout><AssistantModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/tasks" element={<ProtectedRoute><AppLayout><TasksModule /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsModule /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>

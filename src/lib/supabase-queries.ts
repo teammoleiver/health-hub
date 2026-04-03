@@ -543,3 +543,187 @@ export async function getChecklistStats() {
   if (error) console.error("getChecklistStats", error);
   return data ?? [];
 }
+
+// ══════════════════════════════════════════════════════════════
+// ── Projects ──
+// ══════════════════════════════════════════════════════════════
+
+export async function getProjects() {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("user_id", uid)
+    .order("created_at", { ascending: false });
+  if (error) console.error("getProjects", error);
+  return data ?? [];
+}
+
+export async function getProject(id: string) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", uid)
+    .single();
+  if (error) console.error("getProject", error);
+  return data;
+}
+
+export async function createProject(project: Omit<TablesInsert<"projects">, "user_id">) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase
+    .from("projects")
+    .insert({ ...project, user_id: uid })
+    .select()
+    .single();
+  if (error) console.error("createProject", error);
+  return data;
+}
+
+export async function updateProject(id: string, updates: TablesUpdate<"projects">) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase
+    .from("projects")
+    .update(updates)
+    .eq("id", id)
+    .eq("user_id", uid)
+    .select()
+    .single();
+  if (error) console.error("updateProject", error);
+  return data;
+}
+
+export async function deleteProject(id: string) {
+  const uid = await getCurrentUserId();
+  if (!uid) return;
+  const { error } = await supabase
+    .from("projects")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", uid);
+  if (error) console.error("deleteProject", error);
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── Kanban Columns ──
+// ══════════════════════════════════════════════════════════════
+
+export async function getKanbanColumns() {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase
+    .from("kanban_columns")
+    .select("*")
+    .eq("user_id", uid)
+    .order("col_order", { ascending: true });
+  if (error) console.error("getKanbanColumns", error);
+  return data ?? [];
+}
+
+export async function upsertKanbanColumn(column: Omit<TablesInsert<"kanban_columns">, "user_id">) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase
+    .from("kanban_columns")
+    .upsert({ ...column, user_id: uid })
+    .select()
+    .single();
+  if (error) console.error("upsertKanbanColumn", error);
+  return data;
+}
+
+export async function deleteKanbanColumn(id: string) {
+  const uid = await getCurrentUserId();
+  if (!uid) return;
+  const { error } = await supabase
+    .from("kanban_columns")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", uid);
+  if (error) console.error("deleteKanbanColumn", error);
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── Tasks ──
+// ══════════════════════════════════════════════════════════════
+
+export async function getTasks() {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", uid)
+    .order("task_order", { ascending: true });
+  if (error) console.error("getTasks", error);
+  return data ?? [];
+}
+
+export async function getTasksByProject(projectId: string) {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", uid)
+    .eq("project_id", projectId)
+    .order("task_order", { ascending: true });
+  if (error) console.error("getTasksByProject", error);
+  return data ?? [];
+}
+
+export async function getTasksByStatus(status: string) {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", uid)
+    .eq("status", status)
+    .order("task_order", { ascending: true });
+  if (error) console.error("getTasksByStatus", error);
+  return data ?? [];
+}
+
+export async function createTask(task: Omit<TablesInsert<"tasks">, "user_id">) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert({ ...task, user_id: uid })
+    .select()
+    .single();
+  if (error) console.error("createTask", error);
+  return data;
+}
+
+export async function updateTask(id: string, updates: TablesUpdate<"tasks">) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase
+    .from("tasks")
+    .update(updates)
+    .eq("id", id)
+    .eq("user_id", uid)
+    .select()
+    .single();
+  if (error) console.error("updateTask", error);
+  return data;
+}
+
+export async function deleteTask(id: string) {
+  const uid = await getCurrentUserId();
+  if (!uid) return;
+  const { error } = await supabase
+    .from("tasks")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", uid);
+  if (error) console.error("deleteTask", error);
+}

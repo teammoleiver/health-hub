@@ -761,6 +761,212 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          outcome_statement: string | null
+          purpose: string | null
+          status: string
+          area: string
+          horizon: string
+          color: string | null
+          icon: string | null
+          due_date: string | null
+          start_date: string | null
+          completed_at: string | null
+          milestones: Json | null
+          notes: Json | null
+          tags: string[] | null
+          task_ids: string[] | null
+          next_action_id: string | null
+          is_stuck: boolean | null
+          health_module_link: string | null
+          brainstorm_notes: string | null
+          success_criteria: string[] | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          outcome_statement?: string | null
+          purpose?: string | null
+          status?: string
+          area?: string
+          horizon?: string
+          color?: string | null
+          icon?: string | null
+          due_date?: string | null
+          start_date?: string | null
+          completed_at?: string | null
+          milestones?: Json | null
+          notes?: Json | null
+          tags?: string[] | null
+          task_ids?: string[] | null
+          next_action_id?: string | null
+          is_stuck?: boolean | null
+          health_module_link?: string | null
+          brainstorm_notes?: string | null
+          success_criteria?: string[] | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          outcome_statement?: string | null
+          purpose?: string | null
+          status?: string
+          area?: string
+          horizon?: string
+          color?: string | null
+          icon?: string | null
+          due_date?: string | null
+          start_date?: string | null
+          completed_at?: string | null
+          milestones?: Json | null
+          notes?: Json | null
+          tags?: string[] | null
+          task_ids?: string[] | null
+          next_action_id?: string | null
+          is_stuck?: boolean | null
+          health_module_link?: string | null
+          brainstorm_notes?: string | null
+          success_criteria?: string[] | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      kanban_columns: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          color: string | null
+          wip_limit: number | null
+          col_order: number | null
+          icon: string | null
+          is_default: boolean | null
+          status_mapping: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          color?: string | null
+          wip_limit?: number | null
+          col_order?: number | null
+          icon?: string | null
+          is_default?: boolean | null
+          status_mapping?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          color?: string | null
+          wip_limit?: number | null
+          col_order?: number | null
+          icon?: string | null
+          is_default?: boolean | null
+          status_mapping?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          description: string | null
+          status: string
+          column_id: string
+          project_id: string | null
+          priority: string | null
+          contexts: string[] | null
+          due_date: string | null
+          estimated_minutes: number | null
+          is_two_minute_task: boolean | null
+          waiting_for: string | null
+          energy_required: string | null
+          tags: string[] | null
+          health_module_link: string | null
+          subtasks: Json | null
+          notes: string | null
+          is_recurring: boolean | null
+          recurring_pattern: string | null
+          task_order: number | null
+          completed_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          description?: string | null
+          status?: string
+          column_id?: string
+          project_id?: string | null
+          priority?: string | null
+          contexts?: string[] | null
+          due_date?: string | null
+          estimated_minutes?: number | null
+          is_two_minute_task?: boolean | null
+          waiting_for?: string | null
+          energy_required?: string | null
+          tags?: string[] | null
+          health_module_link?: string | null
+          subtasks?: Json | null
+          notes?: string | null
+          is_recurring?: boolean | null
+          recurring_pattern?: string | null
+          task_order?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          description?: string | null
+          status?: string
+          column_id?: string
+          project_id?: string | null
+          priority?: string | null
+          contexts?: string[] | null
+          due_date?: string | null
+          estimated_minutes?: number | null
+          is_two_minute_task?: boolean | null
+          waiting_for?: string | null
+          energy_required?: string | null
+          tags?: string[] | null
+          health_module_link?: string | null
+          subtasks?: Json | null
+          notes?: string | null
+          is_recurring?: boolean | null
+          recurring_pattern?: string | null
+          task_order?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -3,7 +3,7 @@ import { useLocation, Link } from "react-router-dom";
 import { onSync } from "@/lib/sync-events";
 import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
-  MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun, Droplets,
+  MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun, Droplets, FolderKanban, CheckSquare,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
@@ -18,11 +18,17 @@ const navItems = [
   { path: "/health", icon: HeartPulse, label: "Health" },
   { path: "/body", icon: BarChart3, label: "Body" },
   { path: "/goals", icon: Target, label: "Goals" },
+  { path: "/projects", icon: FolderKanban, label: "Projects" },
+  { path: "/tasks", icon: CheckSquare, label: "Tasks" },
   { path: "/assistant", icon: MessageCircle, label: "Assistant" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
-const mobileNavItems = navItems.slice(0, 6); // Dashboard, Nutrition, Fasting, Exercise, Sleep, Health
+const mobileNavItems = [
+  ...navItems.slice(0, 6), // Dashboard, Nutrition, Fasting, Exercise, Sleep, Health
+  navItems.find(i => i.path === "/projects")!,
+  navItems.find(i => i.path === "/tasks")!,
+];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
