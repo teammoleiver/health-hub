@@ -240,6 +240,9 @@ export default function ExerciseModule() {
         </div>
       </div>
 
+      {/* Home Treadmill Timer */}
+      <TreadmillTimer onLogged={loadHistory} />
+
       {/* Workout Plans Grid */}
       <div className="space-y-3">
         <h3 className="font-display font-semibold text-foreground">Your Trainer Plan</h3>
