@@ -20,21 +20,16 @@ export interface FoodDbItem {
   source_menu: string | null;
 }
 
-export async function searchFoodDatabase(query: string, limit = 30): Promise<FoodDbItem[]> {
-  if (!query.trim()) {
-    const { data } = await supabase
-      .from("food_database")
-      .select("*")
-      .order("food_name")
-      .limit(limit);
-    return (data as FoodDbItem[]) ?? [];
+export async function searchFoodDatabase(query: string, limit = 500, category?: string): Promise<FoodDbItem[]> {
+  let q = supabase.from("food_database").select("*");
+  if (query.trim()) {
+    q = q.ilike("food_name", `%${query}%`);
   }
-  const { data } = await supabase
-    .from("food_database")
-    .select("*")
-    .ilike("food_name", `%${query}%`)
-    .order("food_name")
-    .limit(limit);
+  if (category) {
+    q = q.eq("category", category);
+  }
+  const { data, error } = await q.order("food_name").limit(limit);
+  if (error) console.error("searchFoodDatabase", error);
   return (data as FoodDbItem[]) ?? [];
 }
 
