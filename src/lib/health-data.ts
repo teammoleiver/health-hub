@@ -1,32 +1,28 @@
-// Centralized health data store — will be replaced with Supabase queries
+// Centralized health data store — dynamic per user
+// USER_PROFILE is kept as a shape reference; actual data comes from DB profiles table
 export const USER_PROFILE = {
-  name: "Saleh Seddik",
-  fullName: "Saleh Said Mohammed Seddik Ali",
-  dateOfBirth: new Date("1992-10-20"),
-  age: 33,
-  heightCm: 171,
-  startingWeightKg: 88,
-  targetWeightMonth1: 84,
-  targetWeightFinal: 78,
-  bmiAtStart: 30.1,
-  bodyFatPct: 27.6,
-  visceralFatLevel: 9,
+  name: "",
+  fullName: "",
+  dateOfBirth: null as Date | null,
+  age: 0,
+  heightCm: 0,
+  startingWeightKg: 0,
+  targetWeightMonth1: 0,
+  targetWeightFinal: 0,
+  bmiAtStart: 0,
+  bodyFatPct: 0,
+  visceralFatLevel: 0,
   dietProtocol: "Intermittent Fasting 16:8",
-  eatingWindowStart: 12, // 12:00pm
-  eatingWindowEnd: 20, // 8:00pm
+  eatingWindowStart: 12,
+  eatingWindowEnd: 20,
   fasting52Enabled: false,
-  nutritionist: "Yadismira Mendoza (Nutreya — nutreya.es)",
-  gymSystem: "EGYM smart gym",
-  familyDoctor: "Dr. Pujol Ruiz (EAP Horta 7D, Barcelona)",
-  occupationalDoctor: "Dr. Carles Vilanova Casadesus (Prevenactiva)",
-  employer: "PICVISA MACHINE VISION SYSTEMS, S.L.",
-  conditions: [
-    "Myopia/Astigmatism (corrected)",
-    "Mild restrictive spirometry pattern (under review)",
-    "Thalassemia trait likely (small red blood cells, no anemia)",
-    "Early fatty liver (NAFLD suspected)",
-  ],
-  lifestyle: "Ex-smoker, no alcohol, regular physical activity, normal sleep",
+  nutritionist: "",
+  gymSystem: "",
+  familyDoctor: "",
+  occupationalDoctor: "",
+  employer: "",
+  conditions: [] as string[],
+  lifestyle: "",
 };
 
 export interface HealthMarker {
