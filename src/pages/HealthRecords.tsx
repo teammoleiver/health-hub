@@ -61,9 +61,8 @@ function dbRecordToBloodTest(r: DBRecord): BloodTest {
 
 function getAllAppliedTests(records: DBRecord[]): BloodTest[] {
   const applied = records.filter((r) => r.applied).map(dbRecordToBloodTest);
-  const all = [...BLOOD_TESTS, ...applied];
-  all.sort((a, b) => a.date.localeCompare(b.date));
-  return all;
+  applied.sort((a, b) => a.date.localeCompare(b.date));
+  return applied;
 }
 
 function getMarkerDelta(allTests: BloodTest[], markerName: string): { from: number; to: number; change: number; pct: number } | null {
