@@ -43,9 +43,14 @@ const checklistItems: { key: ChecklistKey; label: string; emoji: string }[] = [
 export default function Dashboard() {
   const time = useCurrentTime();
   const fasting = getFastingStatus();
+  const { user } = useAuth();
 
-  const [allTests, setAllTests] = useState<BloodTest[]>(BLOOD_TESTS);
-  const [trends, setTrends] = useState<KeyTrend[]>(KEY_TRENDS);
+  const [userName, setUserName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [heightCm, setHeightCm] = useState<number>(170);
+
+  const [allTests, setAllTests] = useState<BloodTest[]>([]);
+  const [trends, setTrends] = useState<KeyTrend[]>([]);
   const healthScore = getHealthScore(allTests);
   const motivation = getMotivationalMessage(allTests);
 
@@ -55,7 +60,7 @@ export default function Dashboard() {
   const [exerciseCalories, setExerciseCalories] = useState(0);
   const [mealCalories, setMealCalories] = useState(0);
   const [weightLoggedToday, setWeightLoggedToday] = useState(false);
-  const [currentWeight, setCurrentWeight] = useState(88);
+  const [currentWeight, setCurrentWeight] = useState<number | null>(null);
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [checklistId, setChecklistId] = useState<string | null>(null);
 
