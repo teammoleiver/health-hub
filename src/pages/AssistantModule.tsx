@@ -46,17 +46,13 @@ export default function AssistantModule() {
   }, [messages]);
 
   const buildHealthContext = async () => {
-    const [water, meals, exercise, weight] = await Promise.all([
-      getTodayWaterLog(), getTodayMeals(), getTodayExercise(), getLatestWeight(),
-    ]);
-    const fasting = getFastingStatus();
-    return `TODAY'S LIVE DATA:
-- Current weight: ${weight ? weight.weight_kg + 'kg' : '88kg (last known)'}
-- Water today: ${water?.glasses ?? 0}/12 glasses
-- Meals logged today: ${meals?.length ?? 0} (${meals?.map(m => m.food_name).join(', ') || 'none'})
-- Exercise today: ${exercise ? 'Yes - ' + exercise.exercise_type + ' ' + exercise.duration_min + 'min' : 'Not yet'}
-- Fasting status: ${fasting.label} — ${fasting.message}
-- Current time: ${new Date().toLocaleTimeString()}`;
+    try {
+      const intel = await gatherHealthIntelligence();
+      return buildAIContextFromIntelligence(intel);
+    } catch (e) {
+      console.error("Failed to gather health intelligence:", e);
+      return "Health data temporarily unavailable.";
+    }
   };
 
   const send = async () => {
