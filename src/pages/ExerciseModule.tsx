@@ -13,6 +13,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import LogExerciseModal from "@/components/modals/LogExerciseModal";
+import TreadmillTimer from "@/components/TreadmillTimer";
 import { toast } from "@/hooks/use-toast";
 
 const bioAgeData = [
@@ -238,6 +239,9 @@ export default function ExerciseModule() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Home Treadmill Timer */}
+      <TreadmillTimer onLogged={loadHistory} />
 
       {/* Workout Plans Grid */}
       <div className="space-y-3">
