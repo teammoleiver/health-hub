@@ -20,6 +20,7 @@ const GOAL_ML = 3000;
 const SIP_ML = 400;
 
 export default function NutritionModule() {
+  const { toast } = useToast();
   const fasting = getFastingStatus();
   const [waterMl, setWaterMl] = useState(0);
   const [todayMeals, setTodayMeals] = useState<Tables<"meal_logs">[]>([]);
