@@ -18,7 +18,6 @@ import {
 } from "@/lib/supabase-queries";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
-import { Link } from "react-router-dom";
 import LogWaterModal from "@/components/modals/LogWaterModal";
 import LogWeightModal from "@/components/modals/LogWeightModal";
 import LogExerciseModal from "@/components/modals/LogExerciseModal";
