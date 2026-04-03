@@ -8,15 +8,16 @@ import { onSync } from "@/lib/sync-events";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
-  USER_PROFILE, BLOOD_TESTS, KEY_TRENDS, getHealthScore,
+  BLOOD_TESTS, KEY_TRENDS, getHealthScore,
   getFastingStatus, getMotivationalMessage, computeKeyTrends,
   type BloodTest, type KeyTrend,
 } from "@/lib/health-data";
 import {
   getTodayWaterLog, getTodayMeals, getTodayExercise, getLatestWeight,
-  getTodayChecklist, upsertChecklist, getAppliedBloodTestRecords,
+  getTodayChecklist, upsertChecklist, getAppliedBloodTestRecords, getProfile,
 } from "@/lib/supabase-queries";
-import profilePhoto from "@/assets/profile-photo.jpg";
+import { useAuth } from "@/hooks/useAuth";
+import { Link } from "react-router-dom";
 import { Link } from "react-router-dom";
 import LogWaterModal from "@/components/modals/LogWaterModal";
 import LogWeightModal from "@/components/modals/LogWeightModal";
