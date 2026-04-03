@@ -234,7 +234,7 @@ export default function Dashboard() {
           { icon: Droplets, label: "Water", value: `${(waterGlasses * 250 / 1000).toFixed(1)}L`, sub: "of 3L", done: waterGlasses * 250 >= 3000 },
           { icon: Utensils, label: "Meals", value: `${mealsLogged}/4`, sub: "logged", done: mealsLogged >= 4 },
           { icon: Dumbbell, label: "Exercise", value: exerciseDone ? "Done" : "Pending", sub: "today", done: exerciseDone },
-          { icon: Scale, label: "Weight", value: `${currentWeight}`, sub: weightLoggedToday ? "logged today" : "kg", done: weightLoggedToday },
+          { icon: Scale, label: "Weight", value: currentWeight ? `${currentWeight}` : "—", sub: weightLoggedToday ? "logged today" : "kg", done: weightLoggedToday },
         ].map((item) => (
           <div key={item.label} className={`rounded-xl p-4 text-center border-2 transition-all ${
             item.done
