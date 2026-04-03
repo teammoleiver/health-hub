@@ -11,6 +11,12 @@ import {
   ChevronLeft, GripVertical,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  getTasks as dbGetTasks,
+  createTask as dbCreateTask,
+  updateTask as dbUpdateTask,
+  deleteTask as dbDeleteTask,
+} from "@/lib/supabase-queries";
 
 // ============================================================
 // DATA STRUCTURES
@@ -461,7 +467,7 @@ function TaskCard({
 // ============================================================
 
 function TaskDetailPanel({
-  task,
+  task: initialTask,
   columns,
   availableContexts,
   onClose,
@@ -475,12 +481,26 @@ function TaskDetailPanel({
   onUpdate: (t: Task) => void;
   onDelete: (id: string) => void;
 }) {
+  // Fully local copy — all edits happen here, no parent re-renders while editing
+  const [task, setTask] = useState<Task>(initialTask);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newTag, setNewTag] = useState("");
 
-  const update = (partial: Partial<Task>) => onUpdate({ ...task, ...partial });
+  // Push local changes to parent (used for actions that affect the board: column move, complete, delete)
+  const syncToParent = (t: Task) => onUpdate(t);
+
+  // Local update — does NOT trigger parent re-render
+  const update = (partial: Partial<Task>) => {
+    setTask(prev => ({ ...prev, ...partial }));
+  };
+
+  // Sync on close so parent gets all accumulated changes
+  const handleClose = () => {
+    syncToParent(task);
+    onClose();
+  };
 
   const completedSubs = task.subtasks.filter(s => s.completed).length;
   const totalSubs = task.subtasks.length;
@@ -520,11 +540,17 @@ function TaskDetailPanel({
 
   const moveToColumn = (colId: string) => {
     const col = columns.find(c => c.id === colId);
-    if (col) update({ columnId: colId, status: col.statusMapping });
+    if (col) {
+      const updated = { ...task, columnId: colId, status: col.statusMapping as Task["status"] };
+      setTask(updated);
+      syncToParent(updated);
+    }
   };
 
   const completeTask = () => {
-    update({ status: "done", columnId: "col_done", completedAt: new Date().toISOString() });
+    const updated = { ...task, status: "done" as Task["status"], columnId: "col_done", completedAt: new Date().toISOString() };
+    setTask(updated);
+    syncToParent(updated);
   };
 
   // Collapsible section helper
@@ -610,31 +636,31 @@ function TaskDetailPanel({
             )}
           </div>
         </div>
-        <button onClick={onClose} className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition">
+        <button onClick={handleClose} className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition">
           <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Column selector */}
-      <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 overflow-x-auto shrink-0">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium shrink-0">Stage:</span>
-        {columns.map(c => {
-          const ColIcon = getColumnIcon(c.icon);
-          const active = task.columnId === c.id;
-          return (
-            <button
-              key={c.id}
-              onClick={() => moveToColumn(c.id)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition shrink-0 ${
-                active ? "text-primary-foreground" : "bg-secondary/50 text-muted-foreground hover:text-foreground"
-              }`}
-              style={active ? { backgroundColor: c.color } : undefined}
-            >
-              <ColIcon className="w-3.5 h-3.5" />
-              {c.title}
-            </button>
-          );
-        })}
+      <div className="px-4 py-2.5 border-b border-border shrink-0">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mr-1">Stage</span>
+          {columns.map(c => {
+            const active = task.columnId === c.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => moveToColumn(c.id)}
+                className={`px-2.5 py-1 rounded-md text-[12px] font-medium transition ${
+                  active ? "text-white" : "bg-secondary/50 text-muted-foreground hover:text-foreground"
+                }`}
+                style={active ? { backgroundColor: c.color } : undefined}
+              >
+                {c.title}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Scrollable body */}
@@ -657,7 +683,7 @@ function TaskDetailPanel({
               onChange={e => update({ description: e.target.value })}
               rows={3}
               className="mt-1 w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground resize-none outline-none focus:ring-1 focus:ring-primary/40"
-              placeholder="Be specific \u2014 what is the very next physical action?"
+              placeholder="Be specific — what is the very next physical action?"
             />
           </div>
           {task.status === "waiting_for" && (
@@ -915,14 +941,18 @@ function TaskDetailPanel({
         )}
         {task.status === "done" && (
           <button
-            onClick={() => update({ status: "next_action", columnId: "col_next", completedAt: null })}
+            onClick={() => {
+              const updated = { ...task, status: "next_action" as Task["status"], columnId: "col_next", completedAt: null };
+              setTask(updated);
+              syncToParent(updated);
+            }}
             className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-muted-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition"
           >
             <Play className="w-3.5 h-3.5" /> Reopen
           </button>
         )}
         <button
-          onClick={() => { onDelete(task.id); onClose(); }}
+          onClick={() => { onDelete(task.id); handleClose(); }}
           className="flex items-center gap-1.5 px-3 py-2 bg-red-500/10 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 transition ml-auto"
         >
           <Trash2 className="w-3.5 h-3.5" /> Delete
@@ -1450,6 +1480,7 @@ export default function TasksModule() {
   const [searchParams] = useSearchParams();
   const [tasks, setTasks] = useState<Task[]>(SAMPLE_TASKS);
   const [columns, setColumns] = useState<KanbanColumn[]>(DEFAULT_COLUMNS);
+  const [dbLoaded, setDbLoaded] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [filterContext, setFilterContext] = useState<TaskContext | "all">("all");
@@ -1485,6 +1516,40 @@ export default function TasksModule() {
       }, 300);
     }
   }, [searchParams]);
+
+  // Load tasks from Supabase
+  useEffect(() => {
+    dbGetTasks().then((rows) => {
+      if (rows && rows.length > 0) {
+        const mapped: Task[] = rows.map((r: any) => ({
+          id: r.id,
+          title: r.title,
+          description: r.description || "",
+          status: r.status || "inbox",
+          columnId: r.column_id || "col_inbox",
+          projectId: r.project_id || null,
+          priority: r.priority || "none",
+          contexts: r.contexts || [],
+          dueDate: r.due_date || null,
+          estimatedMinutes: r.estimated_minutes || null,
+          isTwoMinuteTask: r.is_two_minute_task || false,
+          waitingFor: r.waiting_for || null,
+          energyRequired: r.energy_required || "medium",
+          tags: r.tags || [],
+          healthModuleLink: r.health_module_link || null,
+          subtasks: (typeof r.subtasks === "string" ? JSON.parse(r.subtasks) : r.subtasks) || [],
+          notes: r.notes || "",
+          isRecurring: r.is_recurring || false,
+          recurringPattern: r.recurring_pattern || null,
+          order: r.task_order || 0,
+          completedAt: r.completed_at || null,
+          createdAt: r.created_at || new Date().toISOString(),
+        }));
+        setTasks(mapped);
+      }
+      setDbLoaded(true);
+    });
+  }, []);
 
   // Close filter panel on outside click
   useEffect(() => {
@@ -1532,6 +1597,30 @@ export default function TasksModule() {
   const sortedColumns = useMemo(() => [...columns].sort((a, b) => a.order - b.order), [columns]);
 
   // Actions
+  // Helper: convert frontend Task to Supabase row
+  const taskToRow = (t: Task) => ({
+    title: t.title,
+    description: t.description,
+    status: t.status,
+    column_id: t.columnId,
+    project_id: t.projectId || undefined,
+    priority: t.priority,
+    contexts: t.contexts,
+    due_date: t.dueDate || undefined,
+    estimated_minutes: t.estimatedMinutes || undefined,
+    is_two_minute_task: t.isTwoMinuteTask,
+    waiting_for: t.waitingFor || undefined,
+    energy_required: t.energyRequired,
+    tags: t.tags,
+    health_module_link: t.healthModuleLink || undefined,
+    subtasks: t.subtasks as any,
+    notes: t.notes,
+    is_recurring: t.isRecurring,
+    recurring_pattern: t.recurringPattern || undefined,
+    task_order: t.order,
+    completed_at: t.completedAt || undefined,
+  });
+
   const addTaskToInbox = useCallback((title: string) => {
     const newTask: Task = {
       id: crypto.randomUUID(),
@@ -1559,6 +1648,10 @@ export default function TasksModule() {
     };
     setTasks(prev => [...prev, newTask]);
     setToast("Added to Inbox \u2713");
+    // Persist to Supabase
+    dbCreateTask(taskToRow(newTask)).then(row => {
+      if (row) setTasks(prev => prev.map(t => t.id === newTask.id ? { ...t, id: row.id } : t));
+    });
   }, [tasks]);
 
   const handleCapture = () => {
@@ -1570,11 +1663,15 @@ export default function TasksModule() {
   const updateTask = useCallback((updated: Task) => {
     setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
     setSelectedTask(prev => prev?.id === updated.id ? updated : prev);
+    // Persist to Supabase
+    dbUpdateTask(updated.id, taskToRow(updated));
   }, []);
 
   const deleteTask = useCallback((id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id));
     if (selectedTask?.id === id) setSelectedTask(null);
+    // Persist to Supabase
+    dbDeleteTask(id);
   }, [selectedTask]);
 
   const completeTask = useCallback((task: Task) => {
@@ -1619,6 +1716,13 @@ export default function TasksModule() {
     };
     setTasks(prev => [...prev, newTask]);
     setSelectedTask(newTask);
+    // Persist to Supabase
+    dbCreateTask(taskToRow(newTask)).then(row => {
+      if (row) {
+        setTasks(prev => prev.map(t => t.id === newTask.id ? { ...t, id: row.id } : t));
+        setSelectedTask(prev => prev?.id === newTask.id ? { ...prev, id: row.id } : prev);
+      }
+    });
   }, [columns, tasks, filterProject, filterContext]);
 
   const saveColumn = useCallback((col: KanbanColumn) => {
@@ -1678,6 +1782,8 @@ export default function TasksModule() {
         setTasks(prev => prev.map(t =>
           t.id === taskId ? { ...t, columnId: colId, status: col.statusMapping } : t
         ));
+        // Persist to Supabase
+        dbUpdateTask(taskId, { column_id: colId, status: col.statusMapping });
       }
     }
     setDraggedTaskId(null);

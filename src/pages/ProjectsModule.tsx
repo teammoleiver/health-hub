@@ -1,4 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import {
+  getProjects as dbGetProjects,
+  createProject as dbCreateProject,
+  updateProject as dbUpdateProject,
+  deleteProject as dbDeleteProject,
+} from "@/lib/supabase-queries";
 import {
   FolderKanban, Plus, LayoutGrid, List, Layers, AlertTriangle,
   ChevronDown, ChevronRight, X, Calendar, Tag, Link2, Trash2,
@@ -1021,6 +1027,61 @@ function ListView({ projects, onSelect }: { projects: Project[]; onSelect: (p: P
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
+// Helper: convert frontend Project to Supabase row
+function projectToRow(p: Project) {
+  return {
+    title: p.title,
+    outcome_statement: p.outcomeStatement,
+    purpose: p.purpose,
+    status: p.status,
+    area: p.area,
+    horizon: p.horizon,
+    color: p.color,
+    icon: p.icon,
+    due_date: p.dueDate || undefined,
+    start_date: p.startDate || undefined,
+    completed_at: p.completedAt || undefined,
+    milestones: p.milestones as any,
+    notes: p.notes as any,
+    tags: p.tags,
+    task_ids: p.taskIds,
+    next_action_id: p.nextActionId || undefined,
+    is_stuck: p.isStuck,
+    health_module_link: p.healthModuleLink || undefined,
+    brainstorm_notes: p.brainstormNotes,
+    success_criteria: p.successCriteria,
+  };
+}
+
+// Helper: convert Supabase row to frontend Project
+function rowToProject(r: any): Project {
+  return {
+    id: r.id,
+    title: r.title,
+    outcomeStatement: r.outcome_statement || "",
+    purpose: r.purpose || "",
+    status: r.status || "active",
+    area: r.area || "personal",
+    horizon: r.horizon || "horizon_1",
+    color: r.color || "#1D9E75",
+    icon: r.icon || "Folder",
+    dueDate: r.due_date || null,
+    startDate: r.start_date || null,
+    completedAt: r.completed_at || null,
+    milestones: (typeof r.milestones === "string" ? JSON.parse(r.milestones) : r.milestones) || [],
+    notes: (typeof r.notes === "string" ? JSON.parse(r.notes) : r.notes) || [],
+    tags: r.tags || [],
+    taskIds: r.task_ids || [],
+    nextActionId: r.next_action_id || null,
+    isStuck: r.is_stuck ?? true,
+    healthModuleLink: r.health_module_link || null,
+    brainstormNotes: r.brainstorm_notes || "",
+    successCriteria: r.success_criteria || [],
+    createdAt: r.created_at || new Date().toISOString(),
+    updatedAt: r.updated_at || new Date().toISOString(),
+  };
+}
+
 export default function ProjectsModule() {
   const [projects, setProjects] = useState<Project[]>(SAMPLE_PROJECTS);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -1031,6 +1092,15 @@ export default function ProjectsModule() {
   const [searchQuery, setSearchQuery] = useState("");
   const [stuckBannerDismissed, setStuckBannerDismissed] = useState(false);
   const [somedayOpen, setSomedayOpen] = useState(false);
+
+  // Load projects from Supabase
+  useEffect(() => {
+    dbGetProjects().then(rows => {
+      if (rows && rows.length > 0) {
+        setProjects(rows.map(rowToProject));
+      }
+    });
+  }, []);
 
   const stuckProjects = useMemo(() =>
     projects.filter(p => p.status === "active" && p.taskIds.length === 0 && !p.nextActionId),
@@ -1084,16 +1154,28 @@ export default function ProjectsModule() {
     };
     setProjects(prev => [...prev, blank]);
     setSelectedProject(blank);
+    // Persist to Supabase
+    dbCreateProject(projectToRow(blank)).then(row => {
+      if (row) {
+        const realId = row.id;
+        setProjects(prev => prev.map(p => p.id === blank.id ? { ...p, id: realId } : p));
+        setSelectedProject(prev => prev?.id === blank.id ? { ...prev, id: realId } : prev);
+      }
+    });
   };
 
   const updateProject = (updated: Project) => {
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
     setSelectedProject(updated);
+    // Persist to Supabase
+    dbUpdateProject(updated.id, projectToRow(updated));
   };
 
   const deleteProject = (id: string) => {
     setProjects(prev => prev.filter(p => p.id !== id));
     if (selectedProject?.id === id) setSelectedProject(null);
+    // Persist to Supabase
+    dbDeleteProject(id);
   };
 
   // Horizon filter counts
