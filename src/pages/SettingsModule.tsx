@@ -1,19 +1,47 @@
 import { useState, useEffect } from "react";
-import { User, Key, Globe, Bell, Download, Heart, Check } from "lucide-react";
-import { USER_PROFILE } from "@/lib/health-data";
-import { getUserProfile } from "@/lib/supabase-queries";
-import profilePhoto from "@/assets/profile-photo.jpg";
+import { User, Key, Globe, Bell, Download, Heart, Check, LogOut, Lock, Loader2 } from "lucide-react";
+import { getUserProfile, getProfile, updateProfile } from "@/lib/supabase-queries";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import syncvidaLogo from "@/assets/syncvida-icon.png";
 import ApiKeyModal from "@/components/modals/ApiKeyModal";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SettingsModule() {
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
   const [apiKeyModal, setApiKeyModal] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [changingPw, setChangingPw] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
 
   useEffect(() => {
     getUserProfile().then((p) => {
       if (p?.openai_api_key) setHasApiKey(true);
     });
+    getProfile().then(setProfile);
   }, []);
+
+  const handleChangePassword = async () => {
+    if (!newPw || newPw.length < 6) {
+      toast({ title: "Password too short", description: "Minimum 6 characters.", variant: "destructive" });
+      return;
+    }
+    setPwLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPw });
+      if (error) throw error;
+      toast({ title: "Password updated!" });
+      setNewPw("");
+      setChangingPw(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-3xl mx-auto">
@@ -22,12 +50,72 @@ export default function SettingsModule() {
       {/* Profile */}
       <div className="glass-card rounded-xl p-5">
         <div className="flex items-center gap-4 mb-4">
-          <img src={profilePhoto} alt={USER_PROFILE.name} className="w-16 h-16 rounded-full object-cover border-2 border-primary" />
-          <div>
-            <h3 className="font-display font-semibold text-foreground">{USER_PROFILE.name}</h3>
-            <p className="text-xs text-muted-foreground">{USER_PROFILE.fullName}</p>
-            <p className="text-xs text-muted-foreground">Born: 20/10/1992 · Height: {USER_PROFILE.heightCm}cm</p>
+          <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary text-2xl font-bold text-primary">
+            {(profile?.name || user?.email || "U").charAt(0).toUpperCase()}
           </div>
+          <div>
+            <h3 className="font-display font-semibold text-foreground">{profile?.name || "User"}</h3>
+            <p className="text-xs text-muted-foreground">{profile?.full_name || ""}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Account Management */}
+      <div className="glass-card rounded-xl p-5 space-y-3">
+        <h3 className="font-display font-semibold text-foreground">Account</h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Lock className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Password</p>
+              <p className="text-xs text-muted-foreground">Change your account password</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setChangingPw(!changingPw)}
+            className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-foreground hover:bg-accent transition font-medium"
+          >
+            {changingPw ? "Cancel" : "Change"}
+          </button>
+        </div>
+        {changingPw && (
+          <div className="flex gap-2 ml-12">
+            <input
+              type="password"
+              placeholder="New password (min 6 chars)"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              className="flex-1 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+            />
+            <button
+              onClick={handleChangePassword}
+              disabled={pwLoading}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+            >
+              {pwLoading && <Loader2 className="w-3 h-3 animate-spin" />}
+              Save
+            </button>
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-destructive/10 flex items-center justify-center">
+              <LogOut className="w-4 h-4 text-destructive" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Sign Out</p>
+              <p className="text-xs text-muted-foreground">Sign out of your account</p>
+            </div>
+          </div>
+          <button
+            onClick={signOut}
+            className="text-xs px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition font-medium"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
 
@@ -36,7 +124,7 @@ export default function SettingsModule() {
         {
           icon: Key,
           title: "OpenAI API Key",
-          desc: hasApiKey ? "Connected — Syncvida AI is ready" : "Required for Syncvida AI Assistant and health record analysis",
+          desc: hasApiKey ? "Connected — Syncvida AI is ready" : "Required for Syncvida AI Assistant",
           action: hasApiKey ? "Connected" : "Configure",
           badge: hasApiKey,
           onClick: () => setApiKeyModal(true),
@@ -44,7 +132,7 @@ export default function SettingsModule() {
         {
           icon: Heart,
           title: "Fasting Protocol",
-          desc: "16:8 active. 5:2 disabled. Manage in Fasting module.",
+          desc: "Manage in Fasting module",
           action: "Manage",
           onClick: () => window.location.href = "/fasting",
         },
@@ -92,41 +180,6 @@ export default function SettingsModule() {
           </button>
         </div>
       ))}
-
-      {/* Medical Team */}
-      <div className="glass-card rounded-xl p-5">
-        <h3 className="font-display font-semibold text-foreground mb-3">Medical Team</h3>
-        <div className="space-y-2 text-sm text-foreground">
-          <p>🩺 Family Doctor: <strong>{USER_PROFILE.familyDoctor}</strong></p>
-          <p>🏥 Occupational: <strong>{USER_PROFILE.occupationalDoctor}</strong></p>
-          <p>🥗 Nutritionist: <strong>{USER_PROFILE.nutritionist}</strong></p>
-          <p>🏋️ Gym: <strong>{USER_PROFILE.gymSystem}</strong></p>
-          <p>🏢 Employer: <strong>{USER_PROFILE.employer}</strong></p>
-        </div>
-      </div>
-
-      {/* Known Conditions */}
-      <div className="glass-card rounded-xl p-5">
-        <h3 className="font-display font-semibold text-foreground mb-3">Known Conditions</h3>
-        <div className="space-y-2">
-          {USER_PROFILE.conditions.map((c) => (
-            <div key={c} className="text-sm text-foreground flex items-start gap-2">
-              <span className="text-warning mt-0.5">•</span>
-              <span>{c}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Connected Apps */}
-      <div className="glass-card rounded-xl p-5">
-        <h3 className="font-display font-semibold text-foreground mb-3">Connected Apps</h3>
-        <div className="space-y-2 text-sm text-muted-foreground">
-          <p>📱 Google Fit — <em>Coming soon</em></p>
-          <p>⌚ Apple Health — <em>Coming soon</em></p>
-          <p>💬 WhatsApp Reminders — <em>Coming soon</em></p>
-        </div>
-      </div>
 
       <ApiKeyModal open={apiKeyModal} onClose={() => { setApiKeyModal(false); getUserProfile().then((p) => setHasApiKey(!!p?.openai_api_key)); }} />
     </div>
