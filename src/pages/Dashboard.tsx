@@ -8,15 +8,15 @@ import { onSync } from "@/lib/sync-events";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
-  USER_PROFILE, BLOOD_TESTS, KEY_TRENDS, getHealthScore,
+  BLOOD_TESTS, KEY_TRENDS, getHealthScore,
   getFastingStatus, getMotivationalMessage, computeKeyTrends,
   type BloodTest, type KeyTrend,
 } from "@/lib/health-data";
 import {
   getTodayWaterLog, getTodayMeals, getTodayExercise, getLatestWeight,
-  getTodayChecklist, upsertChecklist, getAppliedBloodTestRecords,
+  getTodayChecklist, upsertChecklist, getAppliedBloodTestRecords, getProfile,
 } from "@/lib/supabase-queries";
-import profilePhoto from "@/assets/profile-photo.jpg";
+import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import LogWaterModal from "@/components/modals/LogWaterModal";
 import LogWeightModal from "@/components/modals/LogWeightModal";
@@ -43,9 +43,14 @@ const checklistItems: { key: ChecklistKey; label: string; emoji: string }[] = [
 export default function Dashboard() {
   const time = useCurrentTime();
   const fasting = getFastingStatus();
+  const { user } = useAuth();
 
-  const [allTests, setAllTests] = useState<BloodTest[]>(BLOOD_TESTS);
-  const [trends, setTrends] = useState<KeyTrend[]>(KEY_TRENDS);
+  const [userName, setUserName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [heightCm, setHeightCm] = useState<number>(170);
+
+  const [allTests, setAllTests] = useState<BloodTest[]>([]);
+  const [trends, setTrends] = useState<KeyTrend[]>([]);
   const healthScore = getHealthScore(allTests);
   const motivation = getMotivationalMessage(allTests);
 
@@ -55,7 +60,7 @@ export default function Dashboard() {
   const [exerciseCalories, setExerciseCalories] = useState(0);
   const [mealCalories, setMealCalories] = useState(0);
   const [weightLoggedToday, setWeightLoggedToday] = useState(false);
-  const [currentWeight, setCurrentWeight] = useState(88);
+  const [currentWeight, setCurrentWeight] = useState<number | null>(null);
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [checklistId, setChecklistId] = useState<string | null>(null);
 
@@ -63,6 +68,22 @@ export default function Dashboard() {
   const [weightModal, setWeightModal] = useState(false);
   const [exerciseModal, setExerciseModal] = useState(false);
   const [mealModal, setMealModal] = useState(false);
+
+  // Load user profile
+  useEffect(() => {
+    (async () => {
+      const profile = await getProfile();
+      if (profile) {
+        setUserName((profile as any).name || (profile as any).full_name || "");
+        setAvatarUrl((profile as any).avatar_url || null);
+        if ((profile as any).height_cm) setHeightCm((profile as any).height_cm);
+      }
+      if (!profile && user) {
+        setUserName(user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "");
+        setAvatarUrl(user.user_metadata?.avatar_url || null);
+      }
+    })();
+  }, [user]);
 
   // Load only APPLIED blood test records from DB
   useEffect(() => {
@@ -85,9 +106,8 @@ export default function Dashboard() {
             category: m.category || "Other",
           })),
         }));
-        const merged = [...BLOOD_TESTS, ...dbTests].sort((a, b) => a.date.localeCompare(b.date));
-        setAllTests(merged);
-        setTrends(computeKeyTrends(merged));
+        setAllTests(dbTests);
+        setTrends(computeKeyTrends(dbTests));
       } catch {
         // Table may not exist yet
       }
@@ -149,10 +169,16 @@ export default function Dashboard() {
     <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <img src={profilePhoto} alt={USER_PROFILE.name} className="w-12 h-12 rounded-full object-cover border-2 border-primary" />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={userName} className="w-12 h-12 rounded-full object-cover border-2 border-primary" />
+        ) : (
+          <div className="w-12 h-12 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-lg font-bold text-primary">
+            {userName?.charAt(0)?.toUpperCase() || "?"}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">
-            Good {time.getHours() < 12 ? "morning" : time.getHours() < 18 ? "afternoon" : "evening"}, Saleh
+            Good {time.getHours() < 12 ? "morning" : time.getHours() < 18 ? "afternoon" : "evening"}, {userName?.split(" ")[0] || "there"}
           </h1>
           <p className="text-sm text-muted-foreground truncate">{motivation}</p>
         </div>
@@ -170,10 +196,16 @@ export default function Dashboard() {
           <div>
             <h3 className="font-display font-semibold text-foreground">Health Score</h3>
             <p className="text-xs text-muted-foreground mt-1">Based on blood work, body metrics, fitness data and lifestyle factors</p>
-            <div className="flex gap-2 mt-3">
-              <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Liver ⚠</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning">BMI {(currentWeight / (1.71 * 1.71)).toFixed(1)}</span>
-            </div>
+            {allTests.length > 0 && (
+              <div className="flex gap-2 mt-3">
+                {allTests[allTests.length - 1].markers.some(m => m.category === "Liver" && (m.status === "high" || m.status === "critical")) && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Liver ⚠</span>
+                )}
+                {currentWeight && heightCm > 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning">BMI {(currentWeight / ((heightCm / 100) * (heightCm / 100))).toFixed(1)}</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -202,7 +234,7 @@ export default function Dashboard() {
           { icon: Droplets, label: "Water", value: `${(waterGlasses * 250 / 1000).toFixed(1)}L`, sub: "of 3L", done: waterGlasses * 250 >= 3000 },
           { icon: Utensils, label: "Meals", value: `${mealsLogged}/4`, sub: "logged", done: mealsLogged >= 4 },
           { icon: Dumbbell, label: "Exercise", value: exerciseDone ? "Done" : "Pending", sub: "today", done: exerciseDone },
-          { icon: Scale, label: "Weight", value: `${currentWeight}`, sub: weightLoggedToday ? "logged today" : "kg", done: weightLoggedToday },
+          { icon: Scale, label: "Weight", value: currentWeight ? `${currentWeight}` : "—", sub: weightLoggedToday ? "logged today" : "kg", done: weightLoggedToday },
         ].map((item) => (
           <div key={item.label} className={`rounded-xl p-4 text-center border-2 transition-all ${
             item.done
@@ -313,16 +345,18 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* BioAge Alert */}
-      <div className="warning-gradient rounded-xl p-4 text-warning-foreground">
-        <div className="flex items-start gap-3">
-          <Heart className="w-5 h-5 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-sm">BioAge: 48 years (you are 33)</p>
-            <p className="text-xs opacity-90 mt-1">Your body functions like someone 15 years older. Lower body age: 70 — most critical. Focus on legs, core, and cardio.</p>
+      {/* BioAge Alert — only show if user has data */}
+      {allTests.length > 0 && (
+        <div className="warning-gradient rounded-xl p-4 text-warning-foreground">
+          <div className="flex items-start gap-3">
+            <Heart className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-sm">Track your BioAge</p>
+              <p className="text-xs opacity-90 mt-1">Upload blood test results and log exercises to calculate your biological age.</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

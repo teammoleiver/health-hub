@@ -10,22 +10,21 @@ interface Message {
   content: string;
 }
 
-const WELCOME = `Hi Saleh! 👋 I'm your **unified Health Intelligence assistant**. I analyze ALL your health data as one interconnected system:
+const WELCOME = `Hi! 👋 I'm your **unified Health Intelligence assistant**. I analyze ALL your health data as one interconnected system:
 
 • 😴 **Sleep** — quality, duration, consistency, and how it affects everything else
 • 🍽️ **Nutrition** — meals, calories, liver-safe choices, hydration
 • ⏱️ **Fasting** — 16:8 compliance, eating window status
-• 🏋️ **Exercise** — sessions, BioAge reduction, recovery needs
+• 🏋️ **Exercise** — sessions, recovery needs
 • ⚖️ **Body** — weight trends, BMI, body composition
-• 🩸 **Blood markers** — ALT/AST alerts, cholesterol, trends
+• 🩸 **Blood markers** — alerts, trends
 • ✅ **Daily habits** — checklist compliance, streaks
 
 All modules talk to each other. Ask me anything — for example:
 - "How is my overall health right now?"
 - "Is my sleep affecting my weight loss?"
 - "What should I focus on today based on all my data?"
-- "Give me a full health report"
-- "Qué sugieres para mejorar mi hígado?"`;
+- "Give me a full health report"`;
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-chat`;
 
