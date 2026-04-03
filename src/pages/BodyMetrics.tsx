@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Scale, TrendingDown, TrendingUp, Calendar, Sun, Clock, Sunset, Moon, ArrowRight, Target } from "lucide-react";
+import { Scale, TrendingDown, TrendingUp, Calendar, Sun, Clock, Sunset, Moon, ArrowRight, Target, Edit3, Save, X } from "lucide-react";
 import { EGYM_DATA } from "@/lib/health-data";
 import { ProgressRing } from "@/components/ui/ProgressRing";
-import { getWeightHistory, getAppliedBloodTestRecords, getProfile } from "@/lib/supabase-queries";
+import { getWeightHistory, getAppliedBloodTestRecords, getProfile, updateProfile } from "@/lib/supabase-queries";
 import type { BloodTest, HealthMarker } from "@/lib/health-data";
 import { onSync } from "@/lib/sync-events";
 import { motion } from "framer-motion";
@@ -93,21 +93,30 @@ function CustomTooltip({ active, payload }: any) {
 export default function BodyMetrics() {
   const [weightData, setWeightData] = useState<WeightEntry[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [bodyView, setBodyView] = useState<"main" | "history">("main");
+  const [bodyView, setBodyView] = useState<"main" | "history" | "profile">("main");
   const [latestBmi, setLatestBmi] = useState<number | null>(null);
   const [profileHeight, setProfileHeight] = useState(170);
   const [targetWeight, setTargetWeight] = useState<number | null>(null);
+  const [targetWeightM1, setTargetWeightM1] = useState<number | null>(null);
   const [startingWeight, setStartingWeight] = useState<number | null>(null);
   const [bloodTests, setBloodTests] = useState<BloodTest[]>([]);
+  const [profileSaving, setProfileSaving] = useState(false);
+  // Edit form state
+  const [editHeight, setEditHeight] = useState(170);
+  const [editStartWeight, setEditStartWeight] = useState(0);
+  const [editTargetFinal, setEditTargetFinal] = useState(0);
+  const [editTargetM1, setEditTargetM1] = useState(0);
 
   // Load profile data
   useEffect(() => {
     (async () => {
       const profile = await getProfile();
       if (profile) {
-        if ((profile as any).height_cm) setProfileHeight((profile as any).height_cm);
-        if ((profile as any).target_weight_final_kg) setTargetWeight(Number((profile as any).target_weight_final_kg));
-        if ((profile as any).starting_weight_kg) setStartingWeight(Number((profile as any).starting_weight_kg));
+        const p = profile as any;
+        if (p.height_cm) { setProfileHeight(p.height_cm); setEditHeight(p.height_cm); }
+        if (p.target_weight_final_kg) { setTargetWeight(Number(p.target_weight_final_kg)); setEditTargetFinal(Number(p.target_weight_final_kg)); }
+        if (p.target_weight_m1_kg) { setTargetWeightM1(Number(p.target_weight_m1_kg)); setEditTargetM1(Number(p.target_weight_m1_kg)); }
+        if (p.starting_weight_kg) { setStartingWeight(Number(p.starting_weight_kg)); setEditStartWeight(Number(p.starting_weight_kg)); }
       }
       // Load blood tests from DB
       const records = await getAppliedBloodTestRecords();
@@ -210,20 +219,37 @@ export default function BodyMetrics() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Body Metrics</h1>
         <div className="flex items-center gap-2">
-          {realEntries.length > 0 && (
+          {realEntries.length > 0 && bodyView === "main" && (
             <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground flex items-center gap-1">
               <Calendar className="w-3 h-3" /> Last: {realEntries[realEntries.length - 1].date}
             </span>
           )}
-          <button
-            onClick={() => setBodyView(bodyView === "main" ? "history" : "main")}
-            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${bodyView === "history" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-          >
-            {bodyView === "history" ? "Back" : "Weigh-ins"}
-          </button>
-          <button onClick={() => setModalOpen(true)} className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary-dark transition flex items-center gap-1">
-            <Scale className="w-3.5 h-3.5" /> Log Weight
-          </button>
+          {bodyView !== "main" ? (
+            <button
+              onClick={() => setBodyView("main")}
+              className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground font-medium transition"
+            >
+              Back
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => setBodyView("history")}
+                className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground font-medium transition"
+              >
+                Weigh-ins
+              </button>
+              <button
+                onClick={() => setBodyView("profile")}
+                className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground font-medium transition flex items-center gap-1"
+              >
+                <Edit3 className="w-3 h-3" /> Edit Goals
+              </button>
+              <button onClick={() => setModalOpen(true)} className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary-dark transition flex items-center gap-1">
+                <Scale className="w-3.5 h-3.5" /> Log Weight
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -267,6 +293,124 @@ export default function BodyMetrics() {
               <p className="text-sm text-muted-foreground">No weigh-ins logged yet</p>
             </div>
           )}
+        </div>
+      ) : bodyView === "profile" ? (
+        /* ── Body Profile Editor ── */
+        <div className="glass-card rounded-xl p-5 space-y-5">
+          <h3 className="font-display font-semibold text-foreground">Body Profile & Goals</h3>
+          <p className="text-xs text-muted-foreground">Edit your body details and weight goals. Changes are saved to your profile.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Height */}
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Height (cm)</label>
+              <input
+                type="number"
+                value={editHeight}
+                onChange={e => setEditHeight(Number(e.target.value))}
+                className="mt-1 w-full bg-secondary/50 rounded-lg px-4 py-2.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/40"
+              />
+            </div>
+
+            {/* Starting Weight */}
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Starting Weight (kg)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={editStartWeight}
+                onChange={e => setEditStartWeight(Number(e.target.value))}
+                className="mt-1 w-full bg-secondary/50 rounded-lg px-4 py-2.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/40"
+              />
+            </div>
+
+            {/* Month 1 Target */}
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Month 1 Target (kg)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={editTargetM1}
+                onChange={e => setEditTargetM1(Number(e.target.value))}
+                className="mt-1 w-full bg-secondary/50 rounded-lg px-4 py-2.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/40"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">Short-term milestone</p>
+            </div>
+
+            {/* Final Goal */}
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Final Goal Weight (kg)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={editTargetFinal}
+                onChange={e => setEditTargetFinal(Number(e.target.value))}
+                className="mt-1 w-full bg-secondary/50 rounded-lg px-4 py-2.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/40"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">Long-term target weight</p>
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div className="rounded-lg bg-secondary/30 p-4 space-y-2">
+            <p className="text-xs font-medium text-foreground">Preview</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center text-xs">
+              <div>
+                <div className="text-muted-foreground">Height</div>
+                <div className="font-semibold text-foreground">{editHeight} cm</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Start</div>
+                <div className="font-semibold text-foreground">{editStartWeight} kg</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">M1 Target</div>
+                <div className="font-semibold text-warning">{editTargetM1} kg</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Final Goal</div>
+                <div className="font-semibold text-primary">{editTargetFinal} kg</div>
+              </div>
+            </div>
+            {editStartWeight > 0 && editTargetFinal > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Total to lose: <span className="text-foreground font-medium">{(editStartWeight - editTargetFinal).toFixed(1)} kg</span>
+                {latestWeight > 0 && <> — Remaining: <span className="text-foreground font-medium">{(latestWeight - editTargetFinal).toFixed(1)} kg</span></>}
+              </p>
+            )}
+          </div>
+
+          {/* Save */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                setProfileSaving(true);
+                await updateProfile({
+                  height_cm: editHeight,
+                  starting_weight_kg: editStartWeight,
+                  target_weight_m1_kg: editTargetM1,
+                  target_weight_final_kg: editTargetFinal,
+                });
+                setProfileHeight(editHeight);
+                setStartingWeight(editStartWeight);
+                setTargetWeight(editTargetFinal);
+                setTargetWeightM1(editTargetM1);
+                setProfileSaving(false);
+                setBodyView("main");
+              }}
+              disabled={profileSaving}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-dark transition flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {profileSaving ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              Save Changes
+            </button>
+            <button
+              onClick={() => setBodyView("main")}
+              className="px-4 py-2 rounded-lg bg-secondary text-muted-foreground text-sm font-medium hover:text-foreground transition"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       ) : (<>
       {/* Stats Cards */}

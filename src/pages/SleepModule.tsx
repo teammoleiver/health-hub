@@ -622,32 +622,34 @@ export default function SleepModule() {
           </div>
         </div>
 
-        {sleepView === "main" ? (<>
-        <div className="flex items-center gap-8 mt-6">
-          <ProgressRing progress={sleepScore} size={140} strokeWidth={10} color={scoreColor}>
-            <div className="text-center">
-              <span className="text-3xl font-bold text-foreground">{sleepScore}</span>
-              <p className="text-xs text-muted-foreground">Sleep Score</p>
-            </div>
-          </ProgressRing>
+        {sleepView === "main" && (
+          <div className="flex items-center gap-8 mt-6">
+            <ProgressRing progress={sleepScore} size={140} strokeWidth={10} color={scoreColor}>
+              <div className="text-center">
+                <span className="text-3xl font-bold text-foreground">{sleepScore}</span>
+                <p className="text-xs text-muted-foreground">Sleep Score</p>
+              </div>
+            </ProgressRing>
 
-          <div className="flex-1 grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">{avgHours}h</p>
-              <p className="text-xs text-muted-foreground">Avg Hours</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">{avgQuality}/5</p>
-              <p className="text-xs text-muted-foreground">Avg Quality</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">{"\u00B1"}{bedtimeVariance}m</p>
-              <p className="text-xs text-muted-foreground">Bedtime Variance</p>
+            <div className="flex-1 grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">{avgHours}h</p>
+                <p className="text-xs text-muted-foreground">Avg Hours</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">{avgQuality}/5</p>
+                <p className="text-xs text-muted-foreground">Avg Quality</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">{"\u00B1"}{bedtimeVariance}m</p>
+                <p className="text-xs text-muted-foreground">Bedtime Variance</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </motion.div>
 
+      {sleepView === "main" && (<>
       {/* ================================================================= */}
       {/* 2. TONIGHT'S TARGETS */}
       {/* ================================================================= */}
@@ -1200,9 +1202,10 @@ export default function SleepModule() {
         </AnimatePresence>
       </motion.div>
 
-      </>) : (
-        /* SLEEP HISTORY VIEW */
-        <div className="glass-card p-5 mt-4">
+      </>)}
+
+      {sleepView === "history" && (
+        <div className="glass-card p-5">
           <h2 className="text-lg font-semibold text-foreground mb-4">Sleep History</h2>
           <div className="overflow-y-auto space-y-2">
             {[...logs]
