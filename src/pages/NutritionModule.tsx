@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Utensils, Clock, Droplets, Plus, Minus, Trophy, Flame, Loader2, X } from "lucide-react";
+import { Utensils, Clock, Droplets, Plus, Minus, Trophy, Flame, Loader2, X, ArrowLeft } from "lucide-react";
 import { getFastingStatus } from "@/lib/health-data";
 import { getTodayWaterLog, upsertWaterLog, getTodayMeals, getAllMealLogs, upsertChecklist, logMeal } from "@/lib/supabase-queries";
 import { onSync } from "@/lib/sync-events";
@@ -25,6 +25,7 @@ export default function NutritionModule() {
   const [todayMeals, setTodayMeals] = useState<Tables<"meal_logs">[]>([]);
   const [mealHistory, setMealHistory] = useState<any[]>([]);
   const [mealModalOpen, setMealModalOpen] = useState(false);
+  const [view, setView] = useState<"main" | "history">("main");
   const [selectedFood, setSelectedFood] = useState<FoodDbItem | null>(null);
   const [mealTypePicker, setMealTypePicker] = useState(false);
   const now = new Date();
@@ -78,7 +79,74 @@ export default function NutritionModule() {
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
-      <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Nutrition</h1>
+      {view === "history" ? (
+        /* ── Meal History View ── */
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setView("main")} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Meal History</h1>
+            <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground ml-auto">{mealHistory.length} meals</span>
+          </div>
+          <div className="glass-card rounded-xl p-5">
+            {mealHistory.length > 0 ? (
+              <div className="space-y-1">
+                {(() => {
+                  const grouped: Record<string, any[]> = {};
+                  mealHistory.forEach((m: any) => {
+                    const d = new Date(m.logged_at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+                    if (!grouped[d]) grouped[d] = [];
+                    grouped[d].push(m);
+                  });
+                  return Object.entries(grouped).map(([date, meals]) => (
+                    <div key={date}>
+                      <div className="sticky top-0 bg-card/95 backdrop-blur-sm py-2 px-1 z-10">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{date}</span>
+                        <span className="text-[10px] text-muted-foreground ml-2">
+                          {meals.reduce((s: number, m: any) => s + (m.calories ?? 0), 0)} kcal total
+                        </span>
+                      </div>
+                      {meals.map((m: any) => (
+                        <div key={m.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-accent/20 transition">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                              m.quality === "good" ? "bg-success/15 text-success" : m.quality === "bad" ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"
+                            }`}>{m.meal_type}</span>
+                            <span className="text-sm text-foreground truncate">{m.food_name}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0 ml-2">
+                            {m.protein_g && <span>P: {m.protein_g}g</span>}
+                            {m.carbs_g && <span>C: {m.carbs_g}g</span>}
+                            {m.fat_g && <span>F: {m.fat_g}g</span>}
+                            <span className="font-medium text-foreground">{m.calories ?? "—"} kcal</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ));
+                })()}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-12">No meals logged yet.</p>
+            )}
+          </div>
+        </div>
+      ) : (<>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Nutrition</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setView("history")}
+            className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground font-medium transition"
+          >
+            Meal History
+          </button>
+          <button onClick={() => setMealModalOpen(true)} className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary-dark transition flex items-center gap-1">
+            <Plus className="w-3.5 h-3.5" /> Log Meal
+          </button>
+        </div>
+      </div>
 
       {/* Fasting warnings */}
       {isPastWindow && (
@@ -277,54 +345,7 @@ export default function NutritionModule() {
         )}
       </AnimatePresence>
 
-      {/* Log Meal Button */}
-      <button onClick={() => setMealModalOpen(true)} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:bg-primary-dark transition">
-        <Plus className="w-4 h-4" /> Log Meal
-      </button>
-
-      {/* ── Meal History ── */}
-      <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-display font-semibold text-foreground">Meal History</h3>
-          <span className="text-xs text-muted-foreground">{mealHistory.length} meals logged</span>
-        </div>
-        {mealHistory.length > 0 ? (
-          <div className="space-y-1 max-h-80 overflow-y-auto">
-            {(() => {
-              const grouped: Record<string, any[]> = {};
-              mealHistory.forEach((m: any) => {
-                const d = new Date(m.logged_at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-                if (!grouped[d]) grouped[d] = [];
-                grouped[d].push(m);
-              });
-              return Object.entries(grouped).map(([date, meals]) => (
-                <div key={date}>
-                  <div className="sticky top-0 bg-card/95 backdrop-blur-sm py-1.5 px-1 z-10">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{date}</span>
-                    <span className="text-[10px] text-muted-foreground ml-2">
-                      {meals.reduce((s: number, m: any) => s + (m.calories ?? 0), 0)} kcal total
-                    </span>
-                  </div>
-                  {meals.map((m: any) => (
-                    <div key={m.id} className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-accent/30 transition">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-                          m.quality === "good" ? "bg-success/15 text-success" : m.quality === "bad" ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"
-                        }`}>{m.meal_type}</span>
-                        <span className="text-xs text-foreground truncate">{m.food_name}</span>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{m.calories ?? "—"} kcal</span>
-                    </div>
-                  ))}
-                </div>
-              ));
-            })()}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-6">No meals logged yet. Use the "Log Meal" button to start tracking.</p>
-        )}
-      </div>
-
+      </>)}
       <LogMealModal open={mealModalOpen} onClose={() => setMealModalOpen(false)} onLogged={() => { getTodayMeals().then(setTodayMeals); getAllMealLogs(60).then(setMealHistory); }} />
     </div>
   );

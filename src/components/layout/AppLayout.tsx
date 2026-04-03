@@ -3,32 +3,71 @@ import { useLocation, Link } from "react-router-dom";
 import { onSync } from "@/lib/sync-events";
 import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
-  MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun, Droplets, FolderKanban, CheckSquare, CalendarDays,
+  MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
+  Droplets, FolderKanban, CheckSquare, CalendarDays,
+  PanelLeftClose, PanelLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
 import { getTodayWaterLog } from "@/lib/supabase-queries";
 
-const navItems = [
-  { path: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/nutrition", icon: Utensils, label: "Nutrition" },
-  { path: "/fasting", icon: Timer, label: "Fasting" },
-  { path: "/exercise", icon: Dumbbell, label: "Exercise" },
-  { path: "/sleep", icon: Moon, label: "Sleep" },
-  { path: "/health", icon: HeartPulse, label: "Health" },
-  { path: "/body", icon: BarChart3, label: "Body" },
-  { path: "/goals", icon: Target, label: "Goals" },
-  { path: "/projects", icon: FolderKanban, label: "Projects" },
-  { path: "/tasks", icon: CheckSquare, label: "Tasks" },
-  { path: "/calendar", icon: CalendarDays, label: "Calendar" },
+// ── Grouped navigation ──
+interface NavItem {
+  path: string;
+  icon: React.ComponentType<any>;
+  label: string;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: "",
+    items: [
+      { path: "/", icon: LayoutDashboard, label: "Dashboard" },
+    ],
+  },
+  {
+    label: "Health",
+    items: [
+      { path: "/nutrition", icon: Utensils, label: "Nutrition" },
+      { path: "/fasting", icon: Timer, label: "Fasting" },
+      { path: "/exercise", icon: Dumbbell, label: "Exercise" },
+      { path: "/sleep", icon: Moon, label: "Sleep" },
+      { path: "/health", icon: HeartPulse, label: "Records" },
+      { path: "/body", icon: BarChart3, label: "Body" },
+    ],
+  },
+  {
+    label: "Productivity",
+    items: [
+      { path: "/projects", icon: FolderKanban, label: "Projects" },
+      { path: "/tasks", icon: CheckSquare, label: "Tasks" },
+      { path: "/calendar", icon: CalendarDays, label: "Calendar" },
+      { path: "/goals", icon: Target, label: "Goals" },
+    ],
+  },
+];
+
+// Bottom-pinned items (always visible at the bottom of sidebar)
+const bottomNavItems: NavItem[] = [
   { path: "/assistant", icon: MessageCircle, label: "Assistant" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
+// Flat list for lookups
+const allNavItems = navGroups.flatMap(g => g.items);
+
+// Mobile: show the most important 5 + a "more" concept via the 6 most used
 const mobileNavItems = [
-  ...navItems.slice(0, 6), // Dashboard, Nutrition, Fasting, Exercise, Sleep, Health
-  navItems.find(i => i.path === "/projects")!,
-  navItems.find(i => i.path === "/tasks")!,
+  allNavItems.find(i => i.path === "/")!,
+  allNavItems.find(i => i.path === "/nutrition")!,
+  allNavItems.find(i => i.path === "/exercise")!,
+  allNavItems.find(i => i.path === "/tasks")!,
+  allNavItems.find(i => i.path === "/calendar")!,
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -67,60 +106,102 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Desktop Sidebar */}
       <aside
         className={`hidden md:flex flex-col fixed left-0 top-0 h-full z-40 transition-all duration-300 ${
-          sidebarOpen ? "w-60" : "w-16"
+          sidebarOpen ? "w-56" : "w-16"
         }`}
         style={{ background: "hsl(var(--sidebar-background))" }}
       >
-        <div className="flex items-center gap-3 p-4 border-b border-sidebar-border">
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-sidebar-border">
           <img
             src={syncvidaLogo}
             alt="Syncvida"
-            className="w-8 h-8 object-contain"
+            className="w-7 h-7 object-contain"
           />
           {sidebarOpen && (
-            <span className="text-sidebar-foreground font-display font-bold text-lg">
+            <span className="text-sidebar-foreground font-display font-bold text-base">
               Syncvida
             </span>
           )}
         </div>
 
-        <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-          {navItems.map((item) => {
+        {/* Navigation groups */}
+        <nav className="flex-1 py-2 px-2 overflow-y-auto">
+          {navGroups.map((group, gi) => (
+            <div key={gi} className={gi > 0 ? "mt-3" : ""}>
+              {/* Group label */}
+              {group.label && sidebarOpen && (
+                <div className="px-3 pt-2 pb-1.5">
+                  <span className="text-[10px] uppercase tracking-widest text-sidebar-foreground/40 font-semibold">
+                    {group.label}
+                  </span>
+                </div>
+              )}
+              {/* Separator line for collapsed sidebar when group has label */}
+              {group.label && !sidebarOpen && (
+                <div className="mx-3 my-2 border-t border-sidebar-border/50" />
+              )}
+
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const active = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-2.5 px-3 py-[7px] rounded-md transition-all text-[13px] ${
+                        active
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+                          : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      } ${!sidebarOpen ? "justify-center px-0" : ""}`}
+                    >
+                      <item.icon className="w-[18px] h-[18px] shrink-0" />
+                      {sidebarOpen && <span>{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Bottom-pinned: Assistant & Settings */}
+        <div className="px-2 pb-1 space-y-0.5">
+          {bottomNavItems.map((item) => {
             const active = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm font-medium ${
+                className={`flex items-center gap-2.5 px-3 py-[7px] rounded-md transition-all text-[13px] ${
                   active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                } ${!sidebarOpen ? "justify-center" : ""}`}
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                } ${!sidebarOpen ? "justify-center px-0" : ""}`}
               >
-                <item.icon className="w-5 h-5 shrink-0" />
+                <item.icon className="w-[18px] h-[18px] shrink-0" />
                 {sidebarOpen && <span>{item.label}</span>}
               </Link>
             );
           })}
-        </nav>
+        </div>
 
         {/* Water progress widget */}
         <Link
           to="/nutrition"
-          className="mx-2 mb-2 p-3 rounded-lg bg-sidebar-accent/50 hover:bg-sidebar-accent transition block"
+          className="mx-2 mb-1.5 p-2.5 rounded-lg bg-sidebar-accent/40 hover:bg-sidebar-accent/70 transition block"
         >
           {sidebarOpen ? (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Droplets className="w-4 h-4 text-blue-400" />
-                  <span className="text-xs font-medium text-sidebar-foreground">Water</span>
+                <div className="flex items-center gap-1.5">
+                  <Droplets className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="text-[11px] font-medium text-sidebar-foreground/70">Water</span>
                 </div>
-                <span className={`text-xs font-bold ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/70"}`}>
+                <span className={`text-[11px] font-bold ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/50"}`}>
                   {(waterMl / 1000).toFixed(1)}L
                 </span>
               </div>
-              <div className="h-1.5 bg-sidebar-border rounded-full overflow-hidden">
+              <div className="h-1 bg-sidebar-border rounded-full overflow-hidden">
                 <motion.div
                   className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500"
                   initial={false}
@@ -130,26 +211,27 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-1">
-              <div className="relative">
-                <Droplets className={`w-4 h-4 ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/50"}`} />
-              </div>
-              <span className="text-[9px] font-bold text-sidebar-foreground/60">{(waterMl / 1000).toFixed(1)}L</span>
+            <div className="flex flex-col items-center gap-0.5">
+              <Droplets className={`w-3.5 h-3.5 ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/40"}`} />
+              <span className="text-[8px] font-bold text-sidebar-foreground/50">{(waterMl / 1000).toFixed(1)}L</span>
             </div>
           )}
         </Link>
 
-        <div className="p-3 border-t border-sidebar-border flex items-center gap-2">
+        {/* Footer */}
+        <div className="px-2 py-2 border-t border-sidebar-border flex items-center gap-1.5">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-sidebar-foreground/60 hover:text-sidebar-foreground p-1.5 rounded-md hover:bg-sidebar-accent transition"
+            className="text-sidebar-foreground/40 hover:text-sidebar-foreground p-1.5 rounded-md hover:bg-sidebar-accent transition"
+            title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
-            <LayoutDashboard className="w-4 h-4" />
+            {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
           </button>
           {sidebarOpen && (
             <button
               onClick={() => setDark(!dark)}
-              className="text-sidebar-foreground/60 hover:text-sidebar-foreground p-1.5 rounded-md hover:bg-sidebar-accent transition ml-auto"
+              className="text-sidebar-foreground/40 hover:text-sidebar-foreground p-1.5 rounded-md hover:bg-sidebar-accent transition ml-auto"
+              title={dark ? "Light mode" : "Dark mode"}
             >
               {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -160,7 +242,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Main Content */}
       <main
         className={`flex-1 transition-all duration-300 pb-20 md:pb-0 ${
-          sidebarOpen ? "md:ml-60" : "md:ml-16"
+          sidebarOpen ? "md:ml-56" : "md:ml-16"
         }`}
       >
         {/* Mobile Header */}
@@ -190,16 +272,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </AnimatePresence>
       </main>
 
-      {/* Mobile Bottom Nav */}
+      {/* Mobile Bottom Nav — 5 key items */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border">
-        <div className="flex items-center justify-around py-2 px-1">
+        <div className="flex items-center justify-around py-2 px-2">
           {mobileNavItems.map((item) => {
             const active = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors min-w-0 ${
+                className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors min-w-0 ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}
               >

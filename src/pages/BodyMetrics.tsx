@@ -93,6 +93,7 @@ function CustomTooltip({ active, payload }: any) {
 export default function BodyMetrics() {
   const [weightData, setWeightData] = useState<WeightEntry[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [bodyView, setBodyView] = useState<"main" | "history">("main");
   const [latestBmi, setLatestBmi] = useState<number | null>(null);
   const [profileHeight, setProfileHeight] = useState(170);
   const [targetWeight, setTargetWeight] = useState<number | null>(null);
@@ -208,13 +209,66 @@ export default function BodyMetrics() {
     <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Body Metrics</h1>
-        {realEntries.length > 0 && (
-          <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground flex items-center gap-1">
-            <Calendar className="w-3 h-3" /> Last: {realEntries[realEntries.length - 1].date}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {realEntries.length > 0 && (
+            <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground flex items-center gap-1">
+              <Calendar className="w-3 h-3" /> Last: {realEntries[realEntries.length - 1].date}
+            </span>
+          )}
+          <button
+            onClick={() => setBodyView(bodyView === "main" ? "history" : "main")}
+            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${bodyView === "history" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
+          >
+            {bodyView === "history" ? "Back" : "Weigh-ins"}
+          </button>
+          <button onClick={() => setModalOpen(true)} className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary-dark transition flex items-center gap-1">
+            <Scale className="w-3.5 h-3.5" /> Log Weight
+          </button>
+        </div>
       </div>
 
+      {bodyView === "history" ? (
+        /* ── Weigh-in History View ── */
+        <div className="glass-card rounded-xl overflow-hidden">
+          {realEntries.length > 0 ? (
+            <div className="divide-y divide-border/50">
+              {[...realEntries].reverse().map((entry, i) => {
+                const Icon = timeIcon[entry.timeOfDay];
+                const prev = i < realEntries.length - 1 ? [...realEntries].reverse()[i + 1] : null;
+                const diff = prev ? entry.weight - prev.weight : null;
+                return (
+                  <div key={entry.fullDate} className="flex items-center justify-between py-3 px-5 hover:bg-accent/20 transition">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-secondary">
+                        <Icon className={`w-4 h-4 ${timeColor[entry.timeOfDay]}`} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-foreground">{entry.weight}kg</div>
+                        <div className="text-[11px] text-muted-foreground">{entry.date} · {entry.timeOfDay}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {entry.waist && <span className="text-xs text-muted-foreground">{entry.waist}cm waist</span>}
+                      <span className="text-xs text-muted-foreground">BMI {entry.bmi}</span>
+                      {diff !== null && (
+                        <span className={`text-xs font-medium flex items-center gap-0.5 ${diff > 0 ? "text-destructive" : diff < 0 ? "text-success" : "text-muted-foreground"}`}>
+                          {diff > 0 ? <TrendingUp className="w-3 h-3" /> : diff < 0 ? <TrendingDown className="w-3 h-3" /> : null}
+                          {diff > 0 ? "+" : ""}{diff.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <Scale className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">No weigh-ins logged yet</p>
+            </div>
+          )}
+        </div>
+      ) : (<>
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {stats.map((s) => (
@@ -292,43 +346,6 @@ export default function BodyMetrics() {
         </div>
       </div>
 
-      {/* Recent Weigh-ins */}
-      {realEntries.length > 0 && (
-        <div className="glass-card rounded-xl p-5">
-          <h3 className="font-display font-semibold text-foreground mb-3">Recent Weigh-ins</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {[...realEntries].reverse().slice(0, 10).map((entry, i) => {
-              const Icon = timeIcon[entry.timeOfDay];
-              const prev = i < realEntries.length - 1 ? [...realEntries].reverse()[i + 1] : null;
-              const diff = prev ? entry.weight - prev.weight : null;
-              return (
-                <div key={entry.fullDate} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-secondary`}>
-                      <Icon className={`w-4 h-4 ${timeColor[entry.timeOfDay]}`} />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-foreground">{entry.weight}kg</div>
-                      <div className="text-[10px] text-muted-foreground">{entry.date} · {entry.timeOfDay}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {entry.waist && <span className="text-xs text-muted-foreground">{entry.waist}cm</span>}
-                    <span className="text-xs text-muted-foreground">BMI {entry.bmi}</span>
-                    {diff !== null && (
-                      <span className={`text-xs font-medium flex items-center gap-0.5 ${diff > 0 ? "text-destructive" : diff < 0 ? "text-success" : "text-muted-foreground"}`}>
-                        {diff > 0 ? <TrendingUp className="w-3 h-3" /> : diff < 0 ? <TrendingDown className="w-3 h-3" /> : null}
-                        {diff > 0 ? "+" : ""}{diff.toFixed(1)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* BMI Cross-reference with Health Records */}
       <div className="glass-card rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
@@ -370,11 +387,7 @@ export default function BodyMetrics() {
         </div>
       </div>
 
-      {/* Log Weight */}
-      <button onClick={() => setModalOpen(true)} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:bg-primary-dark transition">
-        <Scale className="w-4 h-4" /> Log Weight
-      </button>
-
+      </>)}
       <LogWeightModal open={modalOpen} onClose={() => setModalOpen(false)} onLogged={loadWeights} />
     </div>
   );

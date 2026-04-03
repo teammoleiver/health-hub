@@ -321,6 +321,7 @@ export default function SleepModule() {
   });
   const [expandedRule, setExpandedRule] = useState<number | null>(null);
   const [showLogForm, setShowLogForm] = useState(false);
+  const [sleepView, setSleepView] = useState<"main" | "history">("main");
 
   // Form state
   const [formDate, setFormDate] = useState(daysAgo(0));
@@ -607,12 +608,21 @@ export default function SleepModule() {
             <Moon size={24} className="text-primary" />
             <h1 className="text-2xl font-bold text-foreground">Sleep Analytics</h1>
           </div>
-          <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary flex items-center gap-1">
-            <BookOpen size={12} />
-            Based on: Why We Sleep — Matthew Walker
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary flex items-center gap-1">
+              <BookOpen size={12} />
+              Why We Sleep
+            </span>
+            <button
+              onClick={() => setSleepView(sleepView === "main" ? "history" : "main")}
+              className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${sleepView === "history" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
+            >
+              {sleepView === "history" ? "Back" : "Sleep History"}
+            </button>
+          </div>
         </div>
 
+        {sleepView === "main" ? (<>
         <div className="flex items-center gap-8 mt-6">
           <ProgressRing progress={sleepScore} size={140} strokeWidth={10} color={scoreColor}>
             <div className="text-center">
@@ -1190,42 +1200,36 @@ export default function SleepModule() {
         </AnimatePresence>
       </motion.div>
 
-      {/* ================================================================= */}
-      {/* 10. SLEEP HISTORY TABLE */}
-      {/* ================================================================= */}
-      <motion.div
-        custom={sectionIndex++}
-        variants={sectionVariants}
-        initial="hidden"
-        animate="visible"
-        className="glass-card p-5"
-      >
-        <h2 className="text-lg font-semibold text-foreground mb-4">Sleep History</h2>
-        <div className="overflow-y-auto max-h-[300px] space-y-2">
-          {[...logs]
-            .sort((a, b) => b.date.localeCompare(a.date))
-            .map(log => (
-              <div key={log.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 text-sm">
-                <div className="flex items-center gap-4">
-                  <span className="text-foreground font-medium w-20">{formatDate(log.date)}</span>
-                  <span className="text-muted-foreground">
-                    {log.bedtime} → {log.wakeTime}
-                  </span>
+      </>) : (
+        /* SLEEP HISTORY VIEW */
+        <div className="glass-card p-5 mt-4">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Sleep History</h2>
+          <div className="overflow-y-auto space-y-2">
+            {[...logs]
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .map(log => (
+                <div key={log.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 text-sm">
+                  <div className="flex items-center gap-4">
+                    <span className="text-foreground font-medium w-20">{formatDate(log.date)}</span>
+                    <span className="text-muted-foreground">
+                      {log.bedtime} → {log.wakeTime}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-foreground font-medium">{log.totalHours}h</span>
+                    <span className="text-amber-400 text-xs tracking-wide">
+                      {Array.from({ length: 5 }, (_, i) => i < log.quality ? "\u2605" : "\u2606").join("")}
+                    </span>
+                    <span className="text-base">{getMorningEmoji(log.morningFeeling)}</span>
+                    <span className="text-muted-foreground text-xs w-16 text-right">
+                      {log.wakeUps === 0 ? "No wakes" : `${log.wakeUps} wake${log.wakeUps > 1 ? "s" : ""}`}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-foreground font-medium">{log.totalHours}h</span>
-                  <span className="text-amber-400 text-xs tracking-wide">
-                    {Array.from({ length: 5 }, (_, i) => i < log.quality ? "\u2605" : "\u2606").join("")}
-                  </span>
-                  <span className="text-base">{getMorningEmoji(log.morningFeeling)}</span>
-                  <span className="text-muted-foreground text-xs w-16 text-right">
-                    {log.wakeUps === 0 ? "No wakes" : `${log.wakeUps} wake${log.wakeUps > 1 ? "s" : ""}`}
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))}
+          </div>
         </div>
-      </motion.div>
+      )}
 
       {/* ================================================================= */}
       {/* WAKE-UP REVIEW MODAL                                              */}

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { User, Key, Globe, Bell, Download, Heart, Check, LogOut, Lock, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { User, Key, Globe, Bell, Download, Heart, Check, LogOut, Lock, Loader2, Camera } from "lucide-react";
 import { getUserProfile, getProfile, updateProfile } from "@/lib/supabase-queries";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,13 +16,63 @@ export default function SettingsModule() {
   const [changingPw, setChangingPw] = useState(false);
   const [newPw, setNewPw] = useState("");
   const [pwLoading, setPwLoading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getUserProfile().then((p) => {
       if (p?.openai_api_key) setHasApiKey(true);
     });
-    getProfile().then(setProfile);
+    getProfile().then((p) => {
+      setProfile(p);
+      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
+    });
   }, []);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please upload an image file.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Maximum 5MB.", variant: "destructive" });
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const uid = user?.id;
+      if (!uid) throw new Error("Not authenticated");
+
+      const ext = file.name.split(".").pop() || "jpg";
+      const filePath = `avatars/${uid}.${ext}`;
+
+      // Upload to Supabase storage
+      const { error: uploadError } = await supabase.storage
+        .from("health-records")
+        .upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("health-records")
+        .getPublicUrl(filePath);
+      const publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
+
+      // Save to profile
+      await updateProfile({ avatar_url: publicUrl });
+      setAvatarUrl(publicUrl);
+      toast({ title: "Photo updated!" });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
 
   const handleChangePassword = async () => {
     if (!newPw || newPw.length < 6) {
@@ -49,9 +99,39 @@ export default function SettingsModule() {
 
       {/* Profile */}
       <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary text-2xl font-bold text-primary">
-            {(profile?.name || user?.email || "U").charAt(0).toUpperCase()}
+        <div className="flex items-center gap-4">
+          {/* Avatar with upload */}
+          <div className="relative group">
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Profile"
+                className="w-16 h-16 rounded-full object-cover border-2 border-primary"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary text-2xl font-bold text-primary">
+                {(profile?.name || user?.email || "U").charAt(0).toUpperCase()}
+              </div>
+            )}
+            {/* Upload overlay */}
+            <button
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarUploading}
+              className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/50 flex items-center justify-center transition-all cursor-pointer"
+            >
+              {avatarUploading ? (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              ) : (
+                <Camera className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
+            </button>
           </div>
           <div>
             <h3 className="font-display font-semibold text-foreground">{profile?.name || "User"}</h3>
