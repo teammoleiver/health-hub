@@ -74,13 +74,7 @@ export const EGYM_DATA = {
   },
 };
 
-export const KEY_TRENDS = [
-  { marker: "Weight", from: 84, to: 88, unit: "kg", change: +4, changePct: 4.8, direction: "up" as const, severity: "critical" as const },
-  { marker: "ALT/GPT", from: 55, to: 101, unit: "UI/L", change: +46, changePct: 83.6, direction: "up" as const, severity: "critical" as const },
-  { marker: "BMI", from: 29.07, to: 30.1, unit: "", change: +1.03, changePct: 3.5, direction: "up" as const, severity: "critical" as const },
-  { marker: "Triglycerides", from: 153, to: 98, unit: "mg/dL", change: -55, changePct: -35.9, direction: "down" as const, severity: "improved" as const },
-  { marker: "Cholesterol", from: 212, to: 197, unit: "mg/dL", change: -15, changePct: -7.1, direction: "down" as const, severity: "improved" as const },
-];
+export const KEY_TRENDS: KeyTrend[] = [];
 
 export function getHealthScore(allTests?: BloodTest[]): number {
   const tests = allTests && allTests.length > 0 ? allTests : BLOOD_TESTS;
