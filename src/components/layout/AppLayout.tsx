@@ -6,8 +6,7 @@ import {
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun, Droplets,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import logoLight from "@/assets/logo-light.png";
-import logoDark from "@/assets/logo-dark.png";
+import syncvidaLogo from "@/assets/syncvida-icon.png";
 import { getTodayWaterLog } from "@/lib/supabase-queries";
 
 const navItems = [
