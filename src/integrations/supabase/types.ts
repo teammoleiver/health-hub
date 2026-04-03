@@ -21,6 +21,7 @@ export type Database = {
           id: string
           module_context: string | null
           role: string
+          user_id: string | null
         }
         Insert: {
           content: string
@@ -28,6 +29,7 @@ export type Database = {
           id?: string
           module_context?: string | null
           role: string
+          user_id?: string | null
         }
         Update: {
           content?: string
@@ -35,6 +37,7 @@ export type Database = {
           id?: string
           module_context?: string | null
           role?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -54,6 +57,7 @@ export type Database = {
           summary: string | null
           test_date: string
           uploaded_at: string
+          user_id: string | null
           weight_kg: number | null
         }
         Insert: {
@@ -71,6 +75,7 @@ export type Database = {
           summary?: string | null
           test_date: string
           uploaded_at?: string
+          user_id?: string | null
           weight_kg?: number | null
         }
         Update: {
@@ -88,6 +93,7 @@ export type Database = {
           summary?: string | null
           test_date?: string
           uploaded_at?: string
+          user_id?: string | null
           weight_kg?: number | null
         }
         Relationships: []
@@ -107,6 +113,7 @@ export type Database = {
           notes: string | null
           sunlight_done: boolean | null
           updated_at: string | null
+          user_id: string | null
           water_goal_met: boolean | null
         }
         Insert: {
@@ -123,6 +130,7 @@ export type Database = {
           notes?: string | null
           sunlight_done?: boolean | null
           updated_at?: string | null
+          user_id?: string | null
           water_goal_met?: boolean | null
         }
         Update: {
@@ -139,6 +147,7 @@ export type Database = {
           notes?: string | null
           sunlight_done?: boolean | null
           updated_at?: string | null
+          user_id?: string | null
           water_goal_met?: boolean | null
         }
         Relationships: []
@@ -164,6 +173,7 @@ export type Database = {
           notes: string | null
           snapshot_date: string
           total_calories: number
+          user_id: string | null
           water_glasses: number
           water_goal_met: boolean
           water_ml: number
@@ -189,6 +199,7 @@ export type Database = {
           notes?: string | null
           snapshot_date: string
           total_calories?: number
+          user_id?: string | null
           water_glasses?: number
           water_goal_met?: boolean
           water_ml?: number
@@ -214,6 +225,7 @@ export type Database = {
           notes?: string | null
           snapshot_date?: string
           total_calories?: number
+          user_id?: string | null
           water_glasses?: number
           water_goal_met?: boolean
           water_ml?: number
@@ -233,6 +245,7 @@ export type Database = {
           logged_at: string | null
           notes: string | null
           speed_kmh: number | null
+          user_id: string | null
         }
         Insert: {
           calories?: number | null
@@ -245,6 +258,7 @@ export type Database = {
           logged_at?: string | null
           notes?: string | null
           speed_kmh?: number | null
+          user_id?: string | null
         }
         Update: {
           calories?: number | null
@@ -257,6 +271,7 @@ export type Database = {
           logged_at?: string | null
           notes?: string | null
           speed_kmh?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -270,6 +285,7 @@ export type Database = {
           fast_day_2_calories: number | null
           fast_day_2_completed: boolean | null
           id: string
+          user_id: string | null
           week_start_date: string
         }
         Insert: {
@@ -281,6 +297,7 @@ export type Database = {
           fast_day_2_calories?: number | null
           fast_day_2_completed?: boolean | null
           id?: string
+          user_id?: string | null
           week_start_date: string
         }
         Update: {
@@ -292,6 +309,7 @@ export type Database = {
           fast_day_2_calories?: number | null
           fast_day_2_completed?: boolean | null
           id?: string
+          user_id?: string | null
           week_start_date?: string
         }
         Relationships: []
@@ -308,6 +326,7 @@ export type Database = {
           logged_date: string | null
           notes: string | null
           target_hours: number | null
+          user_id: string | null
         }
         Insert: {
           actual_hours?: number | null
@@ -320,6 +339,7 @@ export type Database = {
           logged_date?: string | null
           notes?: string | null
           target_hours?: number | null
+          user_id?: string | null
         }
         Update: {
           actual_hours?: number | null
@@ -332,6 +352,7 @@ export type Database = {
           logged_date?: string | null
           notes?: string | null
           target_hours?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -347,6 +368,7 @@ export type Database = {
           target_date: string | null
           target_value: number | null
           unit: string | null
+          user_id: string | null
         }
         Insert: {
           achieved?: boolean | null
@@ -359,6 +381,7 @@ export type Database = {
           target_date?: string | null
           target_value?: number | null
           unit?: string | null
+          user_id?: string | null
         }
         Update: {
           achieved?: boolean | null
@@ -371,6 +394,7 @@ export type Database = {
           target_date?: string | null
           target_value?: number | null
           unit?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -389,6 +413,7 @@ export type Database = {
           meal_type: string
           protein_g: number | null
           quality: string | null
+          user_id: string | null
         }
         Insert: {
           calories?: number | null
@@ -404,6 +429,7 @@ export type Database = {
           meal_type: string
           protein_g?: number | null
           quality?: string | null
+          user_id?: string | null
         }
         Update: {
           calories?: number | null
@@ -419,6 +445,55 @@ export type Database = {
           meal_type?: string
           protein_g?: number | null
           quality?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          full_name: string | null
+          height_cm: number | null
+          id: string
+          name: string | null
+          preferred_language: string | null
+          starting_weight_kg: number | null
+          target_weight_final_kg: number | null
+          target_weight_m1_kg: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          full_name?: string | null
+          height_cm?: number | null
+          id?: string
+          name?: string | null
+          preferred_language?: string | null
+          starting_weight_kg?: number | null
+          target_weight_final_kg?: number | null
+          target_weight_m1_kg?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          full_name?: string | null
+          height_cm?: number | null
+          id?: string
+          name?: string | null
+          preferred_language?: string | null
+          starting_weight_kg?: number | null
+          target_weight_final_kg?: number | null
+          target_weight_m1_kg?: number | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -437,6 +512,7 @@ export type Database = {
           screen_before_bed: boolean | null
           stress_level: number | null
           total_hours: number
+          user_id: string | null
           wake_time: string
           wake_ups: number | null
         }
@@ -454,6 +530,7 @@ export type Database = {
           screen_before_bed?: boolean | null
           stress_level?: number | null
           total_hours: number
+          user_id?: string | null
           wake_time: string
           wake_ups?: number | null
         }
@@ -471,6 +548,7 @@ export type Database = {
           screen_before_bed?: boolean | null
           stress_level?: number | null
           total_hours?: number
+          user_id?: string | null
           wake_time?: string
           wake_ups?: number | null
         }
@@ -491,6 +569,7 @@ export type Database = {
           starting_weight_kg: number | null
           target_weight_final_kg: number | null
           target_weight_m1_kg: number | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -506,6 +585,7 @@ export type Database = {
           starting_weight_kg?: number | null
           target_weight_final_kg?: number | null
           target_weight_m1_kg?: number | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -521,6 +601,7 @@ export type Database = {
           starting_weight_kg?: number | null
           target_weight_final_kg?: number | null
           target_weight_m1_kg?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -531,6 +612,7 @@ export type Database = {
           id: string
           logged_date: string | null
           ml_total: number | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -538,6 +620,7 @@ export type Database = {
           id?: string
           logged_date?: string | null
           ml_total?: number | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -545,6 +628,7 @@ export type Database = {
           id?: string
           logged_date?: string | null
           ml_total?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -555,6 +639,7 @@ export type Database = {
           id: string
           logged_at: string | null
           notes: string | null
+          user_id: string | null
           waist_cm: number | null
           weight_kg: number
         }
@@ -564,6 +649,7 @@ export type Database = {
           id?: string
           logged_at?: string | null
           notes?: string | null
+          user_id?: string | null
           waist_cm?: number | null
           weight_kg: number
         }
@@ -573,6 +659,7 @@ export type Database = {
           id?: string
           logged_at?: string | null
           notes?: string | null
+          user_id?: string | null
           waist_cm?: number | null
           weight_kg?: number
         }
