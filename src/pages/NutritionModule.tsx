@@ -8,6 +8,7 @@ import { playWaterSound, playGoalReachedSound } from "@/lib/water-sound";
 import { VossBottle, VossBottleMini } from "@/components/ui/VossBottle";
 import { Celebration } from "@/components/ui/Celebration";
 import LogMealModal from "@/components/modals/LogMealModal";
+import NutritionPlanUpload from "@/components/NutritionPlanUpload";
 import type { Tables } from "@/integrations/supabase/types";
 
 const BOTTLE_ML = 800;
@@ -186,6 +187,9 @@ export default function NutritionModule() {
           </div>
         )}
       </div>
+
+      {/* ── Nutrition Plan Upload ── */}
+      <NutritionPlanUpload />
 
       {/* Log Meal Button */}
       <button onClick={() => setMealModalOpen(true)} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:bg-primary-dark transition">
