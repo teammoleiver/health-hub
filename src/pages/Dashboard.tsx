@@ -196,10 +196,16 @@ export default function Dashboard() {
           <div>
             <h3 className="font-display font-semibold text-foreground">Health Score</h3>
             <p className="text-xs text-muted-foreground mt-1">Based on blood work, body metrics, fitness data and lifestyle factors</p>
-            <div className="flex gap-2 mt-3">
-              <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Liver ⚠</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning">BMI {(currentWeight / (1.71 * 1.71)).toFixed(1)}</span>
-            </div>
+            {allTests.length > 0 && (
+              <div className="flex gap-2 mt-3">
+                {allTests[allTests.length - 1].markers.some(m => m.category === "Liver" && (m.status === "high" || m.status === "critical")) && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Liver ⚠</span>
+                )}
+                {currentWeight && heightCm > 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning">BMI {(currentWeight / ((heightCm / 100) * (heightCm / 100))).toFixed(1)}</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
