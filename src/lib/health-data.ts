@@ -140,9 +140,10 @@ export function getFastingStatus() {
 
 export function getMotivationalMessage(allTests?: BloodTest[]): string {
   const score = getHealthScore(allTests);
+  if (allTests && allTests.length === 0) return "Welcome! Start logging your health data to see personalized insights.";
   if (score < 50) return "Your health needs attention, but every step forward counts. Focus on what you can control today.";
   if (score < 70) return "You're making progress! Keep up with your fasting window and gym routine.";
-  return "Great work, Saleh! Your dedication is showing in the numbers.";
+  return "Great work! Your dedication is showing in the numbers.";
 }
 
 export interface KeyTrend {
