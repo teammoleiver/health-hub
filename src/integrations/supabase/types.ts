@@ -356,6 +356,69 @@ export type Database = {
         }
         Relationships: []
       }
+      food_database: {
+        Row: {
+          carbs_g: number | null
+          carbs_per_serving: number | null
+          category: string
+          created_at: string | null
+          fat_g: number | null
+          fat_per_serving: number | null
+          fiber_g: number | null
+          food_name: string
+          id: string
+          kcal_per_100g: number | null
+          kcal_per_serving: number | null
+          pcs_per_kg: string | null
+          protein_g: number | null
+          protein_per_serving: number | null
+          serving_description: string | null
+          serving_g: number | null
+          source_menu: string | null
+          sugar_g: number | null
+        }
+        Insert: {
+          carbs_g?: number | null
+          carbs_per_serving?: number | null
+          category: string
+          created_at?: string | null
+          fat_g?: number | null
+          fat_per_serving?: number | null
+          fiber_g?: number | null
+          food_name: string
+          id?: string
+          kcal_per_100g?: number | null
+          kcal_per_serving?: number | null
+          pcs_per_kg?: string | null
+          protein_g?: number | null
+          protein_per_serving?: number | null
+          serving_description?: string | null
+          serving_g?: number | null
+          source_menu?: string | null
+          sugar_g?: number | null
+        }
+        Update: {
+          carbs_g?: number | null
+          carbs_per_serving?: number | null
+          category?: string
+          created_at?: string | null
+          fat_g?: number | null
+          fat_per_serving?: number | null
+          fiber_g?: number | null
+          food_name?: string
+          id?: string
+          kcal_per_100g?: number | null
+          kcal_per_serving?: number | null
+          pcs_per_kg?: string | null
+          protein_g?: number | null
+          protein_per_serving?: number | null
+          serving_description?: string | null
+          serving_g?: number | null
+          source_menu?: string | null
+          sugar_g?: number | null
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           achieved: boolean | null
@@ -629,6 +692,39 @@ export type Database = {
           logged_date?: string | null
           ml_total?: number | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      weekly_menu_plans: {
+        Row: {
+          ai_analysis: Json | null
+          created_at: string | null
+          id: string
+          plan_data: Json
+          status: string | null
+          updated_at: string | null
+          user_id: string
+          week_label: string | null
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          created_at?: string | null
+          id?: string
+          plan_data?: Json
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+          week_label?: string | null
+        }
+        Update: {
+          ai_analysis?: Json | null
+          created_at?: string | null
+          id?: string
+          plan_data?: Json
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+          week_label?: string | null
         }
         Relationships: []
       }
