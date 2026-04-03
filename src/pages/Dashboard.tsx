@@ -69,6 +69,22 @@ export default function Dashboard() {
   const [exerciseModal, setExerciseModal] = useState(false);
   const [mealModal, setMealModal] = useState(false);
 
+  // Load user profile
+  useEffect(() => {
+    (async () => {
+      const profile = await getProfile();
+      if (profile) {
+        setUserName((profile as any).name || (profile as any).full_name || "");
+        setAvatarUrl((profile as any).avatar_url || null);
+        if ((profile as any).height_cm) setHeightCm((profile as any).height_cm);
+      }
+      if (!profile && user) {
+        setUserName(user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "");
+        setAvatarUrl(user.user_metadata?.avatar_url || null);
+      }
+    })();
+  }, [user]);
+
   // Load only APPLIED blood test records from DB
   useEffect(() => {
     (async () => {
@@ -90,9 +106,8 @@ export default function Dashboard() {
             category: m.category || "Other",
           })),
         }));
-        const merged = [...BLOOD_TESTS, ...dbTests].sort((a, b) => a.date.localeCompare(b.date));
-        setAllTests(merged);
-        setTrends(computeKeyTrends(merged));
+        setAllTests(dbTests);
+        setTrends(computeKeyTrends(dbTests));
       } catch {
         // Table may not exist yet
       }
