@@ -193,11 +193,7 @@ export default function NutritionModule() {
         )}
       </div>
 
-      {/* ── Weekly Menu Upload ── */}
-      <WeeklyMenuUpload />
-
-      {/* ── Nutrition Plan Upload (PDF) ── */}
-      <NutritionPlanUpload />
+      <NutritionPlanner />
 
       {/* ── Food Database Search ── */}
       <div className="glass-card rounded-xl p-5 space-y-3">
