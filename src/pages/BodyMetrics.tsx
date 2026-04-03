@@ -336,7 +336,7 @@ export default function BodyMetrics() {
           <Link to="/health" className="text-xs text-primary flex items-center gap-1 hover:underline">View records <ArrowRight className="w-3 h-3" /></Link>
         </div>
         <div className="space-y-2">
-          {[...BLOOD_TESTS].reverse().map((bt) => (
+          {[...bloodTests].reverse().map((bt) => (
             <div key={bt.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
               <div>
                 <div className="text-sm text-foreground">{new Date(bt.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
