@@ -9,6 +9,10 @@ import { VossBottle, VossBottleMini } from "@/components/ui/VossBottle";
 import { Celebration } from "@/components/ui/Celebration";
 import LogMealModal from "@/components/modals/LogMealModal";
 import NutritionPlanUpload from "@/components/NutritionPlanUpload";
+import WeeklyMenuUpload from "@/components/WeeklyMenuUpload";
+import FoodSearchInput from "@/components/FoodSearchInput";
+import type { FoodDbItem } from "@/lib/food-queries";
+import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
 
 const BOTTLE_ML = 800;
@@ -16,6 +20,7 @@ const GOAL_ML = 3000;
 const SIP_ML = 400;
 
 export default function NutritionModule() {
+  const { toast } = useToast();
   const fasting = getFastingStatus();
   const [waterMl, setWaterMl] = useState(0);
   const [todayMeals, setTodayMeals] = useState<Tables<"meal_logs">[]>([]);
@@ -188,8 +193,25 @@ export default function NutritionModule() {
         )}
       </div>
 
-      {/* ── Nutrition Plan Upload ── */}
+      {/* ── Weekly Menu Upload ── */}
+      <WeeklyMenuUpload />
+
+      {/* ── Nutrition Plan Upload (PDF) ── */}
       <NutritionPlanUpload />
+
+      {/* ── Food Database Search ── */}
+      <div className="glass-card rounded-xl p-5 space-y-3">
+        <h3 className="font-display font-semibold text-foreground flex items-center gap-2">
+          <Flame className="w-5 h-5 text-primary" /> Food Database
+        </h3>
+        <p className="text-xs text-muted-foreground">Search 440+ foods with full nutritional info</p>
+        <FoodSearchInput
+          onSelect={(food: FoodDbItem) => {
+            toast({ title: food.food_name, description: `${food.kcal_per_serving ?? food.kcal_per_100g ?? "?"} kcal • P:${food.protein_g ?? "?"}g C:${food.carbs_g ?? "?"}g F:${food.fat_g ?? "?"}g` });
+          }}
+          placeholder="Search foods... e.g. chicken, rice, salmon"
+        />
+      </div>
 
       {/* Log Meal Button */}
       <button onClick={() => setMealModalOpen(true)} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:bg-primary-dark transition">
