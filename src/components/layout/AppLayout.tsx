@@ -6,8 +6,7 @@ import {
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun, Droplets,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import logoLight from "@/assets/logo-light.png";
-import logoDark from "@/assets/logo-dark.png";
+import syncvidaLogo from "@/assets/syncvida-icon.png";
 import { getTodayWaterLog } from "@/lib/supabase-queries";
 
 const navItems = [
@@ -67,13 +66,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       >
         <div className="flex items-center gap-3 p-4 border-b border-sidebar-border">
           <img
-            src={dark ? logoDark : logoLight}
-            alt="Health Track"
+            src={syncvidaLogo}
+            alt="Syncvida"
             className="w-8 h-8 object-contain"
           />
           {sidebarOpen && (
             <span className="text-sidebar-foreground font-display font-bold text-lg">
-              Health Track
+              Syncvida
             </span>
           )}
         </div>
@@ -160,8 +159,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {/* Mobile Header */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <img src={dark ? logoDark : logoLight} alt="Health Track" className="w-7 h-7" />
-            <span className="font-display font-bold text-foreground">Health Track</span>
+            <img src={syncvidaLogo} alt="Syncvida" className="w-7 h-7" />
+            <span className="font-display font-bold text-foreground">Syncvida</span>
           </div>
           <button
             onClick={() => setDark(!dark)}
