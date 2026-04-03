@@ -169,10 +169,16 @@ export default function Dashboard() {
     <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <img src={profilePhoto} alt={USER_PROFILE.name} className="w-12 h-12 rounded-full object-cover border-2 border-primary" />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={userName} className="w-12 h-12 rounded-full object-cover border-2 border-primary" />
+        ) : (
+          <div className="w-12 h-12 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-lg font-bold text-primary">
+            {userName?.charAt(0)?.toUpperCase() || "?"}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">
-            Good {time.getHours() < 12 ? "morning" : time.getHours() < 18 ? "afternoon" : "evening"}, Saleh
+            Good {time.getHours() < 12 ? "morning" : time.getHours() < 18 ? "afternoon" : "evening"}, {userName?.split(" ")[0] || "there"}
           </h1>
           <p className="text-sm text-muted-foreground truncate">{motivation}</p>
         </div>
