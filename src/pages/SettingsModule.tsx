@@ -36,7 +36,7 @@ export default function SettingsModule() {
         {
           icon: Key,
           title: "OpenAI API Key",
-          desc: hasApiKey ? "Connected — AI assistant is ready" : "Required for AI Health Assistant and health record analysis",
+          desc: hasApiKey ? "Connected — Syncvida AI is ready" : "Required for Syncvida AI Assistant and health record analysis",
           action: hasApiKey ? "Connected" : "Configure",
           badge: hasApiKey,
           onClick: () => setApiKeyModal(true),

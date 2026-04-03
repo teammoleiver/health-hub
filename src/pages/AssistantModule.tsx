@@ -147,8 +147,8 @@ export default function AssistantModule() {
     <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen max-w-3xl mx-auto">
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-display font-bold text-foreground">AI Health Assistant</h1>
-          <p className="text-xs text-muted-foreground">Powered by AI — knows your complete health profile</p>
+          <h1 className="text-xl font-display font-bold text-foreground">Syncvida Assistant</h1>
+          <p className="text-xs text-muted-foreground">Powered by AI — your unified health intelligence</p>
         </div>
         <button onClick={handleClear} className="text-muted-foreground hover:text-foreground p-2" title="Clear chat">
           <Trash2 className="w-4 h-4" />
