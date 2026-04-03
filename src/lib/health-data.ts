@@ -158,8 +158,8 @@ export interface KeyTrend {
 export function computeKeyTrends(allTests?: BloodTest[]): KeyTrend[] {
   if (!allTests || allTests.length < 2) return [];
 
-  const prev = tests[tests.length - 2];
-  const curr = tests[tests.length - 1];
+  const prev = allTests[allTests.length - 2];
+  const curr = allTests[allTests.length - 1];
   const trends: KeyTrend[] = [];
 
   // Weight/BMI trends
