@@ -156,8 +156,7 @@ export interface KeyTrend {
 }
 
 export function computeKeyTrends(allTests?: BloodTest[]): KeyTrend[] {
-  const tests = allTests && allTests.length >= 2 ? allTests : BLOOD_TESTS;
-  if (tests.length < 2) return KEY_TRENDS;
+  if (!allTests || allTests.length < 2) return [];
 
   const prev = tests[tests.length - 2];
   const curr = tests[tests.length - 1];
