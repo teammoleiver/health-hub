@@ -379,7 +379,7 @@ export async function deleteBloodTestRecord(id: string) {
 // ── Sleep Logs ──
 export async function getSleepLogs(limit = 30) {
   const { data, error } = await supabase
-    .from("sleep_logs")
+    .from("sleep_logs" as any)
     .select("*")
     .order("date", { ascending: false })
     .limit(limit);
@@ -402,25 +402,24 @@ export async function saveSleepLog(log: {
   stress_level?: number;
   morning_feeling?: number;
 }) {
-  // Upsert by date (unique)
   const { data: existing } = await supabase
-    .from("sleep_logs")
+    .from("sleep_logs" as any)
     .select("id")
     .eq("date", log.date)
     .maybeSingle();
 
   if (existing) {
     const { data, error } = await supabase
-      .from("sleep_logs")
+      .from("sleep_logs" as any)
       .update(log)
-      .eq("id", existing.id)
+      .eq("id", (existing as any).id)
       .select()
       .single();
     if (error) console.error("saveSleepLog update", error);
     return data;
   }
   const { data, error } = await supabase
-    .from("sleep_logs")
+    .from("sleep_logs" as any)
     .insert(log)
     .select()
     .single();

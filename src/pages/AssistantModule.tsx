@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Send, Bot, User, Trash2, Loader2 } from "lucide-react";
-import { getChatHistory, saveChatMessage, clearChatHistory, getTodayWaterLog, getTodayMeals, getTodayExercise, getLatestWeight } from "@/lib/supabase-queries";
-import { getFastingStatus } from "@/lib/health-data";
+import { getChatHistory, saveChatMessage } from "@/lib/supabase-queries";
+import { clearChatHistory } from "@/lib/supabase-queries";
+import { gatherHealthIntelligence, buildAIContextFromIntelligence } from "@/lib/health-intelligence";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
@@ -9,18 +10,22 @@ interface Message {
   content: string;
 }
 
-const WELCOME = `Hi Saleh! 👋 I'm your Health Track AI assistant. I have access to all your health data including:
+const WELCOME = `Hi Saleh! 👋 I'm your **unified Health Intelligence assistant**. I analyze ALL your health data as one interconnected system:
 
-• Both blood tests (Feb 4 & Mar 27, 2026)
-• EGYM fitness data (BioAge: 48)
-• Your nutrition plan from Nutreya
-• Fasting protocols (16:8 active)
-• Body composition & goals
+• 😴 **Sleep** — quality, duration, consistency, and how it affects everything else
+• 🍽️ **Nutrition** — meals, calories, liver-safe choices, hydration
+• ⏱️ **Fasting** — 16:8 compliance, eating window status
+• 🏋️ **Exercise** — sessions, BioAge reduction, recovery needs
+• ⚖️ **Body** — weight trends, BMI, body composition
+• 🩸 **Blood markers** — ALT/AST alerts, cholesterol, trends
+• ✅ **Daily habits** — checklist compliance, streaks
 
-Ask me anything about your health — for example:
-- "Can I eat a croissant today?"
-- "How is my liver doing?"
-- "What exercise should I focus on?"`;
+All modules talk to each other. Ask me anything — for example:
+- "How is my overall health right now?"
+- "Is my sleep affecting my weight loss?"
+- "What should I focus on today based on all my data?"
+- "Give me a full health report"
+- "Qué sugieres para mejorar mi hígado?"`;
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-chat`;
 
@@ -45,17 +50,13 @@ export default function AssistantModule() {
   }, [messages]);
 
   const buildHealthContext = async () => {
-    const [water, meals, exercise, weight] = await Promise.all([
-      getTodayWaterLog(), getTodayMeals(), getTodayExercise(), getLatestWeight(),
-    ]);
-    const fasting = getFastingStatus();
-    return `TODAY'S LIVE DATA:
-- Current weight: ${weight ? weight.weight_kg + 'kg' : '88kg (last known)'}
-- Water today: ${water?.glasses ?? 0}/12 glasses
-- Meals logged today: ${meals?.length ?? 0} (${meals?.map(m => m.food_name).join(', ') || 'none'})
-- Exercise today: ${exercise ? 'Yes - ' + exercise.exercise_type + ' ' + exercise.duration_min + 'min' : 'Not yet'}
-- Fasting status: ${fasting.label} — ${fasting.message}
-- Current time: ${new Date().toLocaleTimeString()}`;
+    try {
+      const intel = await gatherHealthIntelligence();
+      return buildAIContextFromIntelligence(intel);
+    } catch (e) {
+      console.error("Failed to gather health intelligence:", e);
+      return "Health data temporarily unavailable.";
+    }
   };
 
   const send = async () => {

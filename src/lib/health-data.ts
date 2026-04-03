@@ -292,7 +292,7 @@ export function computeKeyTrends(allTests?: BloodTest[]): KeyTrend[] {
       change: parseFloat(change.toFixed(1)),
       changePct: parseFloat(pct.toFixed(1)),
       direction: change > 0 ? "up" : "down",
-      severity: cm.status === "critical" || (pct > 20 && (cm.status === "high" || cm.status === "critical"))
+      severity: (cm.status as string) === "critical" || (pct > 20 && ((cm.status as string) === "high" || (cm.status as string) === "critical"))
         ? "critical"
         : pct < -10 ? "improved" : "warning",
     });

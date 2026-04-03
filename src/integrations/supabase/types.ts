@@ -14,138 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      daily_snapshots: {
-        Row: {
-          id: string
-          snapshot_date: string
-          water_ml: number
-          water_glasses: number
-          water_goal_met: boolean
-          meals_logged: number
-          total_calories: number
-          exercise_done: boolean
-          exercise_type: string | null
-          exercise_duration_min: number | null
-          exercise_calories: number | null
-          weight_kg: number | null
-          bmi: number | null
-          fasting_completed: boolean
-          fasting_hours: number | null
-          checklist_completed: number
-          checklist_total: number
-          checklist_pct: number
-          no_alcohol: boolean
-          no_fried_food: boolean
-          health_score: number | null
-          notes: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          snapshot_date: string
-          water_ml?: number
-          water_glasses?: number
-          water_goal_met?: boolean
-          meals_logged?: number
-          total_calories?: number
-          exercise_done?: boolean
-          exercise_type?: string | null
-          exercise_duration_min?: number | null
-          exercise_calories?: number | null
-          weight_kg?: number | null
-          bmi?: number | null
-          fasting_completed?: boolean
-          fasting_hours?: number | null
-          checklist_completed?: number
-          checklist_total?: number
-          checklist_pct?: number
-          no_alcohol?: boolean
-          no_fried_food?: boolean
-          health_score?: number | null
-          notes?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          snapshot_date?: string
-          water_ml?: number
-          water_glasses?: number
-          water_goal_met?: boolean
-          meals_logged?: number
-          total_calories?: number
-          exercise_done?: boolean
-          exercise_type?: string | null
-          exercise_duration_min?: number | null
-          exercise_calories?: number | null
-          weight_kg?: number | null
-          bmi?: number | null
-          fasting_completed?: boolean
-          fasting_hours?: number | null
-          checklist_completed?: number
-          checklist_total?: number
-          checklist_pct?: number
-          no_alcohol?: boolean
-          no_fried_food?: boolean
-          health_score?: number | null
-          notes?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      blood_test_records: {
-        Row: {
-          id: string
-          test_date: string
-          source: string
-          file_name: string | null
-          weight_kg: number | null
-          bmi: number | null
-          markers: Json
-          summary: string | null
-          recommendations: Json
-          risk_factors: Json
-          pdf_storage_path: string | null
-          applied: boolean
-          uploaded_at: string
-          analyzed_at: string | null
-          created_at: string | null
-        }
-        Insert: {
-          id?: string
-          test_date: string
-          source?: string
-          file_name?: string | null
-          weight_kg?: number | null
-          bmi?: number | null
-          markers?: Json
-          summary?: string | null
-          recommendations?: Json
-          risk_factors?: Json
-          pdf_storage_path?: string | null
-          applied?: boolean
-          uploaded_at?: string
-          analyzed_at?: string | null
-          created_at?: string | null
-        }
-        Update: {
-          id?: string
-          test_date?: string
-          source?: string
-          file_name?: string | null
-          weight_kg?: number | null
-          bmi?: number | null
-          markers?: Json
-          summary?: string | null
-          recommendations?: Json
-          risk_factors?: Json
-          pdf_storage_path?: string | null
-          applied?: boolean
-          uploaded_at?: string
-          analyzed_at?: string | null
-          created_at?: string | null
-        }
-        Relationships: []
-      }
       ai_chat_history: {
         Row: {
           content: string
@@ -167,6 +35,60 @@ export type Database = {
           id?: string
           module_context?: string | null
           role?: string
+        }
+        Relationships: []
+      }
+      blood_test_records: {
+        Row: {
+          analyzed_at: string | null
+          applied: boolean
+          bmi: number | null
+          created_at: string | null
+          file_name: string | null
+          id: string
+          markers: Json
+          pdf_storage_path: string | null
+          recommendations: Json | null
+          risk_factors: Json | null
+          source: string
+          summary: string | null
+          test_date: string
+          uploaded_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          analyzed_at?: string | null
+          applied?: boolean
+          bmi?: number | null
+          created_at?: string | null
+          file_name?: string | null
+          id?: string
+          markers?: Json
+          pdf_storage_path?: string | null
+          recommendations?: Json | null
+          risk_factors?: Json | null
+          source?: string
+          summary?: string | null
+          test_date: string
+          uploaded_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          analyzed_at?: string | null
+          applied?: boolean
+          bmi?: number | null
+          created_at?: string | null
+          file_name?: string | null
+          id?: string
+          markers?: Json
+          pdf_storage_path?: string | null
+          recommendations?: Json | null
+          risk_factors?: Json | null
+          source?: string
+          summary?: string | null
+          test_date?: string
+          uploaded_at?: string
+          weight_kg?: number | null
         }
         Relationships: []
       }
@@ -218,6 +140,84 @@ export type Database = {
           sunlight_done?: boolean | null
           updated_at?: string | null
           water_goal_met?: boolean | null
+        }
+        Relationships: []
+      }
+      daily_snapshots: {
+        Row: {
+          bmi: number | null
+          checklist_completed: number
+          checklist_pct: number
+          checklist_total: number
+          created_at: string
+          exercise_calories: number | null
+          exercise_done: boolean
+          exercise_duration_min: number | null
+          exercise_type: string | null
+          fasting_completed: boolean
+          fasting_hours: number | null
+          health_score: number | null
+          id: string
+          meals_logged: number
+          no_alcohol: boolean
+          no_fried_food: boolean
+          notes: string | null
+          snapshot_date: string
+          total_calories: number
+          water_glasses: number
+          water_goal_met: boolean
+          water_ml: number
+          weight_kg: number | null
+        }
+        Insert: {
+          bmi?: number | null
+          checklist_completed?: number
+          checklist_pct?: number
+          checklist_total?: number
+          created_at?: string
+          exercise_calories?: number | null
+          exercise_done?: boolean
+          exercise_duration_min?: number | null
+          exercise_type?: string | null
+          fasting_completed?: boolean
+          fasting_hours?: number | null
+          health_score?: number | null
+          id?: string
+          meals_logged?: number
+          no_alcohol?: boolean
+          no_fried_food?: boolean
+          notes?: string | null
+          snapshot_date: string
+          total_calories?: number
+          water_glasses?: number
+          water_goal_met?: boolean
+          water_ml?: number
+          weight_kg?: number | null
+        }
+        Update: {
+          bmi?: number | null
+          checklist_completed?: number
+          checklist_pct?: number
+          checklist_total?: number
+          created_at?: string
+          exercise_calories?: number | null
+          exercise_done?: boolean
+          exercise_duration_min?: number | null
+          exercise_type?: string | null
+          fasting_completed?: boolean
+          fasting_hours?: number | null
+          health_score?: number | null
+          id?: string
+          meals_logged?: number
+          no_alcohol?: boolean
+          no_fried_food?: boolean
+          notes?: string | null
+          snapshot_date?: string
+          total_calories?: number
+          water_glasses?: number
+          water_goal_met?: boolean
+          water_ml?: number
+          weight_kg?: number | null
         }
         Relationships: []
       }
@@ -419,6 +419,60 @@ export type Database = {
           meal_type?: string
           protein_g?: number | null
           quality?: string | null
+        }
+        Relationships: []
+      }
+      sleep_logs: {
+        Row: {
+          bedtime: string
+          caffeine_after_2pm: boolean | null
+          created_at: string | null
+          date: string
+          exercise_today: boolean | null
+          id: string
+          late_eating: boolean | null
+          morning_feeling: number | null
+          notes: string | null
+          quality: number | null
+          screen_before_bed: boolean | null
+          stress_level: number | null
+          total_hours: number
+          wake_time: string
+          wake_ups: number | null
+        }
+        Insert: {
+          bedtime: string
+          caffeine_after_2pm?: boolean | null
+          created_at?: string | null
+          date: string
+          exercise_today?: boolean | null
+          id?: string
+          late_eating?: boolean | null
+          morning_feeling?: number | null
+          notes?: string | null
+          quality?: number | null
+          screen_before_bed?: boolean | null
+          stress_level?: number | null
+          total_hours: number
+          wake_time: string
+          wake_ups?: number | null
+        }
+        Update: {
+          bedtime?: string
+          caffeine_after_2pm?: boolean | null
+          created_at?: string | null
+          date?: string
+          exercise_today?: boolean | null
+          id?: string
+          late_eating?: boolean | null
+          morning_feeling?: number | null
+          notes?: string | null
+          quality?: number | null
+          screen_before_bed?: boolean | null
+          stress_level?: number | null
+          total_hours?: number
+          wake_time?: string
+          wake_ups?: number | null
         }
         Relationships: []
       }
