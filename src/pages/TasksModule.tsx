@@ -334,16 +334,19 @@ function TaskCard({
   onSelect,
   onComplete,
   onMove,
+  onDragStart,
+  onDragEnd,
 }: {
   task: Task;
   columns: KanbanColumn[];
   onSelect: () => void;
   onComplete: () => void;
   onMove: (colId: string) => void;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
 }) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const prioConf = PRIORITY_CONFIG[task.priority];
-  const energyConf = ENERGY_CONFIG[task.energyRequired];
   const due = dueDateLabel(task.dueDate);
   const completedSubs = task.subtasks.filter(s => s.completed).length;
   const totalSubs = task.subtasks.length;
@@ -352,34 +355,37 @@ function TaskCard({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-      className={`group relative rounded-lg overflow-hidden cursor-pointer transition-all duration-150
-        bg-card/80 hover:bg-card border border-border/60 hover:border-border
-        border-l-[3px] ${prioConf.border}`}
+      exit={{ opacity: 0, y: -4 }}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className="group relative rounded-md cursor-grab active:cursor-grabbing transition-shadow duration-150
+        bg-card shadow-[0_1px_2px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
     >
-      <div className="px-3 py-2.5 space-y-1.5" onClick={onSelect}>
-        {/* Title row */}
-        <div className="flex items-start gap-2">
+      <div className="px-3 py-2.5" onClick={onSelect}>
+        {/* Title */}
+        <div className="flex items-start gap-2.5">
           <button
             onClick={e => { e.stopPropagation(); onComplete(); }}
-            className="mt-[3px] shrink-0"
+            className="mt-[2px] shrink-0"
           >
             {isDone
-              ? <CheckCircle2 className="w-[15px] h-[15px] text-primary" />
-              : <Circle className="w-[15px] h-[15px] text-muted-foreground/50 hover:text-primary transition" />
+              ? <CheckCircle2 className="w-4 h-4 text-primary" />
+              : <Circle className="w-4 h-4 text-muted-foreground/60 hover:text-primary transition" />
             }
           </button>
-          <span className={`text-[13px] leading-snug font-medium flex-1 ${isDone ? "line-through text-muted-foreground/60" : "text-foreground"}`}>
+          <span className={`text-[13px] leading-relaxed flex-1 ${isDone ? "line-through text-muted-foreground/40" : "text-foreground"}`}>
             {task.title}
           </span>
+          {/* Move menu — appears on hover */}
           <div className="relative shrink-0">
             <button
               onClick={e => { e.stopPropagation(); setShowMoveMenu(!showMoveMenu); }}
-              className="p-0.5 rounded hover:bg-secondary text-muted-foreground/30 hover:text-foreground transition opacity-0 group-hover:opacity-100"
+              className="p-1 rounded-md hover:bg-secondary/80 text-muted-foreground/0 group-hover:text-muted-foreground/40 hover:!text-foreground transition"
             >
-              <ArrowRight className="w-3 h-3" />
+              <MoreVertical className="w-3.5 h-3.5" />
             </button>
             <AnimatePresence>
               {showMoveMenu && (
@@ -387,71 +393,63 @@ function TaskCard({
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute right-0 top-6 z-30 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[150px]"
+                  className="absolute right-0 top-7 z-30 bg-card border border-border rounded-md shadow-xl py-1 min-w-[150px]"
                   onClick={e => e.stopPropagation()}
                 >
-                  <p className="px-3 py-1 text-[9px] uppercase tracking-wider text-muted-foreground/60 font-medium">Move to</p>
-                  {columns.filter(c => c.id !== task.columnId).map(c => {
-                    const ColIcon = getColumnIcon(c.icon);
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => { onMove(c.id); setShowMoveMenu(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-secondary transition"
-                      >
-                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c.color }} />
-                        <ColIcon className="w-3 h-3" style={{ color: c.color }} />
-                        {c.title}
-                      </button>
-                    );
-                  })}
+                  <p className="px-3 py-1.5 text-[11px] text-muted-foreground/50">Move to...</p>
+                  {columns.filter(c => c.id !== task.columnId).map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => { onMove(c.id); setShowMoveMenu(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-foreground hover:bg-secondary/60 transition"
+                    >
+                      <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: c.color }} />
+                      {c.title}
+                    </button>
+                  ))}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
 
-        {/* Meta line — compact, single row */}
-        <div className="flex items-center gap-1.5 flex-wrap pl-[23px]">
-          {/* Context pills — compact */}
-          {task.contexts.map(ctx => (
-            <span
-              key={ctx}
-              className="px-1.5 py-[1px] rounded text-[9px] font-semibold"
-              style={{ backgroundColor: (CONTEXT_COLORS[ctx] || "#6b7280") + "15", color: CONTEXT_COLORS[ctx] || "#6b7280" }}
-            >
-              {ctx}
-            </span>
-          ))}
-          {due && (
-            <span className={`text-[10px] flex items-center gap-0.5 ${due.className}`}>
-              <Calendar className="w-2.5 h-2.5" />{due.text}
-            </span>
-          )}
-          {totalSubs > 0 && (
-            <span className="text-[10px] text-muted-foreground/60 flex items-center gap-0.5">
-              <CheckSquare className="w-2.5 h-2.5" />{completedSubs}/{totalSubs}
-            </span>
-          )}
-          <span className={`w-1.5 h-1.5 rounded-full ${energyConf.dot}`} title={`Energy: ${energyConf.label}`} />
-          {task.isTwoMinuteTask && (
-            <span className="px-1 py-[1px] rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-semibold">2m</span>
-          )}
-          {task.isRecurring && <Repeat className="w-2.5 h-2.5 text-muted-foreground/40" />}
-          {task.healthModuleLink && <Link2 className="w-2.5 h-2.5 text-primary/60" />}
-        </div>
-
-        {/* Project link — subtle */}
-        {task.projectId && PROJECT_NAMES[task.projectId] && (
-          <p className="text-[10px] text-muted-foreground/40 pl-[23px] truncate">{PROJECT_NAMES[task.projectId]}</p>
+        {/* Tags row — only show if there's meaningful metadata */}
+        {(task.contexts.length > 0 || due || task.priority !== "none" || totalSubs > 0) && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-2 pl-[26px]">
+            {/* Priority tag — only if not "none" */}
+            {task.priority !== "none" && (
+              <span
+                className="px-1.5 py-[2px] rounded-sm text-[11px] font-medium"
+                style={{ backgroundColor: prioConf.color + "18", color: prioConf.color }}
+              >
+                {prioConf.label}
+              </span>
+            )}
+            {/* Context tags */}
+            {task.contexts.map(ctx => (
+              <span
+                key={ctx}
+                className="px-1.5 py-[2px] rounded-sm text-[11px] text-muted-foreground bg-secondary/80"
+              >
+                {ctx}
+              </span>
+            ))}
+            {/* Due date */}
+            {due && (
+              <span className={`text-[11px] ${due.className}`}>{due.text}</span>
+            )}
+            {/* Subtask progress */}
+            {totalSubs > 0 && (
+              <span className="text-[11px] text-muted-foreground/50">{completedSubs}/{totalSubs}</span>
+            )}
+          </div>
         )}
 
-        {/* Waiting badge */}
+        {/* Waiting info */}
         {task.status === "waiting_for" && task.waitingFor && (
-          <div className="flex items-center gap-1.5 ml-[23px] px-2 py-1 rounded bg-amber-500/8 border border-amber-500/15">
-            <Clock className="w-2.5 h-2.5 text-amber-400/70" />
-            <span className="text-[10px] text-amber-400/80 truncate">{task.waitingFor}</span>
-          </div>
+          <p className="text-[11px] text-muted-foreground/50 mt-1.5 pl-[26px] truncate">
+            Waiting: {task.waitingFor}
+          </p>
         )}
       </div>
     </motion.div>
@@ -1466,6 +1464,8 @@ export default function TasksModule() {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [pinnedContexts, setPinnedContexts] = useState<TaskContext[]>([]);
   const [customContexts, setCustomContexts] = useState<TaskContext[]>([]);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverColId, setDragOverColId] = useState<string | null>(null);
   const [newCustomContext, setNewCustomContext] = useState("");
   const captureRef = useRef<HTMLInputElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -1640,12 +1640,56 @@ export default function TasksModule() {
     setColumns(remaining);
   }, [columns]);
 
+  // Drag and drop handlers
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => {
+    setDraggedTaskId(taskId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", taskId);
+    // Make the drag ghost semi-transparent
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "0.5";
+    }
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    setDraggedTaskId(null);
+    setDragOverColId(null);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "1";
+    }
+  }, []);
+
+  const handleColumnDragOver = useCallback((e: React.DragEvent, colId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverColId(colId);
+  }, []);
+
+  const handleColumnDragLeave = useCallback(() => {
+    setDragOverColId(null);
+  }, []);
+
+  const handleColumnDrop = useCallback((e: React.DragEvent, colId: string) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData("text/plain");
+    if (taskId) {
+      const col = columns.find(c => c.id === colId);
+      if (col) {
+        setTasks(prev => prev.map(t =>
+          t.id === taskId ? { ...t, columnId: colId, status: col.statusMapping } : t
+        ));
+      }
+    }
+    setDraggedTaskId(null);
+    setDragOverColId(null);
+  }, [columns]);
+
   // Column empty states
   const emptyStates: Record<string, string> = {
-    col_inbox: "Nothing captured yet \u2014 press C to add",
-    col_next: "No next actions \u2014 process your Inbox",
-    col_doing: "Nothing in progress \u2014 pick a next action",
-    col_waiting: "Nothing waiting \u2014 good!",
+    col_inbox: "Nothing captured yet — press C to add",
+    col_next: "No next actions — process your Inbox",
+    col_doing: "Nothing in progress — pick a next action",
+    col_waiting: "Nothing waiting — good!",
     col_done: "Completed tasks will appear here",
     col_someday: "Park ideas here for future consideration",
   };
@@ -1659,39 +1703,41 @@ export default function TasksModule() {
   const showReviewBanner = daysSinceReview > 7 || new Date().getDay() === 0;
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      {/* TOP BAR */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <CheckSquare className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-display font-bold text-foreground">Tasks</h1>
-            <p className="text-xs text-muted-foreground">GTD task management</p>
-          </div>
-        </div>
+    <div className="p-4 md:px-6 md:py-5 space-y-3">
+      {/* TOP BAR — Notion-style: title left, controls right */}
+      <div className="flex items-center gap-4">
+        <h1 className="text-lg font-semibold text-foreground">Tasks</h1>
 
-        <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
-          {inboxCount > 0 && (
-            <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs font-medium text-indigo-400">
-              <Inbox className="w-3.5 h-3.5" />{inboxCount} inbox
-            </span>
-          )}
-          {overdueCount > 0 && (
-            <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-medium text-red-400">
-              <AlertTriangle className="w-3.5 h-3.5" />{overdueCount} overdue
-            </span>
-          )}
+        <div className="flex items-center gap-1.5 ml-auto">
+          {/* View tabs — Notion style */}
+          {([
+            { mode: "kanban" as const, icon: LayoutGrid, label: "Board" },
+            { mode: "list" as const, icon: List, label: "List" },
+          ] as const).map(v => (
+            <button
+              key={v.mode}
+              onClick={() => setViewMode(v.mode)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] transition ${
+                viewMode === v.mode
+                  ? "bg-secondary text-foreground font-medium"
+                  : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-secondary/50"
+              }`}
+            >
+              <v.icon className="w-3.5 h-3.5" />
+              {v.label}
+            </button>
+          ))}
+
+          <div className="w-px h-4 bg-border/50 mx-1" />
 
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search..."
-              className="bg-secondary/50 rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground outline-none w-36 focus:w-48 transition-all focus:ring-1 focus:ring-primary/40"
+              className="bg-transparent rounded-md pl-7 pr-2 py-1 text-[13px] text-foreground outline-none w-28 focus:w-44 focus:bg-secondary/50 transition-all placeholder:text-muted-foreground/60"
             />
           </div>
 
@@ -1699,7 +1745,7 @@ export default function TasksModule() {
           <select
             value={filterProject}
             onChange={e => setFilterProject(e.target.value)}
-            className="bg-secondary/50 rounded-lg px-3 py-1.5 text-xs text-foreground outline-none"
+            className="bg-transparent rounded-md px-2 py-1 text-[13px] text-muted-foreground hover:text-foreground outline-none cursor-pointer"
           >
             <option value="all">All projects</option>
             <option value="">No project</option>
@@ -1707,97 +1753,64 @@ export default function TasksModule() {
               <option key={id} value={id}>{name}</option>
             ))}
           </select>
-
-          {/* View toggle */}
-          <div className="flex items-center bg-secondary/50 rounded-lg p-0.5">
-            {([
-              { mode: "kanban" as const, icon: LayoutGrid, label: "Kanban" },
-              { mode: "list" as const, icon: List, label: "List" },
-            ]).map(v => (
-              <button
-                key={v.mode}
-                onClick={() => setViewMode(v.mode)}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition ${
-                  viewMode === v.mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <v.icon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{v.label}</span>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* QUICK CAPTURE BAR */}
-      <div className="flex items-center gap-3 bg-card border border-border/60 rounded-xl px-4 py-2.5 focus-within:border-primary/40 focus-within:shadow-[0_0_0_1px_hsl(var(--primary)/0.15)] transition-all">
-        <Plus className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+      {/* QUICK CAPTURE — minimal, Notion-style inline */}
+      <div className="flex items-center gap-2.5 px-1 py-1">
+        <Plus className="w-4 h-4 text-muted-foreground/60 shrink-0" />
         <input
           ref={captureRef}
           value={captureInput}
           onChange={e => setCaptureInput(e.target.value)}
           onKeyDown={e => e.key === "Enter" && handleCapture()}
-          placeholder="Capture anything... press Enter to add to Inbox"
-          className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/40"
+          placeholder="Type to add a task..."
+          className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground/60"
         />
         {captureInput && (
           <button
             onClick={handleCapture}
-            className="px-3 py-1 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary/90 transition shrink-0"
+            className="px-2.5 py-1 bg-primary text-primary-foreground rounded-md text-[12px] font-medium hover:bg-primary/90 transition shrink-0"
           >
-            Add to Inbox
+            Add
           </button>
         )}
-        <kbd className="hidden sm:inline text-[10px] text-muted-foreground/30 border border-border/40 rounded px-1.5 py-0.5 font-mono">C</kbd>
       </div>
 
-      {/* Project filter banner */}
+      {/* Project filter banner — subtle inline */}
       {projectFilterName && (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-          <Filter className="w-4 h-4 text-indigo-400" />
-          <span className="text-sm text-indigo-400 font-medium">Viewing: {projectFilterName}</span>
-          <button onClick={() => setFilterProject("all")} className="ml-auto text-indigo-400/60 hover:text-indigo-400 transition">
-            <X className="w-4 h-4" />
+        <div className="flex items-center gap-2 px-1 py-1">
+          <span className="text-[13px] text-muted-foreground">Filtered by:</span>
+          <span className="text-[13px] text-foreground font-medium">{projectFilterName}</span>
+          <button onClick={() => setFilterProject("all")} className="text-muted-foreground/40 hover:text-foreground transition">
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
-      {/* INBOX PROCESSING BANNER */}
+      {/* INBOX PROCESSING BANNER — minimal */}
       {inboxCount >= 5 && !inboxBannerDismissed && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20"
-        >
-          <Inbox className="w-5 h-5 text-indigo-400 shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-indigo-400">You have {inboxCount} items in your Inbox \u2014 what are they?</p>
-          </div>
+        <div className="flex items-center gap-2 px-1 py-1 text-[13px]">
+          <span className="text-muted-foreground">{inboxCount} items in Inbox —</span>
           <button
             onClick={() => setShowInboxProcessing(true)}
-            className="px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg text-xs font-medium hover:bg-indigo-500/30 transition shrink-0"
+            className="text-primary hover:underline"
           >
-            Process Inbox
+            Process now
           </button>
-          <button onClick={() => setInboxBannerDismissed(true)} className="text-indigo-400/50 hover:text-indigo-400 transition">
-            <X className="w-4 h-4" />
+          <button onClick={() => setInboxBannerDismissed(true)} className="text-muted-foreground/60 hover:text-muted-foreground ml-1 transition">
+            <X className="w-3.5 h-3.5" />
           </button>
-        </motion.div>
+        </div>
       )}
 
-      {/* WEEKLY REVIEW BANNER */}
+      {/* WEEKLY REVIEW BANNER — minimal */}
       {showReviewBanner && (
-        <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-primary/5 border border-primary/15">
-          <Sparkles className="w-4 h-4 text-primary/60 shrink-0" />
-          <div className="flex-1">
-            <p className="text-xs font-medium text-foreground">Time for your weekly review</p>
-            <p className="text-[11px] text-muted-foreground/60">
-              {lastReview ? `Last done ${daysSinceReview} days ago` : "You haven\u2019t done one yet"}
-            </p>
-          </div>
+        <div className="flex items-center gap-2 px-1 py-1 text-[13px]">
+          <span className="text-muted-foreground">Weekly review —</span>
           <button
             onClick={() => setShowWeeklyReview(true)}
-            className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary/20 transition"
+            className="text-primary hover:underline"
           >
             Start review
           </button>
@@ -1896,7 +1909,7 @@ export default function TasksModule() {
                               else setPinnedContexts(prev => [...prev, ctx]);
                             }}
                             className={`p-0.5 rounded transition ${
-                              isPinned ? "text-primary" : "text-muted-foreground/20 opacity-0 group-hover/ctx:opacity-100"
+                              isPinned ? "text-primary" : "text-muted-foreground/50 opacity-0 group-hover/ctx:opacity-100"
                             }`}
                             title={isPinned ? "Unpin from bar" : "Pin to bar"}
                           >
@@ -1910,7 +1923,7 @@ export default function TasksModule() {
                                 setPinnedContexts(prev => prev.filter(c => c !== ctx));
                                 if (filterContext === ctx) setFilterContext("all");
                               }}
-                              className="p-0.5 rounded text-muted-foreground/20 opacity-0 group-hover/ctx:opacity-100 hover:text-red-400 transition"
+                              className="p-0.5 rounded text-muted-foreground/50 opacity-0 group-hover/ctx:opacity-100 hover:text-red-400 transition"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -1937,7 +1950,7 @@ export default function TasksModule() {
                         }
                       }}
                       placeholder="Create custom filter..."
-                      className="flex-1 bg-secondary/50 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/30"
+                      className="flex-1 bg-secondary/50 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/60"
                     />
                     <button
                       onClick={() => {
@@ -1973,18 +1986,16 @@ export default function TasksModule() {
         </div>
       </div>
 
-      {/* KANBAN BOARD */}
+      {/* KANBAN BOARD — Notion-style: flat, clean, no heavy borders */}
       {viewMode === "kanban" && (
-        <div ref={boardRef} className="space-y-3">
-          {/* Fluid column grid — fills all available width */}
+        <div ref={boardRef}>
           <div
-            className="grid gap-3"
+            className="grid gap-4"
             style={{
               gridTemplateColumns: `repeat(${sortedColumns.length}, minmax(0, 1fr))`,
             }}
           >
             {sortedColumns.map(col => {
-              const ColIcon = getColumnIcon(col.icon);
               const colTasks = filteredTasks.filter(t => t.columnId === col.id).sort((a, b) => a.order - b.order);
               const wipExceeded = col.wipLimit !== null && colTasks.length > col.wipLimit;
 
@@ -1994,48 +2005,68 @@ export default function TasksModule() {
                   id={`column-${col.id}`}
                   className="flex flex-col min-w-0"
                 >
-                  {/* Column header */}
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 rounded-t-xl border border-border border-b-0 ${
-                      wipExceeded ? "bg-red-500/8" : "bg-card"
-                    }`}
-                  >
-                    <div className="w-[3px] h-5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
-                    <ColIcon className="w-3.5 h-3.5 shrink-0" style={{ color: col.color }} />
-                    <span className="text-xs font-semibold text-foreground flex-1 truncate">{col.title}</span>
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${wipExceeded ? "bg-red-500/20 text-red-400" : "bg-secondary/60 text-muted-foreground"}`}>
-                      {colTasks.length}
-                      {col.wipLimit !== null && <span className="text-muted-foreground/50">/{col.wipLimit}</span>}
+                  {/* Column header — Notion-style: colored pill + count */}
+                  <div className="flex items-center gap-2 px-1 mb-2.5 group/colhdr">
+                    <span
+                      className="px-2 py-[2px] rounded-sm text-[12px] font-semibold tracking-wide uppercase"
+                      style={{ backgroundColor: col.color + "20", color: col.color }}
+                    >
+                      {col.title}
                     </span>
-                    {wipExceeded && <AlertTriangle className="w-3 h-3 text-red-400" />}
-                    <div className="relative group/menu">
-                      <button className="p-0.5 rounded hover:bg-secondary text-muted-foreground/40 hover:text-foreground transition">
-                        <MoreVertical className="w-3.5 h-3.5" />
-                      </button>
-                      <div className="absolute right-0 top-6 hidden group-hover/menu:block bg-card border border-border rounded-lg shadow-xl py-1 min-w-[130px] z-20">
+                    <span className="text-[13px] text-muted-foreground/60 font-light">
+                      {colTasks.length}
+                      {col.wipLimit !== null && (
+                        <span className={wipExceeded ? " text-red-400" : ""}> / {col.wipLimit}</span>
+                      )}
+                    </span>
+
+                    {/* Menu — hidden until hover */}
+                    <div className="relative ml-auto opacity-0 group-hover/colhdr:opacity-100 transition">
+                      <div className="flex items-center gap-0.5">
                         <button
-                          onClick={() => setEditingColumn(col)}
-                          className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-secondary transition"
+                          onClick={() => addTaskToColumn(col.id)}
+                          className="p-0.5 rounded hover:bg-secondary/60 text-muted-foreground/40 hover:text-foreground transition"
                         >
-                          Edit column
+                          <Plus className="w-3.5 h-3.5" />
                         </button>
-                        {columns.length > 1 && (
-                          <button
-                            onClick={() => deleteColumn(col.id)}
-                            className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-secondary transition"
-                          >
-                            Delete column
+                        <div className="relative group/menu">
+                          <button className="p-0.5 rounded hover:bg-secondary/60 text-muted-foreground/40 hover:text-foreground transition">
+                            <MoreVertical className="w-3.5 h-3.5" />
                           </button>
-                        )}
+                          <div className="absolute right-0 top-6 hidden group-hover/menu:block bg-card border border-border rounded-md shadow-xl py-1 min-w-[130px] z-20">
+                            <button
+                              onClick={() => setEditingColumn(col)}
+                              className="w-full text-left px-3 py-1.5 text-[13px] text-foreground hover:bg-secondary/60 transition"
+                            >
+                              Edit column
+                            </button>
+                            {columns.length > 1 && (
+                              <button
+                                onClick={() => deleteColumn(col.id)}
+                                className="w-full text-left px-3 py-1.5 text-[13px] text-red-400 hover:bg-secondary/60 transition"
+                              >
+                                Delete column
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Column body */}
-                  <div className="flex-1 bg-secondary/20 border border-border border-t-0 rounded-b-xl p-2 space-y-2 overflow-y-auto" style={{ maxHeight: "calc(100vh - 380px)", minHeight: 200 }}>
-                    {colTasks.length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground/40 text-center py-10 px-3 italic">
-                        {emptyStates[col.id] || "No tasks here yet"}
+                  {/* Column body — drop zone */}
+                  <div
+                    className={`flex-1 space-y-1.5 overflow-y-auto pr-0.5 rounded-lg transition-colors duration-150 ${
+                      dragOverColId === col.id ? "bg-primary/5 ring-2 ring-primary/20 ring-inset" : ""
+                    }`}
+                    style={{ maxHeight: "calc(100vh - 280px)", minHeight: 60 }}
+                    onDragOver={e => handleColumnDragOver(e, col.id)}
+                    onDragLeave={handleColumnDragLeave}
+                    onDrop={e => handleColumnDrop(e, col.id)}
+                  >
+                    {colTasks.length === 0 && !dragOverColId ? (
+                      <p className="text-[13px] text-muted-foreground/50 py-8 px-1">
+                        {emptyStates[col.id] || "No tasks"}
                       </p>
                     ) : (
                       <AnimatePresence mode="popLayout">
@@ -2047,30 +2078,38 @@ export default function TasksModule() {
                             onSelect={() => setSelectedTask(t)}
                             onComplete={() => completeTask(t)}
                             onMove={colId => moveTask(t, colId)}
+                            onDragStart={e => handleDragStart(e, t.id)}
+                            onDragEnd={handleDragEnd}
                           />
                         ))}
                       </AnimatePresence>
                     )}
-                    {/* Add task at bottom */}
+                    {/* Drop hint when dragging over empty area */}
+                    {dragOverColId === col.id && colTasks.length === 0 && (
+                      <div className="py-6 text-center text-[13px] text-primary/60">Drop here</div>
+                    )}
+                    {/* New page button */}
                     <button
                       onClick={() => addTaskToColumn(col.id)}
-                      className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary/50 transition"
+                      className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] text-muted-foreground/50 hover:text-muted-foreground hover:bg-secondary/40 transition"
                     >
-                      <Plus className="w-3 h-3" /> Add task
+                      <Plus className="w-3.5 h-3.5" /> New
                     </button>
                   </div>
                 </div>
               );
             })}
-          </div>
 
-          {/* Add column — subtle inline button */}
-          <button
-            onClick={() => setEditingColumn("new")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-secondary/30 transition"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add column
-          </button>
+            {/* Add group button — Notion style */}
+            <div className="flex flex-col min-w-0">
+              <button
+                onClick={() => setEditingColumn("new")}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[13px] text-muted-foreground/60 hover:text-muted-foreground/60 hover:bg-secondary/30 transition"
+              >
+                <Plus className="w-3.5 h-3.5" /> New group
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
