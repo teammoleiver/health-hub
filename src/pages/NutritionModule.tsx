@@ -26,7 +26,8 @@ export default function NutritionModule() {
   const [todayMeals, setTodayMeals] = useState<Tables<"meal_logs">[]>([]);
   const [mealHistory, setMealHistory] = useState<any[]>([]);
   const [mealModalOpen, setMealModalOpen] = useState(false);
-
+  const [selectedFood, setSelectedFood] = useState<FoodDbItem | null>(null);
+  const [mealTypePicker, setMealTypePicker] = useState(false);
   const now = new Date();
   const hour = now.getHours();
   const isPastWindow = hour >= 20;
