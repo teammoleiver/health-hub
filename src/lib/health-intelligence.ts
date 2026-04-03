@@ -328,7 +328,7 @@ function generateInsights(d: InsightInput): Insight[] {
   }
 
   // Fasting ↔ Exercise timing
-  if (d.fasting.phase === "fasting" && d.exerciseDone) {
+  if (d.fasting.state === "fasting" && d.exerciseDone) {
     insights.push({
       id: `insight-${id++}`, type: "positive", icon: "⏱️",
       title: "Fasted exercise completed",
