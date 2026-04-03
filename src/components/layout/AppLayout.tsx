@@ -3,7 +3,7 @@ import { useLocation, Link } from "react-router-dom";
 import { onSync } from "@/lib/sync-events";
 import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
-  MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun, Droplets, FolderKanban, CheckSquare,
+  MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun, Droplets, FolderKanban, CheckSquare, CalendarDays,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
@@ -20,6 +20,7 @@ const navItems = [
   { path: "/goals", icon: Target, label: "Goals" },
   { path: "/projects", icon: FolderKanban, label: "Projects" },
   { path: "/tasks", icon: CheckSquare, label: "Tasks" },
+  { path: "/calendar", icon: CalendarDays, label: "Calendar" },
   { path: "/assistant", icon: MessageCircle, label: "Assistant" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];

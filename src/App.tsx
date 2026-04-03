@@ -21,6 +21,7 @@ import SleepModule from "./pages/SleepModule";
 import SettingsModule from "./pages/SettingsModule";
 import ProjectsModule from "./pages/ProjectsModule";
 import TasksModule from "./pages/TasksModule";
+import CalendarModule from "./pages/CalendarModule";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
@@ -92,6 +93,7 @@ function AppRoutes() {
       <Route path="/assistant" element={<ProtectedRoute><AppLayout><AssistantModule /></AppLayout></ProtectedRoute>} />
       <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsModule /></AppLayout></ProtectedRoute>} />
       <Route path="/tasks" element={<ProtectedRoute><AppLayout><TasksModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/calendar" element={<ProtectedRoute><AppLayout><CalendarModule /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsModule /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>

@@ -402,6 +402,8 @@ function PdfPlanTab() {
     } finally { setUploading(false); setAnalyzing(false); }
   };
 
+  const [showSample, setShowSample] = useState(false);
+
   return (
     <div className="p-5 space-y-4">
       {plan && (
@@ -414,7 +416,7 @@ function PdfPlanTab() {
       )}
 
       {!plan ? (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <p className="text-xs text-muted-foreground">Upload a nutrition plan PDF — AI will extract meals, macros & schedule</p>
           <input ref={fileRef} type="file" accept=".pdf" onChange={handleUpload} className="hidden" />
           <button
@@ -439,6 +441,140 @@ function PdfPlanTab() {
           {fileName && !plan && (
             <p className="text-xs text-muted-foreground flex items-center gap-1"><FileText className="w-3 h-3" /> {fileName}</p>
           )}
+
+          {/* Sample Data Preview */}
+          <div className="border border-border/40 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setShowSample(!showSample)}
+              className="w-full flex items-center gap-2 px-4 py-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition"
+            >
+              <FileSearch className="w-4 h-4 text-primary/60" />
+              <span>What should the PDF look like?</span>
+              <span className="ml-auto text-[10px] text-muted-foreground/60">{showSample ? "Hide" : "Show example"}</span>
+            </button>
+
+            <AnimatePresence>
+              {showSample && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4 space-y-4">
+                    {/* Explanation */}
+                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-primary/5 border border-primary/15">
+                      <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <div className="text-[11px] text-muted-foreground space-y-1">
+                        <p className="font-medium text-foreground">The AI reads any nutrition plan PDF and extracts:</p>
+                        <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
+                          <li>Plan name & summary</li>
+                          <li>Daily calorie targets</li>
+                          <li>Meals organized by day</li>
+                          <li>Macros per meal (protein, carbs, fat)</li>
+                          <li>Special notes & instructions</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Sample PDF Content Preview */}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-2">Example PDF content the AI can read</p>
+                      <div className="rounded-lg bg-secondary/40 border border-border/30 p-4 space-y-3 font-mono text-[11px] text-foreground/80 leading-relaxed">
+                        <div className="text-center space-y-0.5">
+                          <p className="font-bold text-foreground text-xs">WEEKLY NUTRITION PLAN</p>
+                          <p className="text-muted-foreground">Prepared by: Dr. Maria Lopez, RD</p>
+                          <p className="text-muted-foreground">Target: 1,800 kcal/day | Liver-friendly, anti-inflammatory</p>
+                        </div>
+                        <div className="border-t border-border/30 pt-2">
+                          <p className="font-bold text-primary text-[10px] uppercase">Monday</p>
+                          <div className="pl-2 space-y-1.5 mt-1">
+                            <div>
+                              <p className="font-semibold">Breakfast (350 kcal)</p>
+                              <p>Shakshuka (2 eggs in tomato) + wholegrain toast</p>
+                              <p className="text-muted-foreground">P: 22g | C: 30g | F: 14g</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Lunch (500 kcal)</p>
+                              <p>Grilled salmon 150g + quinoa + steamed broccoli</p>
+                              <p className="text-muted-foreground">P: 40g | C: 45g | F: 18g</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Snack (200 kcal)</p>
+                              <p>Greek yogurt + walnuts + blueberries</p>
+                              <p className="text-muted-foreground">P: 15g | C: 20g | F: 8g</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Dinner (450 kcal)</p>
+                              <p>Chicken breast 120g + sweet potato + mixed salad</p>
+                              <p className="text-muted-foreground">P: 35g | C: 40g | F: 12g</p>
+                              <p className="italic text-muted-foreground">Note: No heavy meals after 8pm</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="border-t border-border/30 pt-2">
+                          <p className="font-bold text-primary text-[10px] uppercase">Tuesday</p>
+                          <div className="pl-2 space-y-1.5 mt-1">
+                            <div>
+                              <p className="font-semibold">Breakfast (300 kcal)</p>
+                              <p>Overnight oats + chia seeds + banana</p>
+                              <p className="text-muted-foreground">P: 12g | C: 45g | F: 8g</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Lunch (550 kcal)</p>
+                              <p>Lentil soup + avocado toast on sourdough</p>
+                              <p className="text-muted-foreground">P: 25g | C: 55g | F: 22g</p>
+                            </div>
+                            <p className="text-muted-foreground text-center">...</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* What AI extracts */}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-2">What the AI extracts from it</p>
+                      <div className="space-y-2">
+                        {/* Mini preview of extracted result */}
+                        <div className="rounded-lg bg-secondary/30 p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-bold text-primary uppercase">Monday</span>
+                            <span className="text-[10px] text-muted-foreground">1,500 kcal</span>
+                          </div>
+                          {[
+                            { type: "Breakfast", name: "Shakshuka + wholegrain toast", cal: 350, p: 22, c: 30, f: 14 },
+                            { type: "Lunch", name: "Grilled salmon + quinoa + broccoli", cal: 500, p: 40, c: 45, f: 18 },
+                            { type: "Snack", name: "Greek yogurt + walnuts + blueberries", cal: 200, p: 15, c: 20, f: 8 },
+                            { type: "Dinner", name: "Chicken breast + sweet potato + salad", cal: 450, p: 35, c: 40, f: 12 },
+                          ].map((m, i) => (
+                            <div key={i} className="flex items-start justify-between py-1.5 border-b border-border/20 last:border-0">
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-semibold text-muted-foreground uppercase">{m.type}</span>
+                                <p className="text-xs text-foreground">{m.name}</p>
+                                <div className="flex gap-2 mt-0.5 text-[10px] text-muted-foreground">
+                                  <span>P: {m.p}g</span>
+                                  <span>C: {m.c}g</span>
+                                  <span>F: {m.f}g</span>
+                                </div>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{m.cal} kcal</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Supported formats note */}
+                    <div className="flex items-start gap-2 text-[11px] text-muted-foreground/70">
+                      <Utensils className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <p>Works with dietitian PDFs, MyFitnessPal exports, meal prep sheets, hospital nutrition plans, or any text-based PDF with meal information. Image-only PDFs (scanned documents) are not supported.</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
