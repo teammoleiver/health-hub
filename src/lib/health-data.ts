@@ -78,6 +78,7 @@ export const KEY_TRENDS: KeyTrend[] = [];
 
 export function getHealthScore(allTests?: BloodTest[]): number {
   const tests = allTests && allTests.length > 0 ? allTests : BLOOD_TESTS;
+  if (tests.length === 0) return 0; // No data yet
   const latest = tests[tests.length - 1];
   let score = 100;
 
@@ -92,9 +93,6 @@ export function getHealthScore(allTests?: BloodTest[]): number {
   // BMI deduction
   if (latest.bmi >= 30) score -= 10;
   else if (latest.bmi >= 25) score -= 5;
-
-  // BioAge gap (static for now)
-  score -= 8;
 
   return Math.max(0, Math.min(100, score));
 }
