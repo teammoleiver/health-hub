@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/layout/AppLayout";
 import { scheduleEndOfDaySnapshot, checkMissedSnapshot } from "@/lib/daily-snapshot";
 import Dashboard from "./pages/Dashboard";
@@ -16,41 +17,76 @@ import GoalsModule from "./pages/GoalsModule";
 import AssistantModule from "./pages/AssistantModule";
 import SleepModule from "./pages/SleepModule";
 import SettingsModule from "./pages/SettingsModule";
+import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => {
-  // Schedule end-of-day snapshot at 23:59 & check for missed yesterday
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/auth" replace />;
+  return <>{children}</>;
+}
+
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+  if (user) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function AppRoutes() {
   useEffect(() => {
     scheduleEndOfDaySnapshot();
     checkMissedSnapshot();
   }, []);
 
   return (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/health" element={<HealthRecords />} />
-            <Route path="/fasting" element={<FastingModule />} />
-            <Route path="/nutrition" element={<NutritionModule />} />
-            <Route path="/exercise" element={<ExerciseModule />} />
-            <Route path="/body" element={<BodyMetrics />} />
-            <Route path="/sleep" element={<SleepModule />} />
-            <Route path="/goals" element={<GoalsModule />} />
-            <Route path="/assistant" element={<AssistantModule />} />
-            <Route path="/settings" element={<SettingsModule />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AppLayout>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+    <Routes>
+      <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+      <Route path="/health" element={<ProtectedRoute><AppLayout><HealthRecords /></AppLayout></ProtectedRoute>} />
+      <Route path="/fasting" element={<ProtectedRoute><AppLayout><FastingModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/nutrition" element={<ProtectedRoute><AppLayout><NutritionModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/exercise" element={<ProtectedRoute><AppLayout><ExerciseModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/body" element={<ProtectedRoute><AppLayout><BodyMetrics /></AppLayout></ProtectedRoute>} />
+      <Route path="/sleep" element={<ProtectedRoute><AppLayout><SleepModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/goals" element={<ProtectedRoute><AppLayout><GoalsModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/assistant" element={<ProtectedRoute><AppLayout><AssistantModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsModule /></AppLayout></ProtectedRoute>} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 

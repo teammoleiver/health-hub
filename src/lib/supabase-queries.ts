@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { emitSync } from "./sync-events";
 
 // ── Helpers ──
@@ -10,29 +10,64 @@ const startOfMonth = () => {
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
 };
 
-// ── User Profile ──
+async function getCurrentUserId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
+// ── User Profile (legacy table — kept for API key storage) ──
 export async function getUserProfile() {
-  const { data, error } = await supabase.from("user_profile").select("*").limit(1).single();
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase.from("user_profile").select("*").eq("user_id", uid).limit(1).maybeSingle();
   if (error && error.code !== "PGRST116") console.error("getUserProfile", error);
   return data;
 }
 
 export async function updateUserProfile(updates: TablesUpdate<"user_profile">) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const profile = await getUserProfile();
-  if (!profile) return null;
+  if (!profile) {
+    // Create if not exists
+    const { data, error } = await supabase.from("user_profile").insert({ ...updates, user_id: uid } as any).select().single();
+    if (error) console.error("createUserProfile", error);
+    return data;
+  }
   const { data, error } = await supabase.from("user_profile").update(updates).eq("id", profile.id).select().single();
   if (error) console.error("updateUserProfile", error);
   return data;
 }
 
+// ── Profiles (new auth-linked table) ──
+export async function getProfile() {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase.from("profiles" as any).select("*").eq("user_id", uid).single();
+  if (error) console.error("getProfile", error);
+  return data;
+}
+
+export async function updateProfile(updates: Record<string, any>) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase.from("profiles" as any).update({ ...updates, updated_at: new Date().toISOString() }).eq("user_id", uid).select().single();
+  if (error) console.error("updateProfile", error);
+  return data;
+}
+
 // ── Water Logs ──
 export async function getTodayWaterLog() {
-  const { data, error } = await supabase.from("water_logs").select("*").eq("logged_date", today()).maybeSingle();
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase.from("water_logs").select("*").eq("user_id", uid).eq("logged_date", today()).maybeSingle();
   if (error) console.error("getTodayWaterLog", error);
   return data;
 }
 
 export async function upsertWaterLog(glasses: number, mlTotal?: number) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const ml = mlTotal ?? glasses * 250;
   const existing = await getTodayWaterLog();
   if (existing) {
@@ -48,7 +83,7 @@ export async function upsertWaterLog(glasses: number, mlTotal?: number) {
   }
   const { data, error } = await supabase
     .from("water_logs")
-    .insert({ glasses, ml_total: ml, logged_date: today() })
+    .insert({ glasses, ml_total: ml, logged_date: today(), user_id: uid } as any)
     .select()
     .single();
   if (error) console.error("upsertWaterLog insert", error);
@@ -57,9 +92,12 @@ export async function upsertWaterLog(glasses: number, mlTotal?: number) {
 }
 
 export async function getWaterHistory(limit = 30) {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("water_logs")
     .select("*")
+    .eq("user_id", uid)
     .order("logged_date", { ascending: false })
     .limit(limit);
   if (error) console.error("getWaterHistory", error);
@@ -68,18 +106,24 @@ export async function getWaterHistory(limit = 30) {
 
 // ── Weight Logs ──
 export async function getWeightHistory() {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("weight_logs")
     .select("*")
+    .eq("user_id", uid)
     .order("logged_at", { ascending: true });
   if (error) console.error("getWeightHistory", error);
   return data ?? [];
 }
 
 export async function getLatestWeight() {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const { data, error } = await supabase
     .from("weight_logs")
     .select("*")
+    .eq("user_id", uid)
     .order("logged_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -88,11 +132,14 @@ export async function getLatestWeight() {
 }
 
 export async function logWeight(weightKg: number, options?: { waist_cm?: number; notes?: string; body_fat_pct?: number }, loggedAt?: string) {
-  const heightM = 1.71;
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const profile = await getProfile();
+  const heightM = (profile as any)?.height_cm ? (profile as any).height_cm / 100 : 1.71;
   const bmi = parseFloat((weightKg / (heightM * heightM)).toFixed(1));
   const { data, error } = await supabase
     .from("weight_logs")
-    .insert({ weight_kg: weightKg, bmi, ...options, ...(loggedAt ? { logged_at: loggedAt } : {}) })
+    .insert({ weight_kg: weightKg, bmi, ...options, ...(loggedAt ? { logged_at: loggedAt } : {}), user_id: uid } as any)
     .select()
     .single();
   if (error) console.error("logWeight", error);
@@ -102,7 +149,9 @@ export async function logWeight(weightKg: number, options?: { waist_cm?: number;
 
 // ── Exercise Logs ──
 export async function logExercise(entry: TablesInsert<"exercise_logs">) {
-  const { data, error } = await supabase.from("exercise_logs").insert(entry).select().single();
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase.from("exercise_logs").insert({ ...entry, user_id: uid } as any).select().single();
   if (error) console.error("logExercise", error);
   if (data) {
     await upsertChecklist({ exercise_done: true });
@@ -112,9 +161,12 @@ export async function logExercise(entry: TablesInsert<"exercise_logs">) {
 }
 
 export async function getTodayExercise() {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const { data, error } = await supabase
     .from("exercise_logs")
     .select("*")
+    .eq("user_id", uid)
     .gte("logged_at", today() + "T00:00:00")
     .lte("logged_at", today() + "T23:59:59")
     .limit(1)
@@ -124,9 +176,12 @@ export async function getTodayExercise() {
 }
 
 export async function getMonthExerciseLogs() {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("exercise_logs")
     .select("*")
+    .eq("user_id", uid)
     .gte("logged_at", startOfMonth())
     .order("logged_at", { ascending: false });
   if (error) console.error("getMonthExerciseLogs", error);
@@ -134,9 +189,12 @@ export async function getMonthExerciseLogs() {
 }
 
 export async function getAllExerciseLogs(limit = 90) {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("exercise_logs")
     .select("*")
+    .eq("user_id", uid)
     .order("logged_at", { ascending: false })
     .limit(limit);
   if (error) console.error("getAllExerciseLogs", error);
@@ -145,16 +203,21 @@ export async function getAllExerciseLogs(limit = 90) {
 
 // ── Meal Logs ──
 export async function logMeal(entry: TablesInsert<"meal_logs">) {
-  const { data, error } = await supabase.from("meal_logs").insert(entry).select().single();
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase.from("meal_logs").insert({ ...entry, user_id: uid } as any).select().single();
   if (error) console.error("logMeal", error);
   if (data) emitSync("meal:logged");
   return data;
 }
 
 export async function getTodayMeals() {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("meal_logs")
     .select("*")
+    .eq("user_id", uid)
     .gte("logged_at", today() + "T00:00:00")
     .lte("logged_at", today() + "T23:59:59")
     .order("logged_at", { ascending: true });
@@ -163,9 +226,12 @@ export async function getTodayMeals() {
 }
 
 export async function getAllMealLogs(limit = 90) {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("meal_logs")
     .select("*")
+    .eq("user_id", uid)
     .order("logged_at", { ascending: false })
     .limit(limit);
   if (error) console.error("getAllMealLogs", error);
@@ -174,9 +240,12 @@ export async function getAllMealLogs(limit = 90) {
 
 // ── Daily Checklist ──
 export async function getTodayChecklist() {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const { data, error } = await supabase
     .from("daily_checklist")
     .select("*")
+    .eq("user_id", uid)
     .eq("checklist_date", today())
     .maybeSingle();
   if (error) console.error("getTodayChecklist", error);
@@ -184,6 +253,8 @@ export async function getTodayChecklist() {
 }
 
 export async function upsertChecklist(updates: Partial<TablesUpdate<"daily_checklist">>) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const existing = await getTodayChecklist();
   if (existing) {
     const { data, error } = await supabase
@@ -198,7 +269,7 @@ export async function upsertChecklist(updates: Partial<TablesUpdate<"daily_check
   }
   const { data, error } = await supabase
     .from("daily_checklist")
-    .insert({ checklist_date: today(), ...updates, updated_at: new Date().toISOString() })
+    .insert({ checklist_date: today(), ...updates, updated_at: new Date().toISOString(), user_id: uid } as any)
     .select()
     .single();
   if (error) console.error("upsertChecklist insert", error);
@@ -208,9 +279,12 @@ export async function upsertChecklist(updates: Partial<TablesUpdate<"daily_check
 
 // ── Fasting Logs ──
 export async function getFastingLogs(limit = 30) {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("fasting_logs")
     .select("*")
+    .eq("user_id", uid)
     .order("logged_date", { ascending: false })
     .limit(limit);
   if (error) console.error("getFastingLogs", error);
@@ -225,10 +299,13 @@ export function getWeekStartDate(d = new Date()) {
 }
 
 export async function getFasting52Schedule(weekStart?: string) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const ws = weekStart ?? getWeekStartDate();
   const { data, error } = await supabase
     .from("fasting_52_schedule")
     .select("*")
+    .eq("user_id", uid)
     .eq("week_start_date", ws)
     .maybeSingle();
   if (error) console.error("getFasting52Schedule", error);
@@ -236,6 +313,8 @@ export async function getFasting52Schedule(weekStart?: string) {
 }
 
 export async function upsertFasting52Schedule(schedule: TablesInsert<"fasting_52_schedule">) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const existing = await getFasting52Schedule(schedule.week_start_date);
   if (existing) {
     const { data, error } = await supabase
@@ -249,7 +328,7 @@ export async function upsertFasting52Schedule(schedule: TablesInsert<"fasting_52
   }
   const { data, error } = await supabase
     .from("fasting_52_schedule")
-    .insert(schedule)
+    .insert({ ...schedule, user_id: uid } as any)
     .select()
     .single();
   if (error) console.error("upsertFasting52Schedule insert", error);
@@ -258,9 +337,12 @@ export async function upsertFasting52Schedule(schedule: TablesInsert<"fasting_52
 
 // ── AI Chat History ──
 export async function getChatHistory(limit = 50) {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("ai_chat_history")
     .select("*")
+    .eq("user_id", uid)
     .order("created_at", { ascending: true })
     .limit(limit);
   if (error) console.error("getChatHistory", error);
@@ -268,9 +350,11 @@ export async function getChatHistory(limit = 50) {
 }
 
 export async function saveChatMessage(role: string, content: string, module_context?: string) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const { data, error } = await supabase
     .from("ai_chat_history")
-    .insert({ role, content, module_context })
+    .insert({ role, content, module_context, user_id: uid } as any)
     .select()
     .single();
   if (error) console.error("saveChatMessage", error);
@@ -278,13 +362,17 @@ export async function saveChatMessage(role: string, content: string, module_cont
 }
 
 export async function clearChatHistory() {
-  const { error } = await supabase.from("ai_chat_history").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const uid = await getCurrentUserId();
+  if (!uid) return;
+  const { error } = await supabase.from("ai_chat_history").delete().eq("user_id", uid);
   if (error) console.error("clearChatHistory", error);
 }
 
 // ── Goals ──
 export async function getGoals() {
-  const { data, error } = await supabase.from("goals").select("*").order("created_at", { ascending: true });
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase.from("goals").select("*").eq("user_id", uid).order("created_at", { ascending: true });
   if (error) console.error("getGoals", error);
   return data ?? [];
 }
@@ -297,18 +385,24 @@ export async function updateGoal(id: string, updates: TablesUpdate<"goals">) {
 
 // ── Blood Test Records ──
 export async function getBloodTestRecords() {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("blood_test_records")
     .select("*")
+    .eq("user_id", uid)
     .order("test_date", { ascending: true });
   if (error) console.error("getBloodTestRecords", error);
   return data ?? [];
 }
 
 export async function getAppliedBloodTestRecords() {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("blood_test_records")
     .select("*")
+    .eq("user_id", uid)
     .eq("applied", true)
     .order("test_date", { ascending: true });
   if (error) console.error("getAppliedBloodTestRecords", error);
@@ -327,6 +421,8 @@ export async function saveBloodTestRecord(record: {
   risk_factors?: string[];
   pdf_storage_path?: string;
 }) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const { data, error } = await supabase
     .from("blood_test_records")
     .insert({
@@ -342,7 +438,8 @@ export async function saveBloodTestRecord(record: {
       pdf_storage_path: record.pdf_storage_path,
       applied: false,
       analyzed_at: new Date().toISOString(),
-    })
+      user_id: uid,
+    } as any)
     .select()
     .single();
   if (error) console.error("saveBloodTestRecord", error);
@@ -378,9 +475,12 @@ export async function deleteBloodTestRecord(id: string) {
 
 // ── Sleep Logs ──
 export async function getSleepLogs(limit = 30) {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("sleep_logs" as any)
     .select("*")
+    .eq("user_id", uid)
     .order("date", { ascending: false })
     .limit(limit);
   if (error) console.error("getSleepLogs", error);
@@ -402,9 +502,12 @@ export async function saveSleepLog(log: {
   stress_level?: number;
   morning_feeling?: number;
 }) {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
   const { data: existing } = await supabase
     .from("sleep_logs" as any)
     .select("id")
+    .eq("user_id", uid)
     .eq("date", log.date)
     .maybeSingle();
 
@@ -420,7 +523,7 @@ export async function saveSleepLog(log: {
   }
   const { data, error } = await supabase
     .from("sleep_logs" as any)
-    .insert(log)
+    .insert({ ...log, user_id: uid })
     .select()
     .single();
   if (error) console.error("saveSleepLog insert", error);
@@ -429,9 +532,12 @@ export async function saveSleepLog(log: {
 
 // ── Checklist Stats ──
 export async function getChecklistStats() {
+  const uid = await getCurrentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("daily_checklist")
     .select("*")
+    .eq("user_id", uid)
     .order("checklist_date", { ascending: false })
     .limit(90);
   if (error) console.error("getChecklistStats", error);
