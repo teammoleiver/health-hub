@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/layout/AppLayout";
 import { scheduleEndOfDaySnapshot, checkMissedSnapshot } from "@/lib/daily-snapshot";
+import { getProfile } from "@/lib/supabase-queries";
+import OnboardingWizard from "@/components/OnboardingWizard";
 import Dashboard from "./pages/Dashboard";
 import HealthRecords from "./pages/HealthRecords";
 import FastingModule from "./pages/FastingModule";
@@ -25,7 +27,17 @@ const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) {
+  const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    getProfile().then((p: any) => {
+      // If profile exists but has no height_cm set, show onboarding
+      setNeedsOnboarding(!p?.height_cm);
+    });
+  }, [user]);
+
+  if (loading || (user && needsOnboarding === null)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
@@ -33,6 +45,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   if (!user) return <Navigate to="/auth" replace />;
+  if (needsOnboarding) {
+    return (
+      <OnboardingWizard
+        onComplete={() => setNeedsOnboarding(false)}
+        userName={user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0]}
+      />
+    );
+  }
   return <>{children}</>;
 }
 
