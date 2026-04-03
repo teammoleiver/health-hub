@@ -44,68 +44,8 @@ export interface BloodTest {
   markers: HealthMarker[];
 }
 
-export const BLOOD_TESTS: BloodTest[] = [
-  {
-    id: "bt1",
-    date: "2026-02-04",
-    source: "Occupational Health — Prevenactiva",
-    weightKg: 84,
-    bmi: 29.07,
-    markers: [
-      { testName: "Blood Pressure (Sys)", value: 127, unit: "mmHg", referenceMax: 130, status: "normal", category: "Cardiovascular" },
-      { testName: "Blood Pressure (Dia)", value: 74, unit: "mmHg", referenceMax: 85, status: "normal", category: "Cardiovascular" },
-      { testName: "Heart Rate", value: 58, unit: "bpm", referenceMin: 60, referenceMax: 100, status: "low", category: "Cardiovascular" },
-      { testName: "Glucose", value: 89, unit: "mg/dL", referenceMin: 70, referenceMax: 100, status: "normal", category: "Metabolic" },
-      { testName: "Total Cholesterol", value: 212, unit: "mg/dL", referenceMax: 200, status: "borderline", category: "Lipids" },
-      { testName: "Triglycerides", value: 153, unit: "mg/dL", referenceMax: 150, status: "borderline", category: "Lipids" },
-      { testName: "VLDL", value: 31, unit: "mg/dL", referenceMax: 30, status: "high", category: "Lipids" },
-      { testName: "ALT/GPT", value: 55, unit: "UI/L", referenceMax: 49, status: "high", category: "Liver" },
-      { testName: "AST/GOT", value: 30, unit: "UI/L", referenceMax: 34, status: "normal", category: "Liver" },
-      { testName: "GGT", value: 54, unit: "UI/L", referenceMax: 55, status: "borderline", category: "Liver" },
-      { testName: "Creatinine", value: 0.91, unit: "mg/dL", referenceMin: 0.7, referenceMax: 1.2, status: "normal", category: "Kidney" },
-      { testName: "Uric Acid", value: 6.0, unit: "mg/dL", referenceMax: 7.0, status: "normal", category: "Kidney" },
-      { testName: "MCV", value: 76, unit: "fL", referenceMin: 80, referenceMax: 100, status: "low", category: "Blood" },
-      { testName: "HCM", value: 25.1, unit: "pg", referenceMin: 27, referenceMax: 33, status: "low", category: "Blood" },
-      { testName: "Hemoglobin", value: 14, unit: "g/dL", referenceMin: 13.5, referenceMax: 17.5, status: "normal", category: "Blood" },
-      { testName: "FVC", value: 3.55, unit: "L", status: "low", category: "Spirometry" },
-      { testName: "FVC %", value: 73, unit: "%", referenceMin: 80, status: "low", category: "Spirometry" },
-      { testName: "FEV1", value: 3.49, unit: "L", status: "normal", category: "Spirometry" },
-      { testName: "FEV1 %", value: 88, unit: "%", referenceMin: 80, status: "normal", category: "Spirometry" },
-      { testName: "FEV1/FVC", value: 98, unit: "%", referenceMin: 70, status: "normal", category: "Spirometry" },
-    ],
-  },
-  {
-    id: "bt2",
-    date: "2026-03-27",
-    source: "Vall d'Hebron Hospital",
-    weightKg: 88,
-    bmi: 30.1,
-    markers: [
-      { testName: "ALT/GPT", value: 101, unit: "UI/L", referenceMin: 10, referenceMax: 49, status: "critical", category: "Liver" },
-      { testName: "AST/GOT", value: 43, unit: "UI/L", referenceMin: 8, referenceMax: 34, status: "high", category: "Liver" },
-      { testName: "GGT", value: 56, unit: "UI/L", referenceMax: 60, status: "normal", category: "Liver" },
-      { testName: "Alkaline Phosphatase", value: 82, unit: "UI/L", referenceMax: 120, status: "normal", category: "Liver" },
-      { testName: "Bilirubin", value: 0.67, unit: "mg/dL", referenceMax: 1.2, status: "normal", category: "Liver" },
-      { testName: "FIB-4 Score", value: 0.43, unit: "", referenceMax: 1.3, status: "normal", category: "Liver" },
-      { testName: "Glucose", value: 94, unit: "mg/dL", referenceMin: 70, referenceMax: 100, status: "normal", category: "Metabolic" },
-      { testName: "Creatinine", value: 0.84, unit: "mg/dL", referenceMin: 0.7, referenceMax: 1.2, status: "normal", category: "Kidney" },
-      { testName: "Sodium", value: 141, unit: "mmol/L", referenceMin: 136, referenceMax: 145, status: "normal", category: "Electrolytes" },
-      { testName: "Potassium", value: 4.59, unit: "mmol/L", referenceMin: 3.5, referenceMax: 5.1, status: "normal", category: "Electrolytes" },
-      { testName: "Total Cholesterol", value: 197, unit: "mg/dL", referenceMax: 200, status: "normal", category: "Lipids" },
-      { testName: "LDL", value: 127, unit: "mg/dL", referenceMax: 130, status: "borderline", category: "Lipids" },
-      { testName: "HDL", value: 51, unit: "mg/dL", referenceMin: 40, status: "normal", category: "Lipids" },
-      { testName: "Triglycerides", value: 98, unit: "mg/dL", referenceMax: 150, status: "normal", category: "Lipids" },
-      { testName: "Ferritin", value: 62, unit: "ng/mL", referenceMin: 30, referenceMax: 400, status: "normal", category: "Blood" },
-      { testName: "Hemoglobin", value: 14.4, unit: "g/dL", referenceMin: 13.5, referenceMax: 17.5, status: "normal", category: "Blood" },
-      { testName: "MCV", value: 75.2, unit: "fL", referenceMin: 80, referenceMax: 100, status: "low", category: "Blood" },
-      { testName: "HCM", value: 24.4, unit: "pg", referenceMin: 27, referenceMax: 33, status: "low", category: "Blood" },
-      { testName: "WBC", value: 8.33, unit: "x10E9/L", referenceMin: 4, referenceMax: 11, status: "normal", category: "Blood" },
-      { testName: "Platelets", value: 330, unit: "x10E9/L", referenceMin: 150, referenceMax: 400, status: "normal", category: "Blood" },
-      { testName: "TSH", value: 2.875, unit: "mU/L", referenceMin: 0.4, referenceMax: 4.0, status: "normal", category: "Thyroid" },
-      { testName: "Free T4", value: 1.39, unit: "ng/dL", referenceMin: 0.8, referenceMax: 1.8, status: "normal", category: "Thyroid" },
-    ],
-  },
-];
+// No hardcoded blood tests — all data comes from DB per user
+export const BLOOD_TESTS: BloodTest[] = [];
 
 export const EGYM_DATA = {
   bioAge: {
