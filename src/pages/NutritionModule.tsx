@@ -8,6 +8,7 @@ import { playWaterSound, playGoalReachedSound } from "@/lib/water-sound";
 import { VossBottle, VossBottleMini } from "@/components/ui/VossBottle";
 import { Celebration } from "@/components/ui/Celebration";
 import LogMealModal from "@/components/modals/LogMealModal";
+import NutritionPlanUpload from "@/components/NutritionPlanUpload";
 import type { Tables } from "@/integrations/supabase/types";
 
 const BOTTLE_ML = 800;
