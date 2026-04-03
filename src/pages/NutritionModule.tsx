@@ -9,6 +9,10 @@ import { VossBottle, VossBottleMini } from "@/components/ui/VossBottle";
 import { Celebration } from "@/components/ui/Celebration";
 import LogMealModal from "@/components/modals/LogMealModal";
 import NutritionPlanUpload from "@/components/NutritionPlanUpload";
+import WeeklyMenuUpload from "@/components/WeeklyMenuUpload";
+import FoodSearchInput from "@/components/FoodSearchInput";
+import type { FoodDbItem } from "@/lib/food-queries";
+import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
 
 const BOTTLE_ML = 800;
