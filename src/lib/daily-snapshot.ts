@@ -63,7 +63,7 @@ export async function takeDailySnapshot(dateOverride?: string): Promise<boolean>
           status: m.status || "normal", category: m.category || "Other",
         })),
       }));
-      const allTests = [...BLOOD_TESTS, ...dbTests].sort((a, b) => a.date.localeCompare(b.date));
+      const allTests = dbTests.sort((a, b) => a.date.localeCompare(b.date));
       healthScore = getHealthScore(allTests);
     } catch {
       healthScore = getHealthScore();
