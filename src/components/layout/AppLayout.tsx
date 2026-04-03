@@ -66,13 +66,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       >
         <div className="flex items-center gap-3 p-4 border-b border-sidebar-border">
           <img
-            src={dark ? logoDark : logoLight}
-            alt="Health Track"
+            src={syncvidaLogo}
+            alt="Syncvida"
             className="w-8 h-8 object-contain"
           />
           {sidebarOpen && (
             <span className="text-sidebar-foreground font-display font-bold text-lg">
-              Health Track
+              Syncvida
             </span>
           )}
         </div>
