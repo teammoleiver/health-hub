@@ -224,7 +224,7 @@ Generated: ${new Date(intel.generatedAt).toLocaleString()}
 🏋️ Exercise: ${t.exercise.done ? `YES — ${t.exercise.type} ${t.exercise.durationMin}min ${t.exercise.calories ? t.exercise.calories + "kcal" : ""}` : "Not yet"}
 ⚖️ Weight: ${t.weight.current}kg (BMI: ${t.weight.bmi ?? "?"}) — ${t.weight.changeFromStart > 0 ? "+" : ""}${t.weight.changeFromStart.toFixed(1)}kg from start
 ⏱️ Fasting: ${t.fasting.label} — ${t.fasting.message}
-😴 Last night sleep: ${t.sleep ? `${t.sleep.hours}h, quality ${t.sleep.quality}/5, bed ${t.sleep.bedtime}, wake ${t.sleep.wakeTime}` : "No data"}
+😴 Last night sleep: ${t.sleep?.lastNight ? `${t.sleep.lastNight.hours}h, quality ${t.sleep.lastNight.quality}/5, bed ${t.sleep.lastNight.bedtime}, wake ${t.sleep.lastNight.wakeTime}` : "No data"}
 ✅ Checklist: ${t.checklist.completed}/${t.checklist.total} (${t.checklist.pct}%)
 
 ── 7-DAY TRENDS ──
