@@ -94,6 +94,39 @@ export default function BodyMetrics() {
   const [weightData, setWeightData] = useState<WeightEntry[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [latestBmi, setLatestBmi] = useState<number | null>(null);
+  const [profileHeight, setProfileHeight] = useState(170);
+  const [targetWeight, setTargetWeight] = useState<number | null>(null);
+  const [startingWeight, setStartingWeight] = useState<number | null>(null);
+  const [bloodTests, setBloodTests] = useState<BloodTest[]>([]);
+
+  // Load profile data
+  useEffect(() => {
+    (async () => {
+      const profile = await getProfile();
+      if (profile) {
+        if ((profile as any).height_cm) setProfileHeight((profile as any).height_cm);
+        if ((profile as any).target_weight_final_kg) setTargetWeight(Number((profile as any).target_weight_final_kg));
+        if ((profile as any).starting_weight_kg) setStartingWeight(Number((profile as any).starting_weight_kg));
+      }
+      // Load blood tests from DB
+      const records = await getAppliedBloodTestRecords();
+      const tests: BloodTest[] = records.map((r: any) => ({
+        id: r.id, date: r.test_date, source: r.source,
+        weightKg: Number(r.weight_kg) || 0, bmi: Number(r.bmi) || 0,
+        markers: (Array.isArray(r.markers) ? r.markers : []).map((m: any) => ({
+          testName: m.testName, value: Number(m.value), unit: m.unit,
+          referenceMin: m.referenceMin != null ? Number(m.referenceMin) : undefined,
+          referenceMax: m.referenceMax != null ? Number(m.referenceMax) : undefined,
+          status: m.status || "normal", category: m.category || "Other",
+        })),
+      }));
+      setBloodTests(tests);
+    })();
+  }, []);
+
+  const heightM = profileHeight / 100;
+  const goalWeight = targetWeight ?? 78;
+  const startWeight = startingWeight ?? 0;
 
   const loadWeights = async () => {
     const history = await getWeightHistory();
@@ -103,7 +136,7 @@ export default function BodyMetrics() {
         date: new Date(w.logged_at!).toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
         fullDate: w.logged_at!,
         weight: Number(w.weight_kg),
-        bmi: Number(w.bmi ?? (Number(w.weight_kg) / (1.71 * 1.71)).toFixed(1)),
+        bmi: Number(w.bmi ?? (Number(w.weight_kg) / (heightM * heightM)).toFixed(1)),
         waist: w.waist_cm ? Number(w.waist_cm) : null,
         timeOfDay: tod,
         notes: w.notes,
@@ -111,17 +144,17 @@ export default function BodyMetrics() {
     });
 
     // Add projection line to goal
-    if (mapped.length > 0) {
+    if (mapped.length > 0 && goalWeight > 0) {
       const latest = mapped[mapped.length - 1];
-      const weeksToGoal = (latest.weight - 78) / 0.5;
+      const weeksToGoal = (latest.weight - goalWeight) / 0.5;
       if (weeksToGoal > 0 && weeksToGoal < 52) {
         const projDate = new Date();
         projDate.setDate(projDate.getDate() + weeksToGoal * 7);
         mapped.push({
           date: projDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
           fullDate: projDate.toISOString(),
-          weight: 78,
-          bmi: parseFloat((78 / (1.71 * 1.71)).toFixed(1)),
+          weight: goalWeight,
+          bmi: parseFloat((goalWeight / (heightM * heightM)).toFixed(1)),
           waist: null,
           timeOfDay: "Unknown",
           notes: null,
@@ -133,15 +166,15 @@ export default function BodyMetrics() {
     setWeightData(mapped);
   };
 
-  useEffect(() => { loadWeights(); }, []);
+  useEffect(() => { loadWeights(); }, [profileHeight, targetWeight]);
   useEffect(() => onSync("weight:logged", loadWeights), []);
 
   const realEntries = weightData.filter((w) => !w.isProjection);
-  const latestWeight = realEntries.length > 0 ? realEntries[realEntries.length - 1].weight : 88;
-  const firstWeight = realEntries.length > 0 ? realEntries[0].weight : 88;
+  const latestWeight = realEntries.length > 0 ? realEntries[realEntries.length - 1].weight : startWeight;
+  const firstWeight = realEntries.length > 0 ? realEntries[0].weight : startWeight;
   const totalChange = latestWeight - firstWeight;
-  const toGoal = latestWeight - 78;
-  const progressPct = Math.max(0, Math.min(100, ((88 - latestWeight) / (88 - 78)) * 100));
+  const toGoal = goalWeight > 0 ? latestWeight - goalWeight : 0;
+  const progressPct = startWeight > goalWeight ? Math.max(0, Math.min(100, ((startWeight - latestWeight) / (startWeight - goalWeight)) * 100)) : 0;
 
   // Stats cards
   const stats = [
