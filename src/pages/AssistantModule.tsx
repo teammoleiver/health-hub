@@ -10,18 +10,22 @@ interface Message {
   content: string;
 }
 
-const WELCOME = `Hi Saleh! 👋 I'm your Health Track AI assistant. I have access to all your health data including:
+const WELCOME = `Hi Saleh! 👋 I'm your **unified Health Intelligence assistant**. I analyze ALL your health data as one interconnected system:
 
-• Both blood tests (Feb 4 & Mar 27, 2026)
-• EGYM fitness data (BioAge: 48)
-• Your nutrition plan from Nutreya
-• Fasting protocols (16:8 active)
-• Body composition & goals
+• 😴 **Sleep** — quality, duration, consistency, and how it affects everything else
+• 🍽️ **Nutrition** — meals, calories, liver-safe choices, hydration
+• ⏱️ **Fasting** — 16:8 compliance, eating window status
+• 🏋️ **Exercise** — sessions, BioAge reduction, recovery needs
+• ⚖️ **Body** — weight trends, BMI, body composition
+• 🩸 **Blood markers** — ALT/AST alerts, cholesterol, trends
+• ✅ **Daily habits** — checklist compliance, streaks
 
-Ask me anything about your health — for example:
-- "Can I eat a croissant today?"
-- "How is my liver doing?"
-- "What exercise should I focus on?"`;
+All modules talk to each other. Ask me anything — for example:
+- "How is my overall health right now?"
+- "Is my sleep affecting my weight loss?"
+- "What should I focus on today based on all my data?"
+- "Give me a full health report"
+- "Qué sugieres para mejorar mi hígado?"`;
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-chat`;
 
