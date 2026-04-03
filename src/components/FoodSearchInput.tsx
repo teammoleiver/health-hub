@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Loader2 } from "lucide-react";
-import { searchFoodDatabase, type FoodDbItem } from "@/lib/food-queries";
+import { Search, Loader2, ChevronDown } from "lucide-react";
+import { searchFoodDatabase, getAllCategories, type FoodDbItem } from "@/lib/food-queries";
 
 interface FoodSearchInputProps {
   onSelect: (food: FoodDbItem) => void;
@@ -27,19 +27,31 @@ export default function FoodSearchInput({ onSelect, placeholder = "Search food d
   const [results, setResults] = useState<FoodDbItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [categories, setCategories] = useState<string[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
+
+  // Load categories once
+  useEffect(() => {
+    getAllCategories().then(setCategories);
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
-      const data = await searchFoodDatabase(query, 20);
-      setResults(data);
+      try {
+        const data = await searchFoodDatabase(query, 500, selectedCategory);
+        setResults(data);
+      } catch (e) {
+        console.error("Food search error:", e);
+        setResults([]);
+      }
       setLoading(false);
     }, 250);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [query]);
+  }, [query, selectedCategory]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -64,8 +76,32 @@ export default function FoodSearchInput({ onSelect, placeholder = "Search food d
         {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />}
       </div>
 
+      {/* Category filter chips */}
+      {open && categories.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          <button
+            onClick={() => setSelectedCategory("")}
+            className={`text-[10px] px-2 py-1 rounded-full font-medium transition ${!selectedCategory ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:bg-accent"}`}
+          >
+            All
+          </button>
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(selectedCategory === cat ? "" : cat)}
+              className={`text-[10px] px-2 py-1 rounded-full font-medium transition ${selectedCategory === cat ? "bg-primary text-primary-foreground" : CATEGORY_COLORS[cat] || "bg-secondary text-muted-foreground"} hover:opacity-80`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
       {open && results.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+        <div className="absolute z-50 w-full mt-1 max-h-80 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+          <div className="sticky top-0 bg-card/95 backdrop-blur-sm px-3 py-1.5 border-b border-border/50 z-10">
+            <span className="text-[10px] text-muted-foreground font-medium">{results.length} items found</span>
+          </div>
           {results.map((food) => (
             <button
               key={food.id}
@@ -103,6 +139,12 @@ export default function FoodSearchInput({ onSelect, placeholder = "Search food d
               )}
             </button>
           ))}
+        </div>
+      )}
+
+      {open && !loading && results.length === 0 && query.trim() && (
+        <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card shadow-lg p-4 text-center">
+          <p className="text-sm text-muted-foreground">No foods found for "{query}"</p>
         </div>
       )}
     </div>
