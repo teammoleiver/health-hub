@@ -188,9 +188,9 @@ export async function gatherHealthIntelligence(): Promise<HealthIntelligence> {
       meals: { count: mealItems.length, totalCalories, items: mealItems },
       exercise: { done: !!exercise, type: exercise?.exercise_type ?? null, durationMin: exercise?.duration_min ?? null, calories: exercise?.calories ?? null },
       weight: { current: currentWeight, bmi: currentBmi, changeFromStart: currentWeight - 88 },
-      fasting: { label: fasting.label, message: fasting.message, inEatingWindow: fasting.phase === "eating", hoursElapsed: fasting.elapsed ?? 0 },
+      fasting: { label: fasting.label, message: fasting.message, inEatingWindow: fasting.state === "eating", hoursElapsed: Math.round((fasting.state === "fasting" ? (16 * 60 - fasting.remainingMinutes) : 0) / 60) },
       checklist: { completed: clCompleted, total: 7, pct: Math.round((clCompleted / 7) * 100), items: clItems },
-      sleep: lastSleep ? { hours: Number(lastSleep.total_hours), quality: Number(lastSleep.quality) || 3, bedtime: lastSleep.bedtime, wakeTime: lastSleep.wake_time } : null,
+      sleep: lastSleep ? { lastNight: { hours: Number(lastSleep.total_hours), quality: Number(lastSleep.quality) || 3, bedtime: lastSleep.bedtime, wakeTime: lastSleep.wake_time } } : null,
     },
     trends: {
       weightTrend: { direction: weightDirection as any, weeklyChange: parseFloat(weeklyWeightChange.toFixed(1)) },
