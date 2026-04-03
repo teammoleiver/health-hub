@@ -22,6 +22,7 @@ import LogWaterModal from "@/components/modals/LogWaterModal";
 import LogWeightModal from "@/components/modals/LogWeightModal";
 import LogExerciseModal from "@/components/modals/LogExerciseModal";
 import LogMealModal from "@/components/modals/LogMealModal";
+import HealthInsights from "@/components/HealthInsights";
 
 function useCurrentTime() {
   const [time, setTime] = useState(new Date());
