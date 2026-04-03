@@ -205,14 +205,82 @@ export default function NutritionModule() {
         <h3 className="font-display font-semibold text-foreground flex items-center gap-2">
           <Flame className="w-5 h-5 text-primary" /> Food Database
         </h3>
-        <p className="text-xs text-muted-foreground">Search 440+ foods with full nutritional info</p>
+        <p className="text-xs text-muted-foreground">Search {159}+ foods with full nutritional info — tap an item to log it</p>
         <FoodSearchInput
           onSelect={(food: FoodDbItem) => {
-            toast({ title: food.food_name, description: `${food.kcal_per_serving ?? food.kcal_per_100g ?? "?"} kcal • P:${food.protein_g ?? "?"}g C:${food.carbs_g ?? "?"}g F:${food.fat_g ?? "?"}g` });
+            setSelectedFood(food);
+            setMealTypePicker(true);
           }}
           placeholder="Search foods... e.g. chicken, rice, salmon"
         />
       </div>
+
+      {/* ── Meal Type Picker Dialog ── */}
+      <AnimatePresence>
+        {mealTypePicker && selectedFood && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+            onClick={() => setMealTypePicker(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-card rounded-2xl shadow-2xl border border-border p-6 w-full max-w-sm space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold text-foreground">Log this food</h3>
+                <button onClick={() => setMealTypePicker(false)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="bg-secondary/50 rounded-xl p-3">
+                <p className="font-semibold text-foreground">{selectedFood.food_name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-primary font-semibold">{selectedFood.kcal_per_serving ?? selectedFood.kcal_per_100g ?? "?"} kcal</span>
+                  {selectedFood.serving_description && <span className="text-[10px] text-muted-foreground">({selectedFood.serving_description})</span>}
+                </div>
+                <div className="flex gap-3 mt-1.5 text-[10px] text-muted-foreground">
+                  {selectedFood.protein_g != null && <span>P: {selectedFood.protein_g}g</span>}
+                  {selectedFood.carbs_g != null && <span>C: {selectedFood.carbs_g}g</span>}
+                  {selectedFood.fat_g != null && <span>F: {selectedFood.fat_g}g</span>}
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">Which meal is this for?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {["Breakfast", "Lunch", "Dinner", "Snack"].map((mealType) => (
+                  <button
+                    key={mealType}
+                    onClick={async () => {
+                      await logMeal({
+                        food_name: selectedFood.food_name,
+                        meal_type: mealType.toLowerCase(),
+                        calories: selectedFood.kcal_per_serving ? Number(selectedFood.kcal_per_serving) : selectedFood.kcal_per_100g ? Number(selectedFood.kcal_per_100g) : null,
+                        protein_g: selectedFood.protein_g ? Number(selectedFood.protein_g) : null,
+                        carbs_g: selectedFood.carbs_g ? Number(selectedFood.carbs_g) : null,
+                        fat_g: selectedFood.fat_g ? Number(selectedFood.fat_g) : null,
+                        quality: "good",
+                        is_healthy: true,
+                      });
+                      toast({ title: "Meal logged!", description: `${selectedFood.food_name} added to ${mealType}` });
+                      setMealTypePicker(false);
+                      setSelectedFood(null);
+                      getTodayMeals().then(setTodayMeals);
+                      getAllMealLogs(60).then(setMealHistory);
+                    }}
+                    className="py-3 rounded-xl bg-secondary hover:bg-accent text-foreground text-sm font-medium transition flex flex-col items-center gap-1"
+                  >
+                    <span>{mealType === "Breakfast" ? "🌅" : mealType === "Lunch" ? "☀️" : mealType === "Dinner" ? "🌙" : "🍎"}</span>
+                    {mealType}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Log Meal Button */}
       <button onClick={() => setMealModalOpen(true)} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:bg-primary-dark transition">
