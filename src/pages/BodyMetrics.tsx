@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Scale, TrendingDown, TrendingUp, Calendar, Sun, Clock, Sunset, Moon, ArrowRight, Target } from "lucide-react";
-import { EGYM_DATA, BLOOD_TESTS } from "@/lib/health-data";
+import { EGYM_DATA } from "@/lib/health-data";
 import { ProgressRing } from "@/components/ui/ProgressRing";
-import { getWeightHistory, getAppliedBloodTestRecords } from "@/lib/supabase-queries";
+import { getWeightHistory, getAppliedBloodTestRecords, getProfile } from "@/lib/supabase-queries";
+import type { BloodTest, HealthMarker } from "@/lib/health-data";
 import { onSync } from "@/lib/sync-events";
 import { motion } from "framer-motion";
 import {
