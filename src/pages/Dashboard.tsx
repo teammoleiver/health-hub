@@ -345,16 +345,18 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* BioAge Alert */}
-      <div className="warning-gradient rounded-xl p-4 text-warning-foreground">
-        <div className="flex items-start gap-3">
-          <Heart className="w-5 h-5 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-sm">BioAge: 48 years (you are 33)</p>
-            <p className="text-xs opacity-90 mt-1">Your body functions like someone 15 years older. Lower body age: 70 — most critical. Focus on legs, core, and cardio.</p>
+      {/* BioAge Alert — only show if user has data */}
+      {allTests.length > 0 && (
+        <div className="warning-gradient rounded-xl p-4 text-warning-foreground">
+          <div className="flex items-start gap-3">
+            <Heart className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-sm">Track your BioAge</p>
+              <p className="text-xs opacity-90 mt-1">Upload blood test results and log exercises to calculate your biological age.</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
