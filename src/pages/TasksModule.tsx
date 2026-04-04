@@ -1474,7 +1474,7 @@ function TaskListView({
 
 export default function TasksModule() {
   const [searchParams] = useSearchParams();
-  const [tasks, setTasks] = useState<Task[]>(SAMPLE_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [columns, setColumns] = useState<KanbanColumn[]>(DEFAULT_COLUMNS);
   const [dbLoaded, setDbLoaded] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
