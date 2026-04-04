@@ -26,9 +26,9 @@ export default function SettingsModule() {
     });
     getProfile().then((p: any) => {
       setProfile(p);
-      setAvatarUrl(p?.avatar_url || null);
+      setAvatarUrl(p?.avatar_url || user?.user_metadata?.avatar_url || null);
     });
-  }, []);
+  }, [user]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
