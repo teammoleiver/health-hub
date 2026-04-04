@@ -359,11 +359,7 @@ function TaskCard({
   const isDone = task.status === "done";
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4 }}
+    <div
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
