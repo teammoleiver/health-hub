@@ -454,7 +454,7 @@ function TaskCard({
           </p>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
