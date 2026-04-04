@@ -26,7 +26,7 @@ export default function SettingsModule() {
     });
     getProfile().then((p: any) => {
       setProfile(p);
-      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
+      setAvatarUrl(p?.avatar_url || null);
     });
   }, []);
 
