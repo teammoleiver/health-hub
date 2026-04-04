@@ -75,7 +75,7 @@ export default function Dashboard() {
       const profile = await getProfile();
       if (profile) {
         setUserName((profile as any).name || (profile as any).full_name || "");
-        setAvatarUrl((profile as any).avatar_url || null);
+        setAvatarUrl((profile as any).avatar_url || user?.user_metadata?.avatar_url || null);
         if ((profile as any).height_cm) setHeightCm((profile as any).height_cm);
       }
       if (!profile && user) {
