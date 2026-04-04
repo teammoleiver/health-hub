@@ -24,7 +24,7 @@ export default function SettingsModule() {
     getUserProfile().then((p) => {
       if (p?.openai_api_key) setHasApiKey(true);
     });
-    getProfile().then((p) => {
+    getProfile().then((p: any) => {
       setProfile(p);
       if (p?.avatar_url) setAvatarUrl(p.avatar_url);
     });

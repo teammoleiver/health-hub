@@ -348,8 +348,8 @@ function TaskCard({
   onSelect: () => void;
   onComplete: () => void;
   onMove: (colId: string) => void;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDragEnd?: (e: React.DragEvent) => void;
+  onDragStart?: React.DragEventHandler;
+  onDragEnd?: React.DragEventHandler;
 }) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const prioConf = PRIORITY_CONFIG[task.priority];
@@ -359,11 +359,7 @@ function TaskCard({
   const isDone = task.status === "done";
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4 }}
+    <div
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
@@ -458,7 +454,7 @@ function TaskCard({
           </p>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -1478,7 +1474,7 @@ function TaskListView({
 
 export default function TasksModule() {
   const [searchParams] = useSearchParams();
-  const [tasks, setTasks] = useState<Task[]>(SAMPLE_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [columns, setColumns] = useState<KanbanColumn[]>(DEFAULT_COLUMNS);
   const [dbLoaded, setDbLoaded] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
