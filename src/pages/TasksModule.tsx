@@ -348,8 +348,8 @@ function TaskCard({
   onSelect: () => void;
   onComplete: () => void;
   onMove: (colId: string) => void;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDragEnd?: (e: React.DragEvent) => void;
+  onDragStart?: React.DragEventHandler;
+  onDragEnd?: React.DragEventHandler;
 }) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const prioConf = PRIORITY_CONFIG[task.priority];
