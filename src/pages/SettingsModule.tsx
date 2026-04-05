@@ -47,20 +47,46 @@ export default function SettingsModule() {
       const uid = user?.id;
       if (!uid) throw new Error("Not authenticated");
 
-      const ext = file.name.split(".").pop() || "jpg";
-      const filePath = `avatars/${uid}.${ext}`;
+      // Convert image to a compressed JPEG blob for consistent results
+      const compressedBlob = await new Promise<Blob>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxSize = 512;
+          let w = img.width, h = img.height;
+          if (w > h) { h = (h / w) * maxSize; w = maxSize; }
+          else { w = (w / h) * maxSize; h = maxSize; }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { reject(new Error("Canvas not supported")); return; }
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob(
+            (blob) => blob ? resolve(blob) : reject(new Error("Compression failed")),
+            "image/jpeg",
+            0.85
+          );
+        };
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.src = URL.createObjectURL(file);
+      });
+
+      const filePath = `avatars/${uid}.jpg`;
 
       // Upload to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from("health-records")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, compressedBlob, { 
+          upsert: true, 
+          contentType: "image/jpeg" 
+        });
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data: urlData } = supabase.storage
         .from("health-records")
         .getPublicUrl(filePath);
-      const publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
+      const publicUrl = urlData.publicUrl + `?v=${Date.now()}`;
 
       // Save to profile
       await updateProfile({ avatar_url: publicUrl });
