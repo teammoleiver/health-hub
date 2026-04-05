@@ -117,7 +117,7 @@ export default function Dashboard() {
     })();
   }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const [water, meals, exercise, weight, cl] = await Promise.all([
       getTodayWaterLog(),
       getTodayMeals(),
@@ -150,14 +150,16 @@ export default function Dashboard() {
       const newCl = await upsertChecklist({});
       if (newCl) setChecklistId(newCl.id);
     }
-  };
-
-  useEffect(() => { loadData(); }, []);
-
-  // Re-fetch dashboard data when ANY module logs something
-  useEffect(() => {
-    return onSync("sync:all", loadData);
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    return onSync("sync:all", () => {
+      loadData();
+      loadProfile();
+    });
+  }, [loadData, loadProfile]);
 
   const toggleChecklist = async (key: ChecklistKey) => {
     const newVal = !checklist[key];
