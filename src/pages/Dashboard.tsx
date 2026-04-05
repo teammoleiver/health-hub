@@ -16,6 +16,7 @@ import {
   getTodayWaterLog, getTodayMeals, getTodayExercise, getLatestWeight,
   getTodayChecklist, upsertChecklist, getAppliedBloodTestRecords, getProfile,
 } from "@/lib/supabase-queries";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import LogWaterModal from "@/components/modals/LogWaterModal";
@@ -69,21 +70,23 @@ export default function Dashboard() {
   const [exerciseModal, setExerciseModal] = useState(false);
   const [mealModal, setMealModal] = useState(false);
 
-  // Load user profile
-  useEffect(() => {
-    (async () => {
-      const profile = await getProfile();
-      if (profile) {
-        setUserName((profile as any).name || (profile as any).full_name || "");
-        setAvatarUrl((profile as any).avatar_url || user?.user_metadata?.avatar_url || null);
-        if ((profile as any).height_cm) setHeightCm((profile as any).height_cm);
-      }
-      if (!profile && user) {
-        setUserName(user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "");
-        setAvatarUrl(user.user_metadata?.avatar_url || null);
-      }
-    })();
+  const loadProfile = useCallback(async () => {
+    const profile = await getProfile();
+    const fallbackName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "";
+
+    setUserName((profile as any)?.name || (profile as any)?.full_name || fallbackName);
+    setAvatarUrl(await resolveAvatarUrl({
+      userId: user?.id,
+      storedAvatar: (profile as any)?.avatar_url,
+      oauthAvatarUrl: user?.user_metadata?.avatar_url || null,
+    }));
+
+    if ((profile as any)?.height_cm) setHeightCm((profile as any).height_cm);
   }, [user]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   // Load only APPLIED blood test records from DB
   useEffect(() => {
@@ -170,7 +173,17 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center gap-4">
         {avatarUrl ? (
-          <img src={avatarUrl} alt={userName} className="w-12 h-12 rounded-full object-cover border-2 border-primary" />
+          <img
+            src={avatarUrl}
+            alt={userName}
+            className="w-12 h-12 rounded-full object-cover border-2 border-primary"
+            onError={() => {
+              setAvatarUrl((current) => {
+                const fallback = user?.user_metadata?.avatar_url || null;
+                return current && fallback && current !== fallback ? fallback : null;
+              });
+            }}
+          />
         ) : (
           <div className="w-12 h-12 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-lg font-bold text-primary">
             {userName?.charAt(0)?.toUpperCase() || "?"}
