@@ -28,12 +28,14 @@ export default function SettingsModule() {
       const [userProfile, appProfile] = await Promise.all([getUserProfile(), getProfile()]);
       if (cancelled) return;
 
+      const profileData = appProfile as any;
+
       setHasApiKey(!!userProfile?.openai_api_key);
-      setProfile(appProfile);
+      setProfile(profileData);
 
       const resolvedAvatar = await resolveAvatarUrl({
         userId: user?.id,
-        storedAvatar: appProfile?.avatar_url,
+        storedAvatar: profileData?.avatar_url,
         oauthAvatarUrl: user?.user_metadata?.avatar_url || null,
       });
 
