@@ -3,9 +3,10 @@ import { User, Key, Globe, Bell, Download, Heart, Check, LogOut, Lock, Loader2, 
 import { getUserProfile, getProfile, updateProfile } from "@/lib/supabase-queries";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import syncvidaLogo from "@/assets/syncvida-icon.png";
 import ApiKeyModal from "@/components/modals/ApiKeyModal";
 import { useToast } from "@/hooks/use-toast";
+import { resolveAvatarUrl, uploadAvatar } from "@/lib/avatar";
+import { emitSync } from "@/lib/sync-events";
 
 export default function SettingsModule() {
   const { user, signOut } = useAuth();
@@ -21,13 +22,29 @@ export default function SettingsModule() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    getUserProfile().then((p) => {
-      if (p?.openai_api_key) setHasApiKey(true);
-    });
-    getProfile().then((p: any) => {
-      setProfile(p);
-      setAvatarUrl(p?.avatar_url || user?.user_metadata?.avatar_url || null);
-    });
+    let cancelled = false;
+
+    (async () => {
+      const [userProfile, appProfile] = await Promise.all([getUserProfile(), getProfile()]);
+      if (cancelled) return;
+
+      const profileData = appProfile as any;
+
+      setHasApiKey(!!userProfile?.openai_api_key);
+      setProfile(profileData);
+
+      const resolvedAvatar = await resolveAvatarUrl({
+        userId: user?.id,
+        storedAvatar: profileData?.avatar_url,
+        oauthAvatarUrl: user?.user_metadata?.avatar_url || null,
+      });
+
+      if (!cancelled) setAvatarUrl(resolvedAvatar);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,50 +64,12 @@ export default function SettingsModule() {
       const uid = user?.id;
       if (!uid) throw new Error("Not authenticated");
 
-      // Convert image to a compressed JPEG blob for consistent results
-      const compressedBlob = await new Promise<Blob>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const maxSize = 512;
-          let w = img.width, h = img.height;
-          if (w > h) { h = (h / w) * maxSize; w = maxSize; }
-          else { w = (w / h) * maxSize; h = maxSize; }
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) { reject(new Error("Canvas not supported")); return; }
-          ctx.drawImage(img, 0, 0, w, h);
-          canvas.toBlob(
-            (blob) => blob ? resolve(blob) : reject(new Error("Compression failed")),
-            "image/jpeg",
-            0.85
-          );
-        };
-        img.onerror = () => reject(new Error("Failed to load image"));
-        img.src = URL.createObjectURL(file);
-      });
+      const { filePath, signedUrl } = await uploadAvatar(file, uid);
+      await updateProfile({ avatar_url: filePath });
 
-      const filePath = `avatars/${uid}.jpg`;
-
-      // Upload to Supabase storage
-      const { error: uploadError } = await supabase.storage
-        .from("health-records")
-        .upload(filePath, compressedBlob, { 
-          upsert: true, 
-          contentType: "image/jpeg" 
-        });
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("health-records")
-        .getPublicUrl(filePath);
-      const publicUrl = urlData.publicUrl + `?v=${Date.now()}`;
-
-      // Save to profile
-      await updateProfile({ avatar_url: publicUrl });
-      setAvatarUrl(publicUrl);
+      setProfile((current: any) => current ? { ...current, avatar_url: filePath } : current);
+      setAvatarUrl(signedUrl);
+      emitSync("sync:all");
       toast({ title: "Photo updated!" });
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
@@ -140,6 +119,7 @@ export default function SettingsModule() {
                 src={avatarUrl}
                 alt="Profile"
                 className="w-16 h-16 rounded-full object-cover border-2 border-primary"
+                onError={() => setAvatarUrl(user?.user_metadata?.avatar_url || null)}
               />
             ) : (
               <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary text-2xl font-bold text-primary">
