@@ -5,6 +5,7 @@ import { getMonthExerciseLogs, getAllExerciseLogs } from "@/lib/supabase-queries
 import { onSync } from "@/lib/sync-events";
 import LogExerciseModal from "@/components/modals/LogExerciseModal";
 import TreadmillTimer from "@/components/TreadmillTimer";
+import ExercisePlanUpload from "@/components/ExercisePlanUpload";
 
 export default function ExerciseModule() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -114,6 +115,9 @@ export default function ExerciseModule() {
 
       {/* Home Treadmill Timer */}
       <TreadmillTimer onLogged={loadHistory} />
+
+      {/* AI-powered Gym Plan Upload */}
+      <ExercisePlanUpload onLogged={loadHistory} />
 
       <LogExerciseModal open={modalOpen} onClose={() => setModalOpen(false)} onLogged={loadHistory} />
     </div>
