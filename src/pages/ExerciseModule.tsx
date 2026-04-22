@@ -116,6 +116,9 @@ export default function ExerciseModule() {
       {/* Home Treadmill Timer */}
       <TreadmillTimer onLogged={loadHistory} />
 
+      {/* AI-powered Gym Plan Upload */}
+      <ExercisePlanUpload onLogged={loadHistory} />
+
       <LogExerciseModal open={modalOpen} onClose={() => setModalOpen(false)} onLogged={loadHistory} />
     </div>
   );
