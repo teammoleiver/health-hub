@@ -86,76 +86,19 @@ export default function ExercisePlanUpload({ onLogged }: { onLogged?: () => void
       }
 
       setAnalyzing(true);
-      const res = await supabase.functions.invoke("health-chat", {
-        body: {
-          messages: [
-            {
-              role: "system",
-              content: `You are an exercise & gym training plan analyzer. Extract the structured workout plan from the provided text (which may be in any language) and return ONLY a valid JSON object with this exact structure:
-{
-  "planName": "string",
-  "trainer": "string or null",
-  "startDate": "YYYY-MM-DD or null",
-  "endDate": "YYYY-MM-DD or null",
-  "durationWeeks": number or null,
-  "frequency": "string or null (e.g. '3x per week')",
-  "goal": "string or null (e.g. 'Hypertrophy', 'Strength', 'Fat loss')",
-  "summary": "1-2 sentence overview in English",
-  "days": [
-    {
-      "day": "Session label (e.g. 'Upper Body 1', 'Day 1', 'Leg day')",
-      "focus": "Muscle group or focus, or null",
-      "exercises": [
-        {
-          "name": "Exercise name in English",
-          "sets": number or null,
-          "reps": number or string or null,
-          "duration_min": number or null,
-          "rest_min": number or null,
-          "notes": "Brief technique notes in English or null"
-        }
-      ]
-    }
-  ]
-}
-Translate exercise names and notes to English. Keep notes concise (max ~120 chars). Return ONLY JSON, no markdown.`
-            },
-            { role: "user", content: `Extract the exercise plan from this PDF text:\n\n${fullText.substring(0, 12000)}` },
-          ],
-        },
+      const res = await supabase.functions.invoke("analyze-exercise-plan", {
+        body: { pdfText: fullText },
       });
 
-      if (res.error) throw new Error(res.error.message || "AI analysis failed");
-
-      // health-chat returns SSE stream; the invoke wrapper gives us text/raw
-      const responseText =
-        typeof res.data === "string"
-          ? res.data
-          : res.data?.reply || res.data?.content || JSON.stringify(res.data);
-
-      // The streaming endpoint returns SSE chunks; concatenate any content tokens
-      let combined = responseText;
-      if (combined.includes("data:")) {
-        combined = combined
-          .split("\n")
-          .filter((l: string) => l.startsWith("data:") && !l.includes("[DONE]"))
-          .map((l: string) => {
-            try {
-              const j = JSON.parse(l.replace(/^data:\s*/, ""));
-              return j.choices?.[0]?.delta?.content ?? "";
-            } catch {
-              return "";
-            }
-          })
-          .join("");
+      if (res.error) {
+        const errMsg = (res.error as any)?.message || "AI analysis failed";
+        throw new Error(errMsg);
       }
-
-      const jsonMatch = combined.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        toast({ title: "Could not parse plan", description: "The AI did not return structured data. Try another PDF.", variant: "destructive" });
-        return;
+      const parsed: ExercisePlan | undefined = (res.data as any)?.plan;
+      if (!parsed) {
+        const apiErr = (res.data as any)?.error;
+        throw new Error(apiErr || "AI did not return a plan");
       }
-      const parsed: ExercisePlan = JSON.parse(jsonMatch[0]);
       if (!parsed.days?.length) {
         toast({ title: "No sessions found", description: "AI couldn't identify training sessions in this PDF.", variant: "destructive" });
         return;
