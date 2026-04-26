@@ -797,6 +797,60 @@ export type Database = {
         }
         Relationships: []
       }
+      social_apify_accounts: {
+        Row: {
+          active: boolean
+          actor_id: string | null
+          api_token: string
+          cost_per_10_posts_usd: number
+          created_at: string
+          id: string
+          label: string
+          last_test_at: string | null
+          last_test_status: string | null
+          last_used_at: string | null
+          monthly_budget_usd: number
+          period_start: string
+          posts_used_this_period: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          actor_id?: string | null
+          api_token: string
+          cost_per_10_posts_usd?: number
+          created_at?: string
+          id?: string
+          label: string
+          last_test_at?: string | null
+          last_test_status?: string | null
+          last_used_at?: string | null
+          monthly_budget_usd?: number
+          period_start?: string
+          posts_used_this_period?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          actor_id?: string | null
+          api_token?: string
+          cost_per_10_posts_usd?: number
+          created_at?: string
+          id?: string
+          label?: string
+          last_test_at?: string | null
+          last_test_status?: string | null
+          last_used_at?: string | null
+          monthly_budget_usd?: number
+          period_start?: string
+          posts_used_this_period?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       social_content_plan: {
         Row: {
           body: string | null
@@ -986,6 +1040,7 @@ export type Database = {
       }
       social_posts: {
         Row: {
+          apify_account_id: string | null
           author: string | null
           comments: number | null
           company: string | null
@@ -1004,6 +1059,7 @@ export type Database = {
           views: number | null
         }
         Insert: {
+          apify_account_id?: string | null
           author?: string | null
           comments?: number | null
           company?: string | null
@@ -1022,6 +1078,7 @@ export type Database = {
           views?: number | null
         }
         Update: {
+          apify_account_id?: string | null
           author?: string | null
           comments?: number | null
           company?: string | null
@@ -1115,6 +1172,48 @@ export type Database = {
           updated_at?: string
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      social_scrape_runs: {
+        Row: {
+          apify_account_id: string
+          cost_usd: number
+          error: string | null
+          id: string
+          iso_week: number
+          iso_year: number
+          posts_fetched: number
+          profile_id: string
+          ran_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          apify_account_id: string
+          cost_usd?: number
+          error?: string | null
+          id?: string
+          iso_week: number
+          iso_year: number
+          posts_fetched?: number
+          profile_id: string
+          ran_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          apify_account_id?: string
+          cost_usd?: number
+          error?: string | null
+          id?: string
+          iso_week?: number
+          iso_year?: number
+          posts_fetched?: number
+          profile_id?: string
+          ran_at?: string
+          status?: string
+          user_id?: string
         }
         Relationships: []
       }
