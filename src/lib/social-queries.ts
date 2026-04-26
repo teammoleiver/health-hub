@@ -153,8 +153,8 @@ export async function updateApifyAccount(id: string, updates: Record<string, any
 export async function deleteApifyAccount(id: string) {
   await supabase.from("social_apify_accounts" as any).delete().eq("id", id);
 }
-export async function testApifyAccount(id: string) {
-  return supabase.functions.invoke("test-apify-account", { body: { account_id: id } });
+export async function testApifyAccount(id: string, mode: "health" | "run" = "run") {
+  return supabase.functions.invoke("test-apify-account", { body: { account_id: id, mode } });
 }
 
 export function computeAccountHealth(acc: any) {
@@ -177,10 +177,12 @@ export function parseApifyActorId(input: string): string {
     const i = parts.indexOf("actors");
     if (i >= 0 && parts[i + 1]) return parts[i + 1];
     const j = parts.indexOf("store");
-    if (j >= 0 && parts[j + 1] && parts[j + 2]) return `${parts[j + 1]}/${parts[j + 2]}`;
+    if (j >= 0 && parts[j + 1] && parts[j + 2]) return `${parts[j + 1]}~${parts[j + 2]}`;
     return parts[parts.length - 1] || s;
   } catch {
-    return s;
+    const cleaned = s.replace(/^\/+/, "").replace(/\/+$/, "");
+    if (cleaned.startsWith("actors/")) return cleaned.split("/")[1] ?? "";
+    return cleaned.replace("/", "~");
   }
 }
 
