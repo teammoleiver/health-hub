@@ -36,7 +36,15 @@ Deno.serve(async (req: Request) => {
         const runUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apifyToken}`;
         const apifyRes = await fetch(runUrl, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ urls: [profile.profile_url], profileUrls: [profile.profile_url], limit: 30, postsLimit: 30, maxPosts: 30 }),
+          body: JSON.stringify({
+            url: profile.profile_url,
+            urls: [profile.profile_url],
+            profileUrls: [profile.profile_url],
+            startUrls: [{ url: profile.profile_url }],
+            username: profile.username,
+            usernames: profile.username ? [profile.username] : undefined,
+            limit: 30, postsLimit: 30, maxPosts: 30, maxItems: 30,
+          }),
         });
         if (!apifyRes.ok) {
           await admin.from("social_profiles").update({

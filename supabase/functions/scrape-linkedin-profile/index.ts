@@ -61,8 +61,13 @@ Deno.serve(async (req: Request) => {
         const apifyRes = await fetch(runUrl, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            urls: [profile.profile_url], profileUrls: [profile.profile_url],
-            limit, postsLimit: limit, maxPosts: limit,
+            url: profile.profile_url,
+            urls: [profile.profile_url],
+            profileUrls: [profile.profile_url],
+            startUrls: [{ url: profile.profile_url }],
+            username: profile.username,
+            usernames: profile.username ? [profile.username] : undefined,
+            limit, postsLimit: limit, maxPosts: limit, maxItems: limit,
           }),
         });
 
