@@ -724,6 +724,7 @@ function ApifyAccountsPanel() {
   const [budget, setBudget] = useState(5);
   const [busy, setBusy] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [healthId, setHealthId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<any>({});
 
@@ -747,19 +748,19 @@ function ApifyAccountsPanel() {
     } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
   };
 
-  const test = async (id: string) => {
-    setTestingId(id);
+  const test = async (id: string, mode: "health" | "run" = "run") => {
+    mode === "health" ? setHealthId(id) : setTestingId(id);
     try {
-      const { data, error } = await testApifyAccount(id);
+      const { data, error } = await testApifyAccount(id, mode);
       if (error || !data?.ok) {
-        toast.error(`Test failed: ${data?.error ?? error?.message ?? data?.status ?? "unknown"}`);
+        toast.error(`${mode === "health" ? "Health check" : "Test run"} failed: ${data?.error ?? error?.message ?? data?.status ?? "unknown"}`);
       } else {
         const url = data.info?.run_url;
-        toast.success(`Run started for ${data.info?.username ?? "account"}${url ? " — opening Apify console" : ""}`);
+        toast.success(mode === "health" ? `Token works · ${data.info?.username ?? "account"}` : `Test run finished · ${data.info?.item_count ?? 0} result(s)`);
         if (url) window.open(url, "_blank");
       }
       await load();
-    } finally { setTestingId(null); }
+    } finally { mode === "health" ? setHealthId(null) : setTestingId(null); }
   };
 
   const remove = async (id: string) => {
@@ -874,8 +875,11 @@ function ApifyAccountsPanel() {
                     {a.actor_id && <Badge variant="outline" className="font-mono text-[10px]">{a.actor_id}</Badge>}
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button size="sm" variant="outline" onClick={() => test(a.id)} disabled={testingId === a.id}>
-                      {testingId === a.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Play className="w-3 h-3 mr-1" />}Test
+                    <Button size="sm" variant="outline" onClick={() => test(a.id, "run")} disabled={testingId === a.id}>
+                      {testingId === a.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Play className="w-3 h-3 mr-1" />}Run test
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => test(a.id, "health")} disabled={healthId === a.id} title="Check token health without running actor">
+                      {healthId === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => startEdit(a)} title="Edit">
                       <Pencil className="w-3 h-3" />
