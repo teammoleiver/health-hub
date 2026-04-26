@@ -15,8 +15,10 @@ interface EmailRequest {
 }
 
 function sign(key: Uint8Array, msg: Uint8Array): Promise<Uint8Array> {
-  return crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
-    .then(k => crypto.subtle.sign("HMAC", k, msg))
+  const keyBytes = new Uint8Array(key);
+  const msgBytes = new Uint8Array(msg);
+  return crypto.subtle.importKey("raw", keyBytes.buffer as ArrayBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
+    .then(k => crypto.subtle.sign("HMAC", k, msgBytes.buffer as ArrayBuffer))
     .then(s => new Uint8Array(s));
 }
 
