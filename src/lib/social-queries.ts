@@ -129,6 +129,44 @@ export async function suggestFrameworks(args: { source_post_id?: string; source_
   return supabase.functions.invoke("generate-social-post", { body: { ...args, mode: "suggest" } });
 }
 
+// ── Apify accounts (rotating fallback pool) ──
+export async function listApifyAccounts() {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("social_apify_accounts" as any).select("*").eq("user_id", u).order("created_at", { ascending: true });
+  return (data as any[]) ?? [];
+}
+export async function createApifyAccount(p: { label: string; api_token: string; actor_id?: string; monthly_budget_usd?: number }) {
+  const u = await uid(); if (!u) return null;
+  const { data, error } = await supabase.from("social_apify_accounts" as any).insert({
+    user_id: u, label: p.label, api_token: p.api_token, actor_id: p.actor_id ?? null,
+    monthly_budget_usd: p.monthly_budget_usd ?? 5,
+    period_start: new Date().toISOString().slice(0, 10),
+  } as any).select().single();
+  if (error) throw error;
+  return data;
+}
+export async function updateApifyAccount(id: string, updates: Record<string, any>) {
+  const { data, error } = await supabase.from("social_apify_accounts" as any).update(updates).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+export async function deleteApifyAccount(id: string) {
+  await supabase.from("social_apify_accounts" as any).delete().eq("id", id);
+}
+export async function testApifyAccount(id: string) {
+  return supabase.functions.invoke("test-apify-account", { body: { account_id: id } });
+}
+
+export function computeAccountHealth(acc: any) {
+  const budget = Number(acc.monthly_budget_usd ?? 5);
+  const cost = (Number(acc.posts_used_this_period ?? 0) / 10) * Number(acc.cost_per_10_posts_usd ?? 0.5);
+  const remaining = Math.max(0, budget - cost);
+  const start = new Date(acc.period_start);
+  const periodEnd = new Date(start); periodEnd.setDate(periodEnd.getDate() + 30);
+  const daysLeft = Math.max(0, Math.ceil((periodEnd.getTime() - Date.now()) / 86400000));
+  return { budget, cost, remaining, pct: budget > 0 ? (remaining / budget) * 100 : 0, daysLeft, periodEnd };
+}
+
 export const FRAMEWORK_OPTIONS = [
   { id: "PPPP", name: "PPPP", description: "Promise · Picture · Proof · Push" },
   { id: "BAB", name: "BAB", description: "Before · After · Bridge" },
