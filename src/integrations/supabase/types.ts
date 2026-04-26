@@ -797,6 +797,372 @@ export type Database = {
         }
         Relationships: []
       }
+      social_content_plan: {
+        Row: {
+          body: string | null
+          created_at: string
+          format: string | null
+          framework: string | null
+          hook: string
+          id: string
+          image_status: string | null
+          image_url: string | null
+          notes: string | null
+          pillar: string | null
+          position: number | null
+          posted_at: string | null
+          scheduled_date: string | null
+          scheduled_day: string | null
+          source_post_id: string | null
+          source_topic_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          week_number: number | null
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          format?: string | null
+          framework?: string | null
+          hook: string
+          id?: string
+          image_status?: string | null
+          image_url?: string | null
+          notes?: string | null
+          pillar?: string | null
+          position?: number | null
+          posted_at?: string | null
+          scheduled_date?: string | null
+          scheduled_day?: string | null
+          source_post_id?: string | null
+          source_topic_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          week_number?: number | null
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          format?: string | null
+          framework?: string | null
+          hook?: string
+          id?: string
+          image_status?: string | null
+          image_url?: string | null
+          notes?: string | null
+          pillar?: string | null
+          position?: number | null
+          posted_at?: string | null
+          scheduled_date?: string | null
+          scheduled_day?: string | null
+          source_post_id?: string | null
+          source_topic_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          week_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_content_plan_source_post_id_fkey"
+            columns: ["source_post_id"]
+            isOneToOne: false
+            referencedRelation: "social_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_content_plan_source_topic_id_fkey"
+            columns: ["source_topic_id"]
+            isOneToOne: false
+            referencedRelation: "social_hot_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_generated_drafts: {
+        Row: {
+          body: string
+          created_at: string
+          framework: string
+          id: string
+          plan_id: string | null
+          promoted: boolean | null
+          rating: number | null
+          source_post_id: string | null
+          source_topic_id: string | null
+          user_id: string
+          word_count: number | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          framework: string
+          id?: string
+          plan_id?: string | null
+          promoted?: boolean | null
+          rating?: number | null
+          source_post_id?: string | null
+          source_topic_id?: string | null
+          user_id: string
+          word_count?: number | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          framework?: string
+          id?: string
+          plan_id?: string | null
+          promoted?: boolean | null
+          rating?: number | null
+          source_post_id?: string | null
+          source_topic_id?: string | null
+          user_id?: string
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_generated_drafts_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "social_content_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_generated_drafts_source_post_id_fkey"
+            columns: ["source_post_id"]
+            isOneToOne: false
+            referencedRelation: "social_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_generated_drafts_source_topic_id_fkey"
+            columns: ["source_topic_id"]
+            isOneToOne: false
+            referencedRelation: "social_hot_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_hot_topics: {
+        Row: {
+          description: string | null
+          generated_at: string
+          id: string
+          post_count: number | null
+          profile_count: number | null
+          related_post_ids: string[] | null
+          score: number | null
+          timeframe: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          description?: string | null
+          generated_at?: string
+          id?: string
+          post_count?: number | null
+          profile_count?: number | null
+          related_post_ids?: string[] | null
+          score?: number | null
+          timeframe?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          description?: string | null
+          generated_at?: string
+          id?: string
+          post_count?: number | null
+          profile_count?: number | null
+          related_post_ids?: string[] | null
+          score?: number | null
+          timeframe?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      social_posts: {
+        Row: {
+          author: string | null
+          comments: number | null
+          company: string | null
+          external_id: string | null
+          id: string
+          likes: number | null
+          post_text: string | null
+          post_type: string | null
+          post_url: string | null
+          posted_at: string | null
+          profile_id: string | null
+          raw_payload: Json | null
+          scraped_at: string
+          shares: number | null
+          user_id: string
+          views: number | null
+        }
+        Insert: {
+          author?: string | null
+          comments?: number | null
+          company?: string | null
+          external_id?: string | null
+          id?: string
+          likes?: number | null
+          post_text?: string | null
+          post_type?: string | null
+          post_url?: string | null
+          posted_at?: string | null
+          profile_id?: string | null
+          raw_payload?: Json | null
+          scraped_at?: string
+          shares?: number | null
+          user_id: string
+          views?: number | null
+        }
+        Update: {
+          author?: string | null
+          comments?: number | null
+          company?: string | null
+          external_id?: string | null
+          id?: string
+          likes?: number | null
+          post_text?: string | null
+          post_type?: string | null
+          post_url?: string | null
+          posted_at?: string | null
+          profile_id?: string | null
+          raw_payload?: Json | null
+          scraped_at?: string
+          shares?: number | null
+          user_id?: string
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "social_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_profiles: {
+        Row: {
+          active: boolean
+          apify_actor_id: string | null
+          company: string | null
+          created_at: string
+          display_name: string | null
+          followers: number | null
+          id: string
+          info_summary: string | null
+          last_scrape_error: string | null
+          last_scrape_status: string | null
+          last_scraped_at: string | null
+          location: string | null
+          notes: string | null
+          profile_url: string
+          scrape_cadence: string
+          tags: string[] | null
+          title: string | null
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          active?: boolean
+          apify_actor_id?: string | null
+          company?: string | null
+          created_at?: string
+          display_name?: string | null
+          followers?: number | null
+          id?: string
+          info_summary?: string | null
+          last_scrape_error?: string | null
+          last_scrape_status?: string | null
+          last_scraped_at?: string | null
+          location?: string | null
+          notes?: string | null
+          profile_url: string
+          scrape_cadence?: string
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          active?: boolean
+          apify_actor_id?: string | null
+          company?: string | null
+          created_at?: string
+          display_name?: string | null
+          followers?: number | null
+          id?: string
+          info_summary?: string | null
+          last_scrape_error?: string | null
+          last_scrape_status?: string | null
+          last_scraped_at?: string | null
+          location?: string | null
+          notes?: string | null
+          profile_url?: string
+          scrape_cadence?: string
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      social_writer_settings: {
+        Row: {
+          anthropic_model: string | null
+          banned_words: string[] | null
+          created_at: string
+          custom_system_prompt: string | null
+          default_word_limit: number | null
+          id: string
+          lovable_model: string | null
+          openai_model: string | null
+          preferred_provider: string
+          updated_at: string
+          user_id: string
+          voice_notes: string | null
+        }
+        Insert: {
+          anthropic_model?: string | null
+          banned_words?: string[] | null
+          created_at?: string
+          custom_system_prompt?: string | null
+          default_word_limit?: number | null
+          id?: string
+          lovable_model?: string | null
+          openai_model?: string | null
+          preferred_provider?: string
+          updated_at?: string
+          user_id: string
+          voice_notes?: string | null
+        }
+        Update: {
+          anthropic_model?: string | null
+          banned_words?: string[] | null
+          created_at?: string
+          custom_system_prompt?: string | null
+          default_word_limit?: number | null
+          id?: string
+          lovable_model?: string | null
+          openai_model?: string | null
+          preferred_provider?: string
+          updated_at?: string
+          user_id?: string
+          voice_notes?: string | null
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           column_id: string
