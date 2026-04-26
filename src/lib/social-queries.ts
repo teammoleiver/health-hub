@@ -1,0 +1,140 @@
+import { supabase } from "@/integrations/supabase/client";
+
+async function uid(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
+// ── Profiles ──
+export async function listSocialProfiles() {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("social_profiles" as any).select("*").eq("user_id", u).order("created_at", { ascending: false });
+  return (data as any[]) ?? [];
+}
+export async function createSocialProfile(p: {
+  profile_url: string; username?: string; display_name?: string; company?: string;
+  location?: string; title?: string; info_summary?: string; followers?: number;
+  scrape_cadence?: string; apify_actor_id?: string; tags?: string[];
+}) {
+  const u = await uid(); if (!u) return null;
+  const username = p.username || (() => {
+    try { const url = new URL(p.profile_url); return url.pathname.split("/").filter(Boolean).pop() ?? ""; } catch { return ""; }
+  })();
+  const { data, error } = await supabase.from("social_profiles" as any).insert({ ...p, username, user_id: u } as any).select().single();
+  if (error) throw error;
+  return data;
+}
+export async function updateSocialProfile(id: string, updates: Record<string, any>) {
+  const { data, error } = await supabase.from("social_profiles" as any).update(updates).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+export async function deleteSocialProfile(id: string) {
+  const { error } = await supabase.from("social_profiles" as any).delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Posts ──
+export async function listSocialPosts(filters?: { profile_id?: string; limit?: number }) {
+  const u = await uid(); if (!u) return [];
+  let q = supabase.from("social_posts" as any).select("*").eq("user_id", u).order("posted_at", { ascending: false }).limit(filters?.limit ?? 500);
+  if (filters?.profile_id) q = q.eq("profile_id", filters.profile_id);
+  const { data } = await q;
+  return (data as any[]) ?? [];
+}
+export async function deleteSocialPost(id: string) {
+  await supabase.from("social_posts" as any).delete().eq("id", id);
+}
+export async function createManualSocialPost(p: { profile_id?: string; author?: string; company?: string; post_text: string; post_url?: string; posted_at?: string; }) {
+  const u = await uid(); if (!u) return null;
+  const { data, error } = await supabase.from("social_posts" as any).insert({ ...p, user_id: u } as any).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// ── Hot topics ──
+export async function listHotTopics() {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("social_hot_topics" as any).select("*").eq("user_id", u).order("score", { ascending: false });
+  return (data as any[]) ?? [];
+}
+export async function deleteHotTopic(id: string) {
+  await supabase.from("social_hot_topics" as any).delete().eq("id", id);
+}
+
+// ── Drafts ──
+export async function listDraftsForPost(postId: string) {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("social_generated_drafts" as any).select("*").eq("user_id", u).eq("source_post_id", postId).order("created_at", { ascending: false });
+  return (data as any[]) ?? [];
+}
+export async function deleteDraft(id: string) {
+  await supabase.from("social_generated_drafts" as any).delete().eq("id", id);
+}
+
+// ── Content plan ──
+export async function listContentPlan() {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("social_content_plan" as any).select("*").eq("user_id", u).order("position", { ascending: true });
+  return (data as any[]) ?? [];
+}
+export async function createPlanEntry(e: { hook: string; body?: string; format?: string; pillar?: string; framework?: string; status?: string; scheduled_date?: string; source_post_id?: string; source_topic_id?: string; }) {
+  const u = await uid(); if (!u) return null;
+  const { data, error } = await supabase.from("social_content_plan" as any).insert({ ...e, user_id: u } as any).select().single();
+  if (error) throw error;
+  return data;
+}
+export async function updatePlanEntry(id: string, updates: Record<string, any>) {
+  const { data, error } = await supabase.from("social_content_plan" as any).update(updates).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+export async function deletePlanEntry(id: string) {
+  await supabase.from("social_content_plan" as any).delete().eq("id", id);
+}
+
+// ── Writer settings ──
+export async function getWriterSettings() {
+  const u = await uid(); if (!u) return null;
+  const { data } = await supabase.from("social_writer_settings" as any).select("*").eq("user_id", u).maybeSingle();
+  return data;
+}
+export async function upsertWriterSettings(s: Record<string, any>) {
+  const u = await uid(); if (!u) return null;
+  const existing = await getWriterSettings();
+  if (existing) {
+    const { data, error } = await supabase.from("social_writer_settings" as any).update(s).eq("user_id", u).select().single();
+    if (error) throw error;
+    return data;
+  }
+  const { data, error } = await supabase.from("social_writer_settings" as any).insert({ ...s, user_id: u } as any).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// ── Edge function calls ──
+export async function scrapeProfile(profile_id: string) {
+  return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id } });
+}
+export async function scrapeAllActive() {
+  return supabase.functions.invoke("scrape-linkedin-profile", { body: { all_active: true } });
+}
+export async function clusterHotTopics() {
+  return supabase.functions.invoke("cluster-hot-topics", { body: {} });
+}
+export async function generatePost(args: { framework: string; source_post_id?: string; source_topic_id?: string; idea?: string; significance?: string; data?: string; description?: string; implications?: string; }) {
+  return supabase.functions.invoke("generate-social-post", { body: { ...args, mode: "generate" } });
+}
+export async function suggestFrameworks(args: { source_post_id?: string; source_topic_id?: string; idea?: string; }) {
+  return supabase.functions.invoke("generate-social-post", { body: { ...args, mode: "suggest" } });
+}
+
+export const FRAMEWORK_OPTIONS = [
+  { id: "PPPP", name: "PPPP", description: "Promise · Picture · Proof · Push" },
+  { id: "BAB", name: "BAB", description: "Before · After · Bridge" },
+  { id: "CIII", name: "CIII", description: "Connect · Inform · Inspire · Interact" },
+  { id: "AICPBSAWR", name: "AICPBSAWR", description: "Authority compressed (5 beats)" },
+  { id: "Contrarian", name: "Contrarian", description: "Pick a fight with consensus" },
+  { id: "BuildInPublic", name: "Build-in-Public", description: "Show your real work" },
+  { id: "Listicle", name: "Listicle", description: "Numbered insights · most-saved" },
+];
