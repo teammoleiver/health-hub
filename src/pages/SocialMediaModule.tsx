@@ -18,6 +18,7 @@ import {
   scrapeProfile, scrapeAllActive,
   generatePost, suggestFrameworks,
   FRAMEWORK_OPTIONS,
+  listApifyAccounts, createApifyAccount, updateApifyAccount, deleteApifyAccount, testApifyAccount, computeAccountHealth,
 } from "@/lib/social-queries";
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
@@ -705,7 +706,143 @@ function SettingsTab() {
         <Badge variant="secondary">Daily cron at 06:00 UTC for active profiles</Badge>
       </Card>
 
+      <ApifyAccountsPanel />
+
       <Button onClick={save} disabled={busy} className="w-full md:w-auto">{busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Save settings</Button>
     </section>
+  );
+}
+
+// ───────── Apify accounts pool (rotating fallback + health bar) ─────────
+function ApifyAccountsPanel() {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [label, setLabel] = useState("");
+  const [token, setToken] = useState("");
+  const [actor, setActor] = useState("");
+  const [budget, setBudget] = useState(5);
+  const [busy, setBusy] = useState(false);
+  const [testingId, setTestingId] = useState<string | null>(null);
+
+  const load = async () => { setLoading(true); setAccounts(await listApifyAccounts()); setLoading(false); };
+  useEffect(() => { load(); }, []);
+
+  const totalBudget = accounts.reduce((s, a) => s + Number(a.monthly_budget_usd ?? 5), 0);
+  const totalRemaining = accounts.reduce((s, a) => s + computeAccountHealth(a).remaining, 0);
+  const totalPct = totalBudget > 0 ? (totalRemaining / totalBudget) * 100 : 0;
+  const maxPostsPerMonth = Math.floor((totalRemaining / 0.5) * 10);
+
+  const add = async () => {
+    if (!label.trim() || !token.trim()) { toast.error("Label and token required"); return; }
+    setBusy(true);
+    try {
+      await createApifyAccount({ label: label.trim(), api_token: token.trim(), actor_id: actor.trim() || undefined, monthly_budget_usd: budget });
+      toast.success("Apify account added");
+      setLabel(""); setToken(""); setActor(""); setBudget(5); setShowAdd(false);
+      await load();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
+  };
+
+  const test = async (id: string) => {
+    setTestingId(id);
+    try {
+      const { data, error } = await testApifyAccount(id);
+      if (error || !data?.ok) { toast.error(`Test failed: ${data?.error ?? error?.message ?? data?.status ?? "unknown"}`); }
+      else { toast.success(`Token works · ${data.info?.username ?? "ok"}`); }
+      await load();
+    } finally { setTestingId(null); }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Delete this Apify account?")) return;
+    await deleteApifyAccount(id); await load();
+  };
+
+  const resetPeriod = async (id: string) => {
+    await updateApifyAccount(id, { period_start: new Date().toISOString().slice(0, 10), posts_used_this_period: 0 });
+    await load();
+  };
+
+  return (
+    <Card className="p-5 space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2"><LinkIcon className="w-5 h-5 text-primary" /><h2 className="font-medium">Apify account pool</h2></div>
+        <Button size="sm" variant="outline" onClick={() => setShowAdd((v) => !v)}><Plus className="w-4 h-4 mr-1" />Add account</Button>
+      </div>
+      <p className="text-xs text-muted-foreground">Add up to 10 Apify tokens. The scraper auto-picks the account with most remaining credit and never reuses an account twice in the same week. Each account = $5 / 30 days (rolling). 10 posts cost ~$0.50.</p>
+
+      {/* Health bar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium">Pool health</span>
+          <span className="text-muted-foreground">${totalRemaining.toFixed(2)} / ${totalBudget.toFixed(2)} · ~{maxPostsPerMonth} posts left this month</span>
+        </div>
+        <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-primary to-primary/60 transition-all" style={{ width: `${Math.min(100, totalPct)}%` }} />
+        </div>
+      </div>
+
+      {showAdd && (
+        <div className="rounded-md border border-border p-3 space-y-2 bg-muted/30">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div><label className="text-xs font-medium">Label</label><Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Apify #1 (gmail-1)" /></div>
+            <div><label className="text-xs font-medium">Monthly budget (USD)</label><Input type="number" min={1} value={budget} onChange={(e) => setBudget(Number(e.target.value))} /></div>
+          </div>
+          <div><label className="text-xs font-medium">Apify API token</label><Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="apify_api_xxx" /></div>
+          <div><label className="text-xs font-medium">Actor ID (optional override)</label><Input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="leave blank to use default" /></div>
+          <div className="flex gap-2 justify-end">
+            <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
+            <Button size="sm" onClick={add} disabled={busy}>{busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}Add</Button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      ) : accounts.length === 0 ? (
+        <div className="text-sm text-muted-foreground italic">No accounts yet. Add one to power the rotating pool. Until then, the scraper falls back to the project-level <code>APIFY_API_TOKEN</code> secret.</div>
+      ) : (
+        <div className="space-y-2">
+          {accounts.map((a) => {
+            const h = computeAccountHealth(a);
+            return (
+              <div key={a.id} className="rounded-md border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm">{a.label}</span>
+                    <Badge variant={h.remaining > 0 ? "secondary" : "destructive"}>${h.remaining.toFixed(2)} left</Badge>
+                    <Badge variant="outline">{h.daysLeft}d left in period</Badge>
+                    {a.last_test_status && (
+                      <Badge variant={a.last_test_status === "ok" ? "secondary" : "destructive"}>test: {a.last_test_status}</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="outline" onClick={() => test(a.id)} disabled={testingId === a.id}>
+                      {testingId === a.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Play className="w-3 h-3 mr-1" />}Test
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => resetPeriod(a.id)} title="Reset 30-day period">
+                      <RefreshCw className="w-3 h-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => remove(a.id)}>
+                      <Trash2 className="w-3 h-3 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${Math.min(100, h.pct)}%` }} />
+                </div>
+                <div className="text-xs text-muted-foreground flex flex-wrap gap-3">
+                  <span>Used {a.posts_used_this_period ?? 0} posts (~${h.cost.toFixed(2)})</span>
+                  <span>Budget ${Number(a.monthly_budget_usd ?? 5).toFixed(2)}/30d</span>
+                  <span>Period since {new Date(a.period_start).toLocaleDateString()}</span>
+                  {a.last_used_at && <span>Last used {new Date(a.last_used_at).toLocaleString()}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }
