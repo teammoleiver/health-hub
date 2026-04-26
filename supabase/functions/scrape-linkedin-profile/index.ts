@@ -82,32 +82,74 @@ Deno.serve(async (req: Request) => {
           continue;
         }
 
-        const items: any[] = await apifyRes.json();
+        const rawItems: any[] = await apifyRes.json();
+        console.log(`[scrape] profile=${profile.id} apify items=${rawItems.length} sample=`, JSON.stringify(rawItems[0] ?? {}).slice(0, 800));
+
+        // Flatten: some actors return one wrapper item { posts: [...] }, others return posts directly
+        const flat: any[] = [];
+        for (const it of rawItems) {
+          if (Array.isArray(it?.posts)) flat.push(...it.posts);
+          else if (Array.isArray(it?.activity)) flat.push(...it.activity);
+          else if (Array.isArray(it?.items)) flat.push(...it.items);
+          else flat.push(it);
+        }
+        console.log(`[scrape] flattened items=${flat.length}`);
+
         let inserted = 0;
+        let skipped = 0;
+        let insertErrors = 0;
 
-        for (const item of items.slice(0, limit)) {
-          const externalId = String(item.urn ?? item.id ?? item.postId ?? item.url ?? item.postUrl ?? "");
-          const postText = item.text ?? item.postText ?? item.content ?? item.commentary ?? "";
-          if (!externalId && !postText) continue;
-          const postedRaw = item.postedAt ?? item.publishedAt ?? item.date ?? item.timestamp ?? null;
+        for (const item of flat.slice(0, limit)) {
+          const externalId = String(
+            item.urn ?? item.id ?? item.postId ?? item.activityId ?? item.shareUrn ??
+            item.url ?? item.postUrl ?? item.link ?? item.permalink ?? ""
+          );
+          const postText =
+            item.text ?? item.postText ?? item.content ?? item.commentary ??
+            item.description ?? item.body ?? item.message ?? item.caption ?? "";
+          if (!externalId && !postText) { skipped++; continue; }
+          const postedRaw =
+            item.postedAt ?? item.publishedAt ?? item.date ?? item.timestamp ??
+            item.postedAtIso ?? item.postedAtTimestamp ?? item.time ?? item.createdAt ?? null;
 
-          const { error: insErr } = await admin.from("social_posts").upsert({
+          let postedIso: string | null = null;
+          if (postedRaw) {
+            const d = typeof postedRaw === "number" ? new Date(postedRaw) : new Date(String(postedRaw));
+            if (!isNaN(d.getTime())) postedIso = d.toISOString();
+          }
+
+          const author =
+            item.authorName ?? item.author?.name ?? item.author?.fullName ?? item.author ??
+            item.actor?.name ?? profile.display_name ?? profile.username;
+          const company =
+            item.authorCompany ?? item.author?.company ?? item.company ?? profile.company;
+
+          const row: any = {
             user_id: user.id,
             profile_id: profile.id,
-            external_id: externalId || null,
-            author: item.authorName ?? item.author ?? profile.display_name ?? profile.username,
-            company: item.authorCompany ?? item.company ?? profile.company,
+            external_id: externalId || `${profile.id}-${flat.indexOf(item)}-${Date.now()}`,
+            author: typeof author === "string" ? author : (author?.name ?? null),
+            company: typeof company === "string" ? company : (company?.name ?? null),
             post_text: postText,
             post_type: item.type ?? item.postType ?? "post",
-            post_url: item.url ?? item.postUrl ?? item.link ?? null,
-            posted_at: postedRaw ? new Date(postedRaw).toISOString() : null,
-            likes: Number(item.likes ?? item.numLikes ?? item.likeCount ?? item.reactions ?? 0),
-            comments: Number(item.comments ?? item.numComments ?? item.commentCount ?? 0),
-            shares: Number(item.shares ?? item.numShares ?? item.shareCount ?? item.reposts ?? 0),
+            post_url: item.url ?? item.postUrl ?? item.link ?? item.permalink ?? null,
+            posted_at: postedIso,
+            likes: Number(item.likes ?? item.numLikes ?? item.likeCount ?? item.reactions ?? item.totalReactionCount ?? 0) || 0,
+            comments: Number(item.comments ?? item.numComments ?? item.commentCount ?? item.commentsCount ?? 0) || 0,
+            shares: Number(item.shares ?? item.numShares ?? item.shareCount ?? item.reposts ?? item.repostsCount ?? 0) || 0,
             raw_payload: item,
-          }, { onConflict: "user_id,profile_id,external_id", ignoreDuplicates: false });
-          if (!insErr) inserted++;
+          };
+
+          // Plain insert (table has no unique constraint defined for upsert).
+          const { error: insErr } = await admin.from("social_posts").insert(row);
+          if (insErr) {
+            insertErrors++;
+            console.error(`[scrape] insert error:`, insErr.message);
+          } else {
+            inserted++;
+          }
         }
+        console.log(`[scrape] profile=${profile.id} inserted=${inserted} skipped=${skipped} errors=${insertErrors}`);
 
         total += inserted;
         await admin.from("social_profiles").update({
