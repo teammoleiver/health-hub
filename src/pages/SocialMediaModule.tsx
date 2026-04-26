@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight } from "lucide-react";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,7 +18,7 @@ import {
   scrapeProfile, scrapeAllActive,
   generatePost, suggestFrameworks,
   FRAMEWORK_OPTIONS,
-  listApifyAccounts, createApifyAccount, updateApifyAccount, deleteApifyAccount, testApifyAccount, computeAccountHealth,
+  listApifyAccounts, createApifyAccount, updateApifyAccount, deleteApifyAccount, testApifyAccount, computeAccountHealth, parseApifyActorId,
 } from "@/lib/social-queries";
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
@@ -724,6 +724,8 @@ function ApifyAccountsPanel() {
   const [budget, setBudget] = useState(5);
   const [busy, setBusy] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<any>({});
 
   const load = async () => { setLoading(true); setAccounts(await listApifyAccounts()); setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -737,7 +739,8 @@ function ApifyAccountsPanel() {
     if (!label.trim() || !token.trim()) { toast.error("Label and token required"); return; }
     setBusy(true);
     try {
-      await createApifyAccount({ label: label.trim(), api_token: token.trim(), actor_id: actor.trim() || undefined, monthly_budget_usd: budget });
+      const actorId = parseApifyActorId(actor);
+      await createApifyAccount({ label: label.trim(), api_token: token.trim(), actor_id: actorId || undefined, monthly_budget_usd: budget });
       toast.success("Apify account added");
       setLabel(""); setToken(""); setActor(""); setBudget(5); setShowAdd(false);
       await load();
@@ -748,8 +751,13 @@ function ApifyAccountsPanel() {
     setTestingId(id);
     try {
       const { data, error } = await testApifyAccount(id);
-      if (error || !data?.ok) { toast.error(`Test failed: ${data?.error ?? error?.message ?? data?.status ?? "unknown"}`); }
-      else { toast.success(`Token works · ${data.info?.username ?? "ok"}`); }
+      if (error || !data?.ok) {
+        toast.error(`Test failed: ${data?.error ?? error?.message ?? data?.status ?? "unknown"}`);
+      } else {
+        const url = data.info?.run_url;
+        toast.success(`Run started for ${data.info?.username ?? "account"}${url ? " — opening Apify console" : ""}`);
+        if (url) window.open(url, "_blank");
+      }
       await load();
     } finally { setTestingId(null); }
   };
@@ -762,6 +770,30 @@ function ApifyAccountsPanel() {
   const resetPeriod = async (id: string) => {
     await updateApifyAccount(id, { period_start: new Date().toISOString().slice(0, 10), posts_used_this_period: 0 });
     await load();
+  };
+
+  const startEdit = (a: any) => {
+    setEditingId(a.id);
+    setEditDraft({
+      label: a.label ?? "",
+      api_token: a.api_token ?? "",
+      actor_id: a.actor_id ?? "",
+      monthly_budget_usd: Number(a.monthly_budget_usd ?? 5),
+    });
+  };
+  const saveEdit = async () => {
+    if (!editingId) return;
+    try {
+      await updateApifyAccount(editingId, {
+        label: editDraft.label?.trim() || "Account",
+        api_token: editDraft.api_token?.trim(),
+        actor_id: parseApifyActorId(editDraft.actor_id || "") || null,
+        monthly_budget_usd: Number(editDraft.monthly_budget_usd) || 5,
+      });
+      toast.success("Account updated");
+      setEditingId(null); setEditDraft({});
+      await load();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
   };
 
   return (
@@ -790,7 +822,11 @@ function ApifyAccountsPanel() {
             <div><label className="text-xs font-medium">Monthly budget (USD)</label><Input type="number" min={1} value={budget} onChange={(e) => setBudget(Number(e.target.value))} /></div>
           </div>
           <div><label className="text-xs font-medium">Apify API token</label><Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="apify_api_xxx" /></div>
-          <div><label className="text-xs font-medium">Actor ID (optional override)</label><Input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="leave blank to use default" /></div>
+          <div>
+            <label className="text-xs font-medium">Actor URL or ID (optional override)</label>
+            <Input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="https://console.apify.com/actors/94SdiE9JwTx0RNyfS/ or just the ID" />
+            {actor && <p className="text-xs text-muted-foreground mt-1">Will use actor: <code>{parseApifyActorId(actor)}</code></p>}
+          </div>
           <div className="flex gap-2 justify-end">
             <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
             <Button size="sm" onClick={add} disabled={busy}>{busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}Add</Button>
@@ -806,8 +842,27 @@ function ApifyAccountsPanel() {
         <div className="space-y-2">
           {accounts.map((a) => {
             const h = computeAccountHealth(a);
+            const isEditing = editingId === a.id;
             return (
               <div key={a.id} className="rounded-md border border-border p-3 space-y-2">
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div><label className="text-xs font-medium">Label</label><Input value={editDraft.label} onChange={(e) => setEditDraft({ ...editDraft, label: e.target.value })} /></div>
+                      <div><label className="text-xs font-medium">Monthly budget (USD)</label><Input type="number" min={1} value={editDraft.monthly_budget_usd} onChange={(e) => setEditDraft({ ...editDraft, monthly_budget_usd: Number(e.target.value) })} /></div>
+                    </div>
+                    <div><label className="text-xs font-medium">Apify API token</label><Input value={editDraft.api_token} onChange={(e) => setEditDraft({ ...editDraft, api_token: e.target.value })} placeholder="apify_api_xxx" /></div>
+                    <div>
+                      <label className="text-xs font-medium">Actor URL or ID</label>
+                      <Input value={editDraft.actor_id} onChange={(e) => setEditDraft({ ...editDraft, actor_id: e.target.value })} placeholder="https://console.apify.com/actors/<id>/ or blank" />
+                      {editDraft.actor_id && <p className="text-xs text-muted-foreground mt-1">Will use actor: <code>{parseApifyActorId(editDraft.actor_id)}</code></p>}
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setEditDraft({}); }}><X className="w-3 h-3 mr-1" />Cancel</Button>
+                      <Button size="sm" onClick={saveEdit}><Check className="w-3 h-3 mr-1" />Save</Button>
+                    </div>
+                  </div>
+                ) : (<>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm">{a.label}</span>
@@ -816,10 +871,14 @@ function ApifyAccountsPanel() {
                     {a.last_test_status && (
                       <Badge variant={a.last_test_status === "ok" ? "secondary" : "destructive"}>test: {a.last_test_status}</Badge>
                     )}
+                    {a.actor_id && <Badge variant="outline" className="font-mono text-[10px]">{a.actor_id}</Badge>}
                   </div>
                   <div className="flex items-center gap-1">
                     <Button size="sm" variant="outline" onClick={() => test(a.id)} disabled={testingId === a.id}>
                       {testingId === a.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Play className="w-3 h-3 mr-1" />}Test
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(a)} title="Edit">
+                      <Pencil className="w-3 h-3" />
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => resetPeriod(a.id)} title="Reset 30-day period">
                       <RefreshCw className="w-3 h-3" />
@@ -838,6 +897,7 @@ function ApifyAccountsPanel() {
                   <span>Period since {new Date(a.period_start).toLocaleDateString()}</span>
                   {a.last_used_at && <span>Last used {new Date(a.last_used_at).toLocaleString()}</span>}
                 </div>
+                </>)}
               </div>
             );
           })}

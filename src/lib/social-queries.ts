@@ -167,6 +167,23 @@ export function computeAccountHealth(acc: any) {
   return { budget, cost, remaining, pct: budget > 0 ? (remaining / budget) * 100 : 0, daysLeft, periodEnd };
 }
 
+// Parse "https://console.apify.com/actors/<id>/..." or "apify.com/store/<user>/<actor>" or raw id
+export function parseApifyActorId(input: string): string {
+  const s = (input || "").trim();
+  if (!s) return "";
+  try {
+    const u = new URL(s);
+    const parts = u.pathname.split("/").filter(Boolean);
+    const i = parts.indexOf("actors");
+    if (i >= 0 && parts[i + 1]) return parts[i + 1];
+    const j = parts.indexOf("store");
+    if (j >= 0 && parts[j + 1] && parts[j + 2]) return `${parts[j + 1]}/${parts[j + 2]}`;
+    return parts[parts.length - 1] || s;
+  } catch {
+    return s;
+  }
+}
+
 export const FRAMEWORK_OPTIONS = [
   { id: "PPPP", name: "PPPP", description: "Promise · Picture · Proof · Push" },
   { id: "BAB", name: "BAB", description: "Before · After · Bridge" },
