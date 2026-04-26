@@ -16,7 +16,7 @@ function isoWeek(d: Date): { year: number; week: number } {
 }
 
 function pickBestAccount(accounts: any[], usedAccountIdsThisWeek: Set<string>) {
-  const eligible = accounts.filter((a) => a.active && !usedAccountIdsThisWeek.has(a.id));
+  const eligible = accounts.filter((a) => a.active);
   // Refresh period if older than 30 days
   const now = Date.now();
   for (const a of eligible) {
@@ -27,14 +27,59 @@ function pickBestAccount(accounts: any[], usedAccountIdsThisWeek: Set<string>) {
       a._needsReset = true;
     }
   }
-  // Compute remaining and pick max
-  let best: any = null; let bestRem = -1;
+  // Prefer unused-this-week accounts, then fall back to the highest remaining balance.
+  let best: any = null; let bestScore = -Infinity;
   for (const a of eligible) {
     const cost = (Number(a.posts_used_this_period ?? 0) / 10) * Number(a.cost_per_10_posts_usd ?? 0.5);
     const rem = Number(a.monthly_budget_usd ?? 5) - cost;
-    if (rem > bestRem && rem > 0) { best = a; bestRem = rem; }
+    const score = rem - (usedAccountIdsThisWeek.has(a.id) ? 1000 : 0);
+    if (rem > 0 && score > bestScore) { best = a; bestScore = score; }
   }
   return best;
+}
+
+function normalizeActorId(input?: string | null): string {
+  const raw = (input ?? "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const actorIndex = parts.indexOf("actors");
+    if (actorIndex >= 0 && parts[actorIndex + 1]) return parts[actorIndex + 1];
+    const storeIndex = parts.indexOf("store");
+    if (storeIndex >= 0 && parts[storeIndex + 1] && parts[storeIndex + 2]) return `${parts[storeIndex + 1]}~${parts[storeIndex + 2]}`;
+    if (parts.length >= 2 && url.hostname.includes("apify.com")) return `${parts[0]}~${parts[1]}`;
+  } catch { /* raw id */ }
+  const cleaned = raw.replace(/^\/+/, "").replace(/\/+$/, "");
+  if (cleaned.startsWith("actors/")) return cleaned.split("/")[1] ?? "";
+  return cleaned.replace("/", "~");
+}
+
+function accountRemaining(a: any) {
+  return Number(a.monthly_budget_usd ?? 5) - (Number(a.posts_used_this_period ?? 0) / 10) * Number(a.cost_per_10_posts_usd ?? 0.5);
+}
+
+function rankedAccounts(accounts: any[], usedAccountIdsThisWeek: Set<string>) {
+  return accounts.filter((a) => a.active && accountRemaining(a) > 0).sort((a, b) => {
+    const usedDelta = Number(usedAccountIdsThisWeek.has(a.id)) - Number(usedAccountIdsThisWeek.has(b.id));
+    return usedDelta || accountRemaining(b) - accountRemaining(a);
+  });
+}
+
+function buildLinkedInInput(profile: any, limit: number) {
+  const url = profile.profile_url;
+  return { url, urls: [url], profileUrls: [url], startUrls: [{ url }], username: profile.username, usernames: profile.username ? [profile.username] : undefined, limit, postsLimit: limit, maxPosts: limit, maxItems: limit };
+}
+
+function flattenItems(rawItems: any[]) {
+  const flat: any[] = [];
+  for (const it of rawItems) {
+    if (Array.isArray(it?.posts)) flat.push(...it.posts);
+    else if (Array.isArray(it?.activity)) flat.push(...it.activity);
+    else if (Array.isArray(it?.items)) flat.push(...it.items);
+    else flat.push(it);
+  }
+  return flat;
 }
 
 Deno.serve(async (req: Request) => {
