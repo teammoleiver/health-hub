@@ -60,6 +60,15 @@ function accountRemaining(a: any) {
 }
 
 function rankedAccounts(accounts: any[], usedAccountIdsThisWeek: Set<string>) {
+  const now = Date.now();
+  for (const a of accounts) {
+    const start = new Date(a.period_start).getTime();
+    if (now - start > 30 * 86400000) {
+      a.posts_used_this_period = 0;
+      a.period_start = new Date().toISOString().slice(0, 10);
+      a._needsReset = true;
+    }
+  }
   return accounts.filter((a) => a.active && accountRemaining(a) > 0).sort((a, b) => {
     const usedDelta = Number(usedAccountIdsThisWeek.has(a.id)) - Number(usedAccountIdsThisWeek.has(b.id));
     return usedDelta || accountRemaining(b) - accountRemaining(a);
