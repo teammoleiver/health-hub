@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
   Droplets, FolderKanban, CheckSquare, CalendarDays,
-  PanelLeftClose, PanelLeft,
+  PanelLeftClose, PanelLeft, Megaphone,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
@@ -48,6 +48,12 @@ const navGroups: NavGroup[] = [
       { path: "/tasks", icon: CheckSquare, label: "Tasks" },
       { path: "/calendar", icon: CalendarDays, label: "Calendar" },
       { path: "/goals", icon: Target, label: "Goals" },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { path: "/social", icon: Megaphone, label: "Social Studio" },
     ],
   },
 ];
