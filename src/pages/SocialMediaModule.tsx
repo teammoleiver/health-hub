@@ -18,6 +18,7 @@ import {
   scrapeProfile, scrapeAllActive,
   generatePost, suggestFrameworks,
   FRAMEWORK_OPTIONS,
+  listApifyAccounts, createApifyAccount, updateApifyAccount, deleteApifyAccount, testApifyAccount, computeAccountHealth,
 } from "@/lib/social-queries";
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
