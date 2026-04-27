@@ -900,6 +900,9 @@ function ApifyAccountsPanel() {
                     <Button size="sm" variant="ghost" onClick={() => test(a.id, "health")} disabled={healthId === a.id} title="Check token health without running actor">
                       {healthId === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                     </Button>
+                    <Button size="sm" variant="ghost" onClick={() => retryAccount(a.id)} disabled={retryingId === a.id} title="Retry last failed profile through this account">
+                      {retryingId === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3 text-primary" />}
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => startEdit(a)} title="Edit">
                       <Pencil className="w-3 h-3" />
                     </Button>
