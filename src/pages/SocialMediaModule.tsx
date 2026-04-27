@@ -746,6 +746,7 @@ function ApifyAccountsPanel() {
   const [healthId, setHealthId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<any>({});
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const load = async () => { setLoading(true); setAccounts(await listApifyAccounts()); setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -790,6 +791,29 @@ function ApifyAccountsPanel() {
   const resetPeriod = async (id: string) => {
     await updateApifyAccount(id, { period_start: new Date().toISOString().slice(0, 10), posts_used_this_period: 0 });
     await load();
+  };
+
+  const retryAccount = async (id: string) => {
+    setRetryingId(id);
+    try {
+      // Find the most recent failed run for this account → replay against the same profile.
+      const runs = await listScrapeRuns({ account_id: id, limit: 10 });
+      const failed = runs.find((r: any) => r.status !== "success");
+      const target = failed ?? runs[0];
+      if (!target?.profile_id) {
+        toast.error("No prior runs to retry. Run a profile first.");
+        return;
+      }
+      const { error, data } = await retryWithAccount(target.profile_id, id);
+      if (error) toast.error(error.message || "Retry failed");
+      else {
+        const r = (data as any)?.results?.[0];
+        toast[r?.status === "success" ? "success" : "error"](
+          r?.status === "success" ? `Retry OK · ${(data as any)?.scraped ?? 0} posts via ${r?.account}` : `Retry failed: ${r?.error ?? "unknown"}`
+        );
+      }
+      await load();
+    } finally { setRetryingId(null); }
   };
 
   const startEdit = (a: any) => {
