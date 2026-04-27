@@ -956,3 +956,147 @@ function ApifyAccountsPanel() {
     </Card>
   );
 }
+
+// ───────── Scrape history (per-account run log + run details) ─────────
+function ScrapeHistoryPanel() {
+  const [runs, setRuns] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [filterAccount, setFilterAccount] = useState<string>("all");
+  const [loading, setLoading] = useState(true);
+  const [openRun, setOpenRun] = useState<any | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const [r, a, p] = await Promise.all([
+      listScrapeRuns({ limit: 100, ...(filterAccount !== "all" ? { account_id: filterAccount } : {}) }),
+      listApifyAccounts(),
+      listSocialProfiles(),
+    ]);
+    setRuns(r); setAccounts(a); setProfiles(p); setLoading(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filterAccount]);
+
+  const accLabel = (id: string) => accounts.find((a) => a.id === id)?.label ?? "—";
+  const profLabel = (id: string) => {
+    const p = profiles.find((x) => x.id === id);
+    return p?.display_name || p?.username || "—";
+  };
+
+  return (
+    <Card className="p-5 space-y-4">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2"><History className="w-5 h-5 text-primary" /><h2 className="font-medium">Scrape history</h2></div>
+        <div className="flex items-center gap-2">
+          <Select value={filterAccount} onValueChange={setFilterAccount}>
+            <SelectTrigger className="h-8 w-[200px]"><SelectValue placeholder="All accounts" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All accounts</SelectItem>
+              {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="ghost" onClick={load}><RefreshCw className="w-3 h-3" /></Button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">Every scrape attempt is logged with the chosen Apify account, actor input, polling steps, response excerpt and zero-post reason.</p>
+
+      {loading ? <div className="text-sm text-muted-foreground">Loading…</div> :
+        runs.length === 0 ? <div className="text-sm text-muted-foreground italic">No scrape runs yet.</div> :
+        <div className="border border-border rounded-md overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-muted/40 uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-2 py-2">When</th>
+                <th className="text-left px-2 py-2">Profile</th>
+                <th className="text-left px-2 py-2">Account</th>
+                <th className="text-left px-2 py-2">Status</th>
+                <th className="text-left px-2 py-2">Posts</th>
+                <th className="text-left px-2 py-2">Cost</th>
+                <th className="text-left px-2 py-2">Notes</th>
+                <th className="text-right px-2 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((r) => (
+                <tr key={r.id} className="border-t border-border hover:bg-muted/20">
+                  <td className="px-2 py-1.5 whitespace-nowrap">{new Date(r.ran_at).toLocaleString()}</td>
+                  <td className="px-2 py-1.5">{profLabel(r.profile_id)}</td>
+                  <td className="px-2 py-1.5">{accLabel(r.apify_account_id)} {r.forced_rotation && <Badge variant="outline" className="ml-1 text-[9px]">rotated</Badge>}</td>
+                  <td className="px-2 py-1.5">
+                    <Badge variant={r.status === "success" ? "secondary" : "destructive"}>{r.status}</Badge>
+                  </td>
+                  <td className="px-2 py-1.5">{r.posts_fetched ?? 0}</td>
+                  <td className="px-2 py-1.5">${Number(r.cost_usd ?? 0).toFixed(2)}</td>
+                  <td className="px-2 py-1.5 max-w-[260px] truncate" title={r.error || r.zero_post_reason || ""}>
+                    {r.error || r.zero_post_reason || "—"}
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <Button size="sm" variant="ghost" onClick={() => setOpenRun(r)}><Eye className="w-3 h-3" /></Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <Dialog open={!!openRun} onOpenChange={(v) => !v && setOpenRun(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          {openRun && (
+            <>
+              <DialogHeader><DialogTitle className="flex items-center gap-2"><Activity className="w-4 h-4" /> Run details</DialogTitle></DialogHeader>
+              <div className="space-y-4 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Profile" value={profLabel(openRun.profile_id)} />
+                  <Field label="Account" value={accLabel(openRun.apify_account_id)} />
+                  <Field label="Status" value={openRun.status} />
+                  <Field label="Posts fetched" value={String(openRun.posts_fetched ?? 0)} />
+                  <Field label="Cost" value={`$${Number(openRun.cost_usd ?? 0).toFixed(2)}`} />
+                  <Field label="Actor ID" value={openRun.actor_id || "—"} mono />
+                  <Field label="Started" value={openRun.started_at ? new Date(openRun.started_at).toLocaleString() : "—"} />
+                  <Field label="Duration" value={openRun.duration_ms != null ? `${openRun.duration_ms} ms` : "—"} />
+                </div>
+                {openRun.run_url && <a href={openRun.run_url} target="_blank" rel="noreferrer" className="text-primary text-xs hover:underline inline-flex items-center gap-1">Open in Apify console <ArrowUpRight className="w-3 h-3" /></a>}
+                {openRun.zero_post_reason && (
+                  <div>
+                    <div className="text-xs font-medium mb-1">Zero-post reason</div>
+                    <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs">{openRun.zero_post_reason}</div>
+                  </div>
+                )}
+                {openRun.error && (
+                  <div>
+                    <div className="text-xs font-medium mb-1">Error</div>
+                    <pre className="rounded-md bg-muted p-2 text-xs overflow-x-auto whitespace-pre-wrap">{openRun.error}</pre>
+                  </div>
+                )}
+                <div>
+                  <div className="text-xs font-medium mb-1">Actor input</div>
+                  <pre className="rounded-md bg-muted p-2 text-xs overflow-x-auto max-h-48">{JSON.stringify(openRun.actor_input ?? {}, null, 2)}</pre>
+                </div>
+                <div>
+                  <div className="text-xs font-medium mb-1">Polling steps</div>
+                  <pre className="rounded-md bg-muted p-2 text-xs overflow-x-auto max-h-48">{JSON.stringify(openRun.polling_steps ?? [], null, 2)}</pre>
+                </div>
+                {openRun.response_excerpt && (
+                  <div>
+                    <div className="text-xs font-medium mb-1">API response excerpt</div>
+                    <pre className="rounded-md bg-muted p-2 text-xs overflow-x-auto max-h-60 whitespace-pre-wrap">{openRun.response_excerpt}</pre>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={mono ? "font-mono text-xs" : "text-sm"}>{value}</div>
+    </div>
+  );
+}
