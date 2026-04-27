@@ -801,6 +801,7 @@ export type Database = {
         Row: {
           active: boolean
           actor_id: string | null
+          actor_input_defaults: Json
           api_token: string
           cost_per_10_posts_usd: number
           created_at: string
@@ -818,6 +819,7 @@ export type Database = {
         Insert: {
           active?: boolean
           actor_id?: string | null
+          actor_input_defaults?: Json
           api_token: string
           cost_per_10_posts_usd?: number
           created_at?: string
@@ -835,6 +837,7 @@ export type Database = {
         Update: {
           active?: boolean
           actor_id?: string | null
+          actor_input_defaults?: Json
           api_token?: string
           cost_per_10_posts_usd?: number
           created_at?: string
@@ -1177,43 +1180,73 @@ export type Database = {
       }
       social_scrape_runs: {
         Row: {
+          actor_id: string | null
+          actor_input: Json | null
           apify_account_id: string
           cost_usd: number
+          duration_ms: number | null
           error: string | null
+          finished_at: string | null
+          forced_rotation: boolean
           id: string
           iso_week: number
           iso_year: number
+          polling_steps: Json | null
           posts_fetched: number
           profile_id: string
           ran_at: string
+          response_excerpt: string | null
+          run_url: string | null
+          started_at: string | null
           status: string
           user_id: string
+          zero_post_reason: string | null
         }
         Insert: {
+          actor_id?: string | null
+          actor_input?: Json | null
           apify_account_id: string
           cost_usd?: number
+          duration_ms?: number | null
           error?: string | null
+          finished_at?: string | null
+          forced_rotation?: boolean
           id?: string
           iso_week: number
           iso_year: number
+          polling_steps?: Json | null
           posts_fetched?: number
           profile_id: string
           ran_at?: string
+          response_excerpt?: string | null
+          run_url?: string | null
+          started_at?: string | null
           status?: string
           user_id: string
+          zero_post_reason?: string | null
         }
         Update: {
+          actor_id?: string | null
+          actor_input?: Json | null
           apify_account_id?: string
           cost_usd?: number
+          duration_ms?: number | null
           error?: string | null
+          finished_at?: string | null
+          forced_rotation?: boolean
           id?: string
           iso_week?: number
           iso_year?: number
+          polling_steps?: Json | null
           posts_fetched?: number
           profile_id?: string
           ran_at?: string
+          response_excerpt?: string | null
+          run_url?: string | null
+          started_at?: string | null
           status?: string
           user_id?: string
+          zero_post_reason?: string | null
         }
         Relationships: []
       }
