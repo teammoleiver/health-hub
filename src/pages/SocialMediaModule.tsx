@@ -20,6 +20,8 @@ import {
   FRAMEWORK_OPTIONS,
   listApifyAccounts, createApifyAccount, updateApifyAccount, deleteApifyAccount, testApifyAccount, computeAccountHealth, parseApifyActorId,
   listScrapeRuns, rotateNowScrape, retryWithAccount,
+  listPostsForProfile,
+  listFrameworkPrompts, saveFrameworkPrompt, suggestFrameworkPromptImprovement,
 } from "@/lib/social-queries";
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
@@ -177,6 +179,7 @@ function ProfilesTab() {
                     <Button size="sm" variant="ghost" onClick={() => rotateOne(p.id)} disabled={rotatingId === p.id} title="Rotate to next eligible Apify account">
                       {rotatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
                     </Button>
+                    <ProfileHistoryButton profile={p} />
                     <Button size="sm" variant="ghost" onClick={async () => { if (confirm("Delete profile?")) { await deleteSocialProfile(p.id); load(); } }}>
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
