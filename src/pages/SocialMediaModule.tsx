@@ -76,6 +76,7 @@ function ProfilesTab() {
   const [search, setSearch] = useState("");
   const [scrapingId, setScrapingId] = useState<string | null>(null);
   const [scrapingAll, setScrapingAll] = useState(false);
+  const [rotatingId, setRotatingId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
   const load = async () => { setLoading(true); setProfiles(await listSocialProfiles()); setLoading(false); };
@@ -91,6 +92,18 @@ function ProfilesTab() {
     setScrapingId(null);
     if (error) toast.error(error.message || "Scrape failed");
     else { toast.success(`Scraped ${(data as any)?.scraped ?? 0} posts`); load(); }
+  };
+
+  const rotateOne = async (id: string) => {
+    setRotatingId(id);
+    const { error, data } = await rotateNowScrape(id);
+    setRotatingId(null);
+    if (error) toast.error(error.message || "Rotate failed");
+    else {
+      const r = (data as any)?.results?.[0];
+      toast.success(`Rotated · ${r?.account ?? "?"} · ${(data as any)?.scraped ?? 0} posts`);
+      load();
+    }
   };
 
   const runAll = async () => {
@@ -160,6 +173,9 @@ function ProfilesTab() {
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <Button size="sm" variant="ghost" onClick={() => runOne(p.id)} disabled={scrapingId === p.id}>
                       {scrapingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => rotateOne(p.id)} disabled={rotatingId === p.id} title="Rotate to next eligible Apify account">
+                      {rotatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={async () => { if (confirm("Delete profile?")) { await deleteSocialProfile(p.id); load(); } }}>
                       <Trash2 className="w-4 h-4 text-destructive" />
