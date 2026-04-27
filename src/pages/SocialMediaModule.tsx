@@ -725,6 +725,8 @@ function SettingsTab() {
 
       <ApifyAccountsPanel />
 
+      <ScrapeHistoryPanel />
+
       <Button onClick={save} disabled={busy} className="w-full md:w-auto">{busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Save settings</Button>
     </section>
   );
