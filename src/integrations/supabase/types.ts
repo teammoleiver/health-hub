@@ -1257,6 +1257,7 @@ export type Database = {
           created_at: string
           custom_system_prompt: string | null
           default_word_limit: number | null
+          framework_prompts: Json
           id: string
           lovable_model: string | null
           openai_model: string | null
@@ -1271,6 +1272,7 @@ export type Database = {
           created_at?: string
           custom_system_prompt?: string | null
           default_word_limit?: number | null
+          framework_prompts?: Json
           id?: string
           lovable_model?: string | null
           openai_model?: string | null
@@ -1285,6 +1287,7 @@ export type Database = {
           created_at?: string
           custom_system_prompt?: string | null
           default_word_limit?: number | null
+          framework_prompts?: Json
           id?: string
           lovable_model?: string | null
           openai_model?: string | null
