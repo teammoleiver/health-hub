@@ -116,6 +116,12 @@ export async function upsertWriterSettings(s: Record<string, any>) {
 export async function scrapeProfile(profile_id: string) {
   return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id } });
 }
+export async function rotateNowScrape(profile_id: string) {
+  return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id, force_rotate: true } });
+}
+export async function retryWithAccount(profile_id: string, account_id: string) {
+  return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id, account_id } });
+}
 export async function scrapeAllActive() {
   return supabase.functions.invoke("scrape-linkedin-profile", { body: { all_active: true } });
 }
@@ -155,6 +161,20 @@ export async function deleteApifyAccount(id: string) {
 }
 export async function testApifyAccount(id: string, mode: "health" | "run" = "run") {
   return supabase.functions.invoke("test-apify-account", { body: { account_id: id, mode } });
+}
+
+// ── Scrape run history ──
+export async function listScrapeRuns(filters?: { account_id?: string; profile_id?: string; limit?: number }) {
+  const u = await uid(); if (!u) return [];
+  let q = supabase.from("social_scrape_runs" as any).select("*").eq("user_id", u).order("ran_at", { ascending: false }).limit(filters?.limit ?? 50);
+  if (filters?.account_id) q = q.eq("apify_account_id", filters.account_id);
+  if (filters?.profile_id) q = q.eq("profile_id", filters.profile_id);
+  const { data } = await q;
+  return (data as any[]) ?? [];
+}
+export async function getScrapeRun(id: string) {
+  const { data } = await supabase.from("social_scrape_runs" as any).select("*").eq("id", id).maybeSingle();
+  return data;
 }
 
 export function computeAccountHealth(acc: any) {
