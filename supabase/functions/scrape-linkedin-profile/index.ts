@@ -252,21 +252,31 @@ Deno.serve(async (req: Request) => {
             item.actor?.name ?? profile.display_name ?? profile.username;
           const company = item.authorCompany ?? item.author?.company ?? item.company ?? profile.company;
 
-          const { error: insErr } = await admin.from("social_posts").insert({
+          const postUrl = item.url ?? item.postUrl ?? item.link ?? item.permalink ?? null;
+          const row = {
             user_id: user.id, profile_id: profile.id,
             external_id: externalId || `${profile.id}-${index}-${Date.now()}`,
             author: typeof author === "string" ? author : (author?.name ?? null),
             company: typeof company === "string" ? company : (company?.name ?? null),
             post_text: postText, post_type: item.post_type ?? item.type ?? item.postType ?? "post",
-            post_url: item.url ?? item.postUrl ?? item.link ?? item.permalink ?? null,
+            post_url: postUrl,
             posted_at: postedIso,
             likes: Number(item.num_likes ?? item.likes ?? item.numLikes ?? item.likeCount ?? item.reactions ?? item.totalReactionCount ?? 0) || 0,
             comments: Number(item.num_comments ?? item.comments ?? item.numComments ?? item.commentCount ?? item.commentsCount ?? 0) || 0,
             shares: Number(item.num_shares ?? item.shares ?? item.numShares ?? item.shareCount ?? item.reposts ?? item.repostsCount ?? 0) || 0,
             raw_payload: item,
             apify_account_id: account.id ?? null,
-          });
-          if (!insErr) inserted++;
+            scraped_at: new Date().toISOString(),
+          };
+          // Dedupe by (user_id, post_url): update metrics if it exists, otherwise insert.
+          if (postUrl) {
+            const { error: upErr } = await admin.from("social_posts")
+              .upsert(row, { onConflict: "user_id,post_url" });
+            if (!upErr) inserted++;
+          } else {
+            const { error: insErr } = await admin.from("social_posts").insert(row);
+            if (!insErr) inserted++;
+          }
         }
         polling.push({ t: new Date().toISOString(), step: "inserted", count: inserted - beforeInsert });
 
@@ -352,7 +362,25 @@ Deno.serve(async (req: Request) => {
         results.push({ profile_id: profile.id, status: "success", posts: inserted, account: winningAccount?.label ?? "env" });
     }
 
-    return new Response(JSON.stringify({ scraped: total, results }), {
+    // Auto re-cluster Hot Topics from the full post history whenever any post was inserted/updated.
+    let recluster: any = null;
+    if (total > 0) {
+      try {
+        const clusterRes = await fetch(`${supabaseUrl}/functions/v1/cluster-hot-topics`, {
+          method: "POST",
+          headers: {
+            Authorization: req.headers.get("Authorization") ?? "",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ trigger: "post-scrape" }),
+        });
+        recluster = { status: clusterRes.status };
+      } catch (e: any) {
+        recluster = { error: String(e?.message ?? e) };
+      }
+    }
+
+    return new Response(JSON.stringify({ scraped: total, results, recluster }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {

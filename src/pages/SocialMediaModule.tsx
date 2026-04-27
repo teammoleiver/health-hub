@@ -20,6 +20,8 @@ import {
   FRAMEWORK_OPTIONS,
   listApifyAccounts, createApifyAccount, updateApifyAccount, deleteApifyAccount, testApifyAccount, computeAccountHealth, parseApifyActorId,
   listScrapeRuns, rotateNowScrape, retryWithAccount,
+  listPostsForProfile,
+  listFrameworkPrompts, saveFrameworkPrompt, suggestFrameworkPromptImprovement,
 } from "@/lib/social-queries";
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
@@ -177,6 +179,7 @@ function ProfilesTab() {
                     <Button size="sm" variant="ghost" onClick={() => rotateOne(p.id)} disabled={rotatingId === p.id} title="Rotate to next eligible Apify account">
                       {rotatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
                     </Button>
+                    <ProfileHistoryButton profile={p} />
                     <Button size="sm" variant="ghost" onClick={async () => { if (confirm("Delete profile?")) { await deleteSocialProfile(p.id); load(); } }}>
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
@@ -725,6 +728,8 @@ function SettingsTab() {
 
       <ApifyAccountsPanel />
 
+      <FrameworkPromptsEditor />
+
       <ScrapeHistoryPanel />
 
       <Button onClick={save} disabled={busy} className="w-full md:w-auto">{busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Save settings</Button>
@@ -1098,5 +1103,165 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className={mono ? "font-mono text-xs" : "text-sm"}>{value}</div>
     </div>
+  );
+}
+
+// ───────── Profile post-history button + dialog ─────────
+function ProfileHistoryButton({ profile }: { profile: any }) {
+  const [open, setOpen] = useState(false);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    listPostsForProfile(profile.id).then((p) => { setPosts(p); setLoading(false); });
+  }, [open, profile.id]);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="ghost" title="View all-time scraped post history for this profile">
+          <History className="w-4 h-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Scraped post history · {profile.display_name || profile.username}</DialogTitle>
+        </DialogHeader>
+        {loading ? <div className="py-10 text-center"><Loader2 className="w-5 h-5 mx-auto animate-spin" /></div> :
+          posts.length === 0 ? <p className="text-sm text-muted-foreground">No posts scraped yet.</p> :
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">{posts.length} posts on file. The full history is kept and used for Hot Topics, voice learning, and prompt suggestions.</p>
+            {posts.map((p) => (
+              <Card key={p.id} className="p-3 space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</span>
+                  <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
+                {p.post_url && <a href={p.post_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+              </Card>
+            ))}
+          </div>
+        }
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ───────── Editable framework prompts (with AI suggest from network) ─────────
+function FrameworkPromptsEditor() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestion, setSuggestion] = useState<{ improved_prompt?: string; change_summary?: string; sample_size?: number } | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try { setItems(await listFrameworkPrompts()); }
+    catch (e: any) { toast.error(e?.message ?? "Failed to load prompts"); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const open = (id: string) => {
+    const it = items.find((i) => i.id === id);
+    setOpenId(id);
+    setDraft(it?.custom_prompt ?? it?.default_prompt ?? "");
+    setSuggestion(null);
+  };
+
+  const save = async () => {
+    if (!openId) return;
+    setSaving(true);
+    const { error } = await saveFrameworkPrompt(openId, draft);
+    setSaving(false);
+    if (error) toast.error(error.message || "Save failed");
+    else { toast.success("Prompt saved"); setOpenId(null); load(); }
+  };
+
+  const reset = async () => {
+    if (!openId) return;
+    if (!confirm("Revert to the default prompt for this framework?")) return;
+    setSaving(true);
+    const { error } = await saveFrameworkPrompt(openId, "");
+    setSaving(false);
+    if (error) toast.error(error.message || "Reset failed");
+    else { toast.success("Reverted to default"); setOpenId(null); load(); }
+  };
+
+  const suggest = async () => {
+    if (!openId) return;
+    setSuggesting(true); setSuggestion(null);
+    const { data, error } = await suggestFrameworkPromptImprovement(openId);
+    setSuggesting(false);
+    if (error) { toast.error(error.message || "Suggestion failed"); return; }
+    const d = data as any;
+    if (!d?.improved_prompt) { toast.error("No suggestion returned"); return; }
+    setSuggestion(d);
+  };
+
+  const applySuggestion = () => {
+    if (suggestion?.improved_prompt) { setDraft(suggestion.improved_prompt); setSuggestion(null); toast.success("Suggestion applied — review and Save."); }
+  };
+
+  return (
+    <Card className="p-5 space-y-3">
+      <div className="flex items-center gap-2"><Wand2 className="w-5 h-5 text-primary" /><h2 className="font-medium">Framework prompts (per writer style)</h2></div>
+      <p className="text-xs text-muted-foreground">
+        These are the system prompts each LinkedIn framework uses to write your post. Edit any of them, or click <em>Suggest improvement from my network</em> and the AI will rewrite the template based on the highest-engagement posts in your scraped history. Use <code>{"{{idea}} {{significance}} {{data}} {{description}} {{implications}} {{banned}} {{wordLimit}}"}</code> as placeholders.
+      </p>
+
+      {loading ? <div className="py-6 text-center"><Loader2 className="w-5 h-5 mx-auto animate-spin" /></div> :
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {items.map((it) => (
+            <button key={it.id} onClick={() => open(it.id)} className="text-left border border-border rounded p-3 hover:bg-muted/30 transition-colors">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-sm">{it.name}</span>
+                {it.is_custom ? <Badge className="text-[10px]">Custom</Badge> : <Badge variant="secondary" className="text-[10px]">Default</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{it.description}</p>
+            </button>
+          ))}
+        </div>
+      }
+
+      <Dialog open={!!openId} onOpenChange={(v) => { if (!v) { setOpenId(null); setSuggestion(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{items.find((i) => i.id === openId)?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea rows={18} value={draft} onChange={(e) => setDraft(e.target.value)} className="font-mono text-xs" />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}Save</Button>
+              <Button variant="outline" onClick={suggest} disabled={suggesting}>
+                {suggesting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Suggest improvement from my network
+              </Button>
+              <Button variant="ghost" onClick={reset} disabled={saving}>Reset to default</Button>
+            </div>
+
+            {suggestion?.improved_prompt && (
+              <Card className="p-3 space-y-2 border-primary/40">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-medium flex items-center gap-2"><Sparkles className="w-3 h-3" /> AI suggestion (from {suggestion.sample_size} top posts in your network)</div>
+                  <Button size="sm" onClick={applySuggestion}>Apply to editor</Button>
+                </div>
+                {suggestion.change_summary && <pre className="text-xs whitespace-pre-wrap text-muted-foreground">{suggestion.change_summary}</pre>}
+                <details>
+                  <summary className="text-xs cursor-pointer text-primary">Preview improved prompt</summary>
+                  <pre className="text-xs whitespace-pre-wrap mt-2 p-2 bg-muted/40 rounded">{suggestion.improved_prompt}</pre>
+                </details>
+              </Card>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }

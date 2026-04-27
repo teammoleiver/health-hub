@@ -177,6 +177,29 @@ export async function getScrapeRun(id: string) {
   return data;
 }
 
+// ── Per-profile scraped post history (all-time) ──
+export async function listPostsForProfile(profile_id: string, limit = 200) {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("social_posts" as any).select("*")
+    .eq("user_id", u).eq("profile_id", profile_id)
+    .order("posted_at", { ascending: false, nullsFirst: false })
+    .limit(limit);
+  return (data as any[]) ?? [];
+}
+
+// ── Editable framework prompts ──
+export async function listFrameworkPrompts() {
+  const { data, error } = await supabase.functions.invoke("framework-prompts", { body: { action: "list" } });
+  if (error) throw error;
+  return (data as any)?.frameworks ?? [];
+}
+export async function saveFrameworkPrompt(framework_id: string, prompt: string) {
+  return supabase.functions.invoke("framework-prompts", { body: { action: "save", framework_id, prompt } });
+}
+export async function suggestFrameworkPromptImprovement(framework_id: string) {
+  return supabase.functions.invoke("framework-prompts", { body: { action: "suggest", framework_id } });
+}
+
 export function computeAccountHealth(acc: any) {
   const budget = Number(acc.monthly_budget_usd ?? 5);
   const cost = (Number(acc.posts_used_this_period ?? 0) / 10) * Number(acc.cost_per_10_posts_usd ?? 0.5);
