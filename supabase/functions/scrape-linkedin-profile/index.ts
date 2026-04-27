@@ -91,6 +91,19 @@ function flattenItems(rawItems: any[]) {
   return flat;
 }
 
+function firstString(...values: any[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return null;
+}
+
+function sumReactions(reactions: any): number {
+  if (!Array.isArray(reactions)) return 0;
+  return reactions.reduce((sum, r) => sum + (Number(r?.count) || 0), 0);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -233,26 +246,28 @@ Deno.serve(async (req: Request) => {
         responseExcerpt = JSON.stringify(rawItems).slice(0, 2000);
         const beforeInsert = inserted;
 
+        const insertErrors: string[] = [];
         for (const [index, item] of flat.slice(0, limit).entries()) {
-          const externalId = String(
-            item.urn ?? item.id ?? item.postId ?? item.activityId ?? item.shareUrn ??
-            item.url ?? item.postUrl ?? item.link ?? item.permalink ?? ""
+          const postUrl = firstString(item.url, item.postUrl, item.post_url, item.share_url, item.link, item.permalink, item.activity_url, item.activityUrl);
+          const externalId = firstString(
+            item.urn, item.id, item.postId, item.post_id, item.activityId, item.activity_id, item.shareUrn, item.share_urn,
+            item.entity_urn, item.entityUrn, postUrl
           );
-          const postText = item.post_text ?? item.text ?? item.postText ?? item.content ?? item.commentary ??
-            item.description ?? item.body ?? item.message ?? item.caption ?? "";
+          const postText = firstString(
+            item.post_text, item.text, item.postText, item.content, item.commentary,
+            item.description, item.body, item.message, item.caption, item.shared_post?.text
+          ) ?? "";
           if (!externalId && !postText) continue;
-          const postedRaw = item.date_posted ?? item.postedAt ?? item.publishedAt ?? item.date ?? item.timestamp ??
-            item.postedAtIso ?? item.postedAtTimestamp ?? item.time ?? item.createdAt ?? null;
+          const postedRaw = item.date_posted ?? item.posted_at ?? item.postedAt ?? item.publishedAt ?? item.published_at ?? item.date ?? item.timestamp ??
+            item.postedAtIso ?? item.postedAtTimestamp ?? item.time ?? item.createdAt ?? item.created_at ?? null;
           let postedIso: string | null = null;
           if (postedRaw) {
             const d = typeof postedRaw === "number" ? new Date(postedRaw) : new Date(String(postedRaw));
             if (!isNaN(d.getTime())) postedIso = d.toISOString();
           }
-          const author = item.user_name ?? item.authorName ?? item.author?.name ?? item.author?.fullName ?? item.author ??
-            item.actor?.name ?? profile.display_name ?? profile.username;
-          const company = item.authorCompany ?? item.author?.company ?? item.company ?? profile.company;
-
-          const postUrl = item.url ?? item.postUrl ?? item.link ?? item.permalink ?? null;
+          const author = item.user_name ?? item.authorName ?? item.author_name ?? item.author?.name ?? item.author?.fullName ?? item.author ??
+            item.shared_post?.author?.title ?? item.actor?.name ?? profile.display_name ?? profile.username;
+          const company = item.authorCompany ?? item.author_company ?? item.author?.company ?? item.company ?? profile.company;
           const row = {
             user_id: user.id, profile_id: profile.id,
             external_id: externalId || `${profile.id}-${index}-${Date.now()}`,
@@ -261,7 +276,7 @@ Deno.serve(async (req: Request) => {
             post_text: postText, post_type: item.post_type ?? item.type ?? item.postType ?? "post",
             post_url: postUrl,
             posted_at: postedIso,
-            likes: Number(item.num_likes ?? item.likes ?? item.numLikes ?? item.likeCount ?? item.reactions ?? item.totalReactionCount ?? 0) || 0,
+            likes: Number(item.num_likes ?? item.likes ?? item.numLikes ?? item.likeCount ?? item.totalReactionCount ?? sumReactions(item.reactions) ?? 0) || 0,
             comments: Number(item.num_comments ?? item.comments ?? item.numComments ?? item.commentCount ?? item.commentsCount ?? 0) || 0,
             shares: Number(item.num_shares ?? item.shares ?? item.numShares ?? item.shareCount ?? item.reposts ?? item.repostsCount ?? 0) || 0,
             raw_payload: item,
@@ -273,15 +288,17 @@ Deno.serve(async (req: Request) => {
             const { error: upErr } = await admin.from("social_posts")
               .upsert(row, { onConflict: "user_id,post_url" });
             if (!upErr) inserted++;
+            else insertErrors.push(upErr.message);
           } else {
             const { error: insErr } = await admin.from("social_posts").insert(row);
             if (!insErr) inserted++;
+            else insertErrors.push(insErr.message);
           }
         }
-        polling.push({ t: new Date().toISOString(), step: "inserted", count: inserted - beforeInsert });
+        polling.push({ t: new Date().toISOString(), step: "inserted", count: inserted - beforeInsert, errors: insertErrors.slice(0, 5) });
 
         if (inserted === 0) {
-          zeroReason = flat.length === 0 ? "Actor returned 0 items" : "Items returned but no usable text/id found";
+          zeroReason = flat.length === 0 ? "Actor returned 0 items" : insertErrors.length ? `Database insert failed: ${insertErrors[0]}` : "Items returned but no usable text/id found";
           lastError = zeroReason;
           if (account.id) {
             await admin.from("social_apify_accounts").update({ last_test_status: "no results", last_test_at: new Date().toISOString() }).eq("id", account.id);
