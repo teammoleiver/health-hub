@@ -93,7 +93,13 @@ function ProfilesTab() {
     const { error, data } = await scrapeProfile(id);
     setScrapingId(null);
     if (error) toast.error(error.message || "Scrape failed");
-    else { toast.success(`Scraped ${(data as any)?.scraped ?? 0} posts`); load(); }
+    else {
+      const r = (data as any)?.results?.[0];
+      if (r?.status === "error") toast.error(`Scrape failed: ${r.error ?? "unknown"}`);
+      else if (r?.status === "skipped") toast.info(r.reason ?? "Skipped");
+      else toast.success(`Scraped ${(data as any)?.scraped ?? 0} posts${r?.account ? ` via ${r.account}` : ""}`);
+      load();
+    }
   };
 
   const rotateOne = async (id: string) => {
@@ -103,7 +109,8 @@ function ProfilesTab() {
     if (error) toast.error(error.message || "Rotate failed");
     else {
       const r = (data as any)?.results?.[0];
-      toast.success(`Rotated · ${r?.account ?? "?"} · ${(data as any)?.scraped ?? 0} posts`);
+      if (r?.status === "error") toast.error(`Rotate failed: ${r.error ?? "unknown"}`);
+      else toast.success(`Rotated · ${r?.account ?? "?"} · ${(data as any)?.scraped ?? 0} posts`);
       load();
     }
   };
@@ -113,7 +120,12 @@ function ProfilesTab() {
     const { error, data } = await scrapeAllActive();
     setScrapingAll(false);
     if (error) toast.error(error.message || "Bulk scrape failed");
-    else { toast.success(`Scraped ${(data as any)?.scraped ?? 0} new posts across all active profiles`); load(); }
+    else {
+      const failures = ((data as any)?.results ?? []).filter((r: any) => r.status === "error");
+      if (failures.length) toast.error(`${failures.length} scrape(s) failed: ${failures[0]?.error ?? "unknown"}`);
+      else toast.success(`Scraped ${(data as any)?.scraped ?? 0} new posts across all active profiles`);
+      load();
+    }
   };
 
   return (
