@@ -362,7 +362,25 @@ Deno.serve(async (req: Request) => {
         results.push({ profile_id: profile.id, status: "success", posts: inserted, account: winningAccount?.label ?? "env" });
     }
 
-    return new Response(JSON.stringify({ scraped: total, results }), {
+    // Auto re-cluster Hot Topics from the full post history whenever any post was inserted/updated.
+    let recluster: any = null;
+    if (total > 0) {
+      try {
+        const clusterRes = await fetch(`${supabaseUrl}/functions/v1/cluster-hot-topics`, {
+          method: "POST",
+          headers: {
+            Authorization: req.headers.get("Authorization") ?? "",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ trigger: "post-scrape" }),
+        });
+        recluster = { status: clusterRes.status };
+      } catch (e: any) {
+        recluster = { error: String(e?.message ?? e) };
+      }
+    }
+
+    return new Response(JSON.stringify({ scraped: total, results, recluster }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
