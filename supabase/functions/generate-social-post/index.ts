@@ -276,6 +276,9 @@ ${sourceText || idea}`;
     const fw = FRAMEWORKS[framework];
     if (!fw) return new Response(JSON.stringify({ error: `Unknown framework: ${framework}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    // If the user has saved a custom prompt for this framework, use it (with the same {{placeholders}}).
+    const customPromptTpl: string | undefined = settings?.framework_prompts?.[framework];
+
     const inputs: Inputs = {
       idea: idea || sourceText || "(no idea provided)",
       significance: significance || "(infer from source)",
@@ -290,7 +293,16 @@ ${sourceText || idea}`;
       ? `${settings.custom_system_prompt}\n\nVoice notes: ${settings.voice_notes ?? ""}`
       : `You write LinkedIn posts that sound like a real practitioner, not an LLM. ${settings?.voice_notes ?? ""}`;
 
-    const userPrompt = fw.prompt(inputs);
+    const userPrompt = customPromptTpl
+      ? customPromptTpl
+          .replaceAll("{{idea}}", inputs.idea)
+          .replaceAll("{{significance}}", inputs.significance)
+          .replaceAll("{{data}}", inputs.data)
+          .replaceAll("{{description}}", inputs.description)
+          .replaceAll("{{implications}}", inputs.implications)
+          .replaceAll("{{banned}}", inputs.banned)
+          .replaceAll("{{wordLimit}}", String(inputs.wordLimit))
+      : fw.prompt(inputs);
     const result = await callAIWithFallback(settings?.preferred_provider || "lovable", settings, baseSys, userPrompt);
     const text = result.text.trim();
 
