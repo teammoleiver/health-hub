@@ -289,9 +289,19 @@ ${sourceText || idea}`;
       wordLimit: settings?.default_word_limit || 150,
     };
 
-    const baseSys = settings?.custom_system_prompt
+    const personaParts: string[] = [];
+    if (settings?.about_me) personaParts.push(`ABOUT ME: ${settings.about_me}`);
+    if (settings?.career_summary) personaParts.push(`CAREER: ${settings.career_summary}`);
+    if (settings?.expertise) personaParts.push(`EXPERTISE: ${settings.expertise}`);
+    if (settings?.target_audience) personaParts.push(`TARGET AUDIENCE: ${settings.target_audience}`);
+    if (settings?.goals) personaParts.push(`MY GOALS: ${settings.goals}`);
+    if (settings?.writing_samples) personaParts.push(`WRITING SAMPLES (mimic this style):\n${String(settings.writing_samples).slice(0, 2000)}`);
+    const personaBlock = personaParts.length ? `\n\n--- AUTHOR CONTEXT ---\n${personaParts.join("\n\n")}\n--- END CONTEXT ---` : "";
+
+    const baseSys = (settings?.custom_system_prompt
       ? `${settings.custom_system_prompt}\n\nVoice notes: ${settings.voice_notes ?? ""}`
-      : `You write LinkedIn posts that sound like a real practitioner, not an LLM. ${settings?.voice_notes ?? ""}`;
+      : `You write LinkedIn posts that sound like a real practitioner, not an LLM. ${settings?.voice_notes ?? ""}`)
+      + personaBlock;
 
     const userPrompt = customPromptTpl
       ? customPromptTpl
