@@ -172,8 +172,10 @@ ${JSON.stringify({ fullName, headline, about, company, location, experiences, sk
     }
 
     return new Response(JSON.stringify({
-      ok: true, self_profile_id: selfProfileId,
-      summary: { fullName, headline, about_me, career_summary, expertise, followers },
+      ok: true,
+      self_profile_id: selfProfileId,
+      scraped: { fullName, headline, about, company, location, followers, skillsCount: skills.length, experiencesCount: experiences.length },
+      summary: { about_me, career_summary, expertise, target_audience },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     return new Response(JSON.stringify({ error: String(e?.message ?? e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
