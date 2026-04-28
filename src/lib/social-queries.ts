@@ -200,6 +200,22 @@ export async function suggestFrameworkPromptImprovement(framework_id: string) {
   return supabase.functions.invoke("framework-prompts", { body: { action: "suggest", framework_id } });
 }
 
+// ── Self LinkedIn analysis ──
+export async function analyzeSelfProfile(linkedin_url?: string, profile_actor_id?: string) {
+  return supabase.functions.invoke("analyze-self-profile", { body: { linkedin_url, profile_actor_id } });
+}
+export async function getSelfProfileId(): Promise<string | null> {
+  const u = await uid(); if (!u) return null;
+  const { data } = await supabase.from("social_profiles" as any).select("id")
+    .eq("user_id", u).eq("is_self", true).maybeSingle();
+  return (data as any)?.id ?? null;
+}
+export async function scrapeMyLastPosts(limit = 50) {
+  const id = await getSelfProfileId();
+  if (!id) throw new Error("Run 'Analyze my LinkedIn' first to create your self profile.");
+  return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id: id, limit, force_rotate: true } });
+}
+
 export function computeAccountHealth(acc: any) {
   const budget = Number(acc.monthly_budget_usd ?? 5);
   const cost = (Number(acc.posts_used_this_period ?? 0) / 10) * Number(acc.cost_per_10_posts_usd ?? 0.5);
