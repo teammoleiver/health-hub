@@ -1119,6 +1119,7 @@ export type Database = {
           followers: number | null
           id: string
           info_summary: string | null
+          is_self: boolean
           last_scrape_error: string | null
           last_scrape_status: string | null
           last_scraped_at: string | null
@@ -1141,6 +1142,7 @@ export type Database = {
           followers?: number | null
           id?: string
           info_summary?: string | null
+          is_self?: boolean
           last_scrape_error?: string | null
           last_scrape_status?: string | null
           last_scraped_at?: string | null
@@ -1163,6 +1165,7 @@ export type Database = {
           followers?: number | null
           id?: string
           info_summary?: string | null
+          is_self?: boolean
           last_scrape_error?: string | null
           last_scrape_status?: string | null
           last_scraped_at?: string | null
@@ -1252,49 +1255,76 @@ export type Database = {
       }
       social_writer_settings: {
         Row: {
+          about_me: string | null
           anthropic_model: string | null
           banned_words: string[] | null
+          career_summary: string | null
           created_at: string
           custom_system_prompt: string | null
           default_word_limit: number | null
+          expertise: string | null
           framework_prompts: Json
+          goals: string | null
           id: string
+          last_self_analyzed_at: string | null
+          linkedin_url: string | null
           lovable_model: string | null
           openai_model: string | null
           preferred_provider: string
+          profile_actor_id: string | null
+          target_audience: string | null
           updated_at: string
           user_id: string
           voice_notes: string | null
+          writing_samples: string | null
         }
         Insert: {
+          about_me?: string | null
           anthropic_model?: string | null
           banned_words?: string[] | null
+          career_summary?: string | null
           created_at?: string
           custom_system_prompt?: string | null
           default_word_limit?: number | null
+          expertise?: string | null
           framework_prompts?: Json
+          goals?: string | null
           id?: string
+          last_self_analyzed_at?: string | null
+          linkedin_url?: string | null
           lovable_model?: string | null
           openai_model?: string | null
           preferred_provider?: string
+          profile_actor_id?: string | null
+          target_audience?: string | null
           updated_at?: string
           user_id: string
           voice_notes?: string | null
+          writing_samples?: string | null
         }
         Update: {
+          about_me?: string | null
           anthropic_model?: string | null
           banned_words?: string[] | null
+          career_summary?: string | null
           created_at?: string
           custom_system_prompt?: string | null
           default_word_limit?: number | null
+          expertise?: string | null
           framework_prompts?: Json
+          goals?: string | null
           id?: string
+          last_self_analyzed_at?: string | null
+          linkedin_url?: string | null
           lovable_model?: string | null
           openai_model?: string | null
           preferred_provider?: string
+          profile_actor_id?: string | null
+          target_audience?: string | null
           updated_at?: string
           user_id?: string
           voice_notes?: string | null
+          writing_samples?: string | null
         }
         Relationships: []
       }
