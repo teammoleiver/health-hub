@@ -1267,6 +1267,7 @@ export type Database = {
           goals: string | null
           id: string
           last_self_analyzed_at: string | null
+          last_voice_enriched_at: string | null
           linkedin_url: string | null
           lovable_model: string | null
           openai_model: string | null
@@ -1291,6 +1292,7 @@ export type Database = {
           goals?: string | null
           id?: string
           last_self_analyzed_at?: string | null
+          last_voice_enriched_at?: string | null
           linkedin_url?: string | null
           lovable_model?: string | null
           openai_model?: string | null
@@ -1315,6 +1317,7 @@ export type Database = {
           goals?: string | null
           id?: string
           last_self_analyzed_at?: string | null
+          last_voice_enriched_at?: string | null
           linkedin_url?: string | null
           lovable_model?: string | null
           openai_model?: string | null
