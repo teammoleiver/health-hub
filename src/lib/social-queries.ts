@@ -213,7 +213,14 @@ export async function getSelfProfileId(): Promise<string | null> {
 export async function scrapeMyLastPosts(limit = 50) {
   const id = await getSelfProfileId();
   if (!id) throw new Error("Run 'Analyze my LinkedIn' first to create your self profile.");
-  return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id: id, limit, force_rotate: true } });
+  const res = await supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id: id, limit, force_rotate: true } });
+  // After posts land, refine voice strictly from real posts (no hallucination).
+  try { await supabase.functions.invoke("enrich-voice-from-posts", { body: {} }); } catch { /* non-fatal */ }
+  return res;
+}
+
+export async function enrichVoiceFromPosts() {
+  return supabase.functions.invoke("enrich-voice-from-posts", { body: {} });
 }
 
 export function computeAccountHealth(acc: any) {
