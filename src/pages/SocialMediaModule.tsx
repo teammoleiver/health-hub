@@ -718,7 +718,7 @@ function SettingsTab() {
       if ((data as any)?.error) throw new Error((data as any).error);
       // Refresh local form with AI-generated fields
       const fresh = await getWriterSettings();
-      if (fresh) { setS({ ...s, ...fresh }); setBannedInput(((fresh as any).banned_words || []).join(", ")); }
+      if (fresh) { setS({ ...s, ...(fresh as any) }); setBannedInput(((fresh as any).banned_words || []).join(", ")); }
       toast.success("LinkedIn analyzed — voice updated");
     } catch (e: any) { toast.error(e?.message ?? "Analysis failed"); } finally { setAnalyzing(false); }
   };
