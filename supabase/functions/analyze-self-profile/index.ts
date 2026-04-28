@@ -79,6 +79,20 @@ Deno.serve(async (req: Request) => {
     }
     const items: any[] = await apifyRes.json();
     const item = items?.[0] ?? {};
+
+    // Detect Apify actor-level errors returned as dataset items (e.g. free-plan restriction)
+    const actorErr = items?.find?.((x: any) => x && typeof x.error === "string")?.error;
+    if (actorErr) {
+      const isPlanBlock = /free Apify plan|run the actor through the UI/i.test(actorErr);
+      return new Response(JSON.stringify({
+        error: isPlanBlock
+          ? `This Apify actor (${actorId}) blocks API runs on the free Apify plan. Use a different profile-scraper actor (e.g. "dev_fusion/Linkedin-Profile-Scraper" or "apimaestro/linkedin-profile-detail") or upgrade the Apify account.`
+          : `Apify actor error: ${actorErr}`,
+        actor_id: actorId,
+        raw_sample: items.slice(0, 1),
+      }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const fullName = firstString(item.fullName, item.full_name, item.name, item.displayName);
     const headline = firstString(item.headline, item.title, item.subtitle);
     const about = firstString(item.about, item.summary, item.description, item.bio);
