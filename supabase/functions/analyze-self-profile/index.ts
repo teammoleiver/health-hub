@@ -88,16 +88,32 @@ Deno.serve(async (req: Request) => {
     const experiences = Array.isArray(item.experience) ? item.experience : Array.isArray(item.experiences) ? item.experiences : [];
     const skills = Array.isArray(item.skills) ? item.skills.map((s: any) => typeof s === "string" ? s : s?.name).filter(Boolean) : [];
 
-    // AI-summarize into structured persona fields
+    // Decide whether the actor returned anything usable. If not, fail loudly instead of inventing.
+    const hasAnyData = Boolean(fullName || headline || about || company || (experiences?.length) || (skills?.length));
+    if (!hasAnyData) {
+      return new Response(JSON.stringify({
+        error: "The Apify profile actor returned no usable data for this LinkedIn URL. Check the actor ID, token, and that the URL is a public profile.",
+        raw_sample: items?.slice(0, 1) ?? [],
+      }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // AI-summarize into structured persona fields — STRICTLY grounded in scraped data.
     let about_me = about ?? "";
     let career_summary = "";
     let expertise = skills.slice(0, 20).join(", ");
-    if (lovableKey) {
+    let target_audience = "";
+    if (lovableKey && hasAnyData) {
       try {
-        const prompt = `Analyze this LinkedIn profile and produce JSON with keys: about_me (2-3 sentences in first person), career_summary (one paragraph in first person describing roles & achievements), expertise (comma-separated specialties), target_audience (who they typically speak to on LinkedIn). Be concrete. Use first person ("I").
+        const prompt = `You are rewriting a LinkedIn persona using ONLY the JSON below. Rules:
+- Do NOT invent facts, companies, skills, audiences, or achievements.
+- If a field cannot be supported by the JSON, return an empty string for it.
+- Use first person ("I"). Keep wording concrete and specific to what is provided.
+- Do not use generic filler like "versatile skill set", "passionate professional", "various roles", "exploring new opportunities".
 
-Profile data:
-${JSON.stringify({ fullName, headline, about, company, location, experiences, skills }).slice(0, 6000)}`;
+Return JSON with keys: about_me (1-3 sentences, only from "about"/"headline"/role data), career_summary (one short paragraph built strictly from "experiences"; empty string if none), expertise (comma-separated; ONLY items from "skills" or clearly stated in "headline"/"about"; empty if none), target_audience (only if obviously implied by headline/about; otherwise empty).
+
+Profile JSON:
+${JSON.stringify({ fullName, headline, about, company, location, experiences, skills }).slice(0, 8000)}`;
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
@@ -111,26 +127,25 @@ ${JSON.stringify({ fullName, headline, about, company, location, experiences, sk
           const j = await aiRes.json();
           const content = j?.choices?.[0]?.message?.content ?? "{}";
           const parsed = JSON.parse(content);
-          about_me = parsed.about_me || about_me;
-          career_summary = parsed.career_summary || career_summary;
-          expertise = parsed.expertise || expertise;
-          var target_audience = parsed.target_audience || "";
+          if (typeof parsed.about_me === "string" && parsed.about_me.trim()) about_me = parsed.about_me.trim();
+          if (typeof parsed.career_summary === "string") career_summary = parsed.career_summary.trim();
+          if (typeof parsed.expertise === "string") expertise = parsed.expertise.trim();
+          if (typeof parsed.target_audience === "string") target_audience = parsed.target_audience.trim();
         }
-      } catch (_) { /* ignore AI error, keep raw */ }
+      } catch (_) { /* keep raw */ }
     }
 
-    // Save to writer settings (preserve other fields)
+    // Save to writer settings — only write fields we actually derived (don't wipe user edits with empty strings).
     const updates: Record<string, any> = {
       user_id: user.id,
       linkedin_url: url,
       profile_actor_id: actorRaw,
-      about_me,
-      career_summary,
-      expertise,
       last_self_analyzed_at: new Date().toISOString(),
     };
-    // @ts-ignore — defined inside try
-    if (typeof target_audience === "string" && target_audience) updates.target_audience = target_audience;
+    if (about_me) updates.about_me = about_me;
+    if (career_summary) updates.career_summary = career_summary;
+    if (expertise) updates.expertise = expertise;
+    if (target_audience) updates.target_audience = target_audience;
 
     if (settings) {
       await admin.from("social_writer_settings").update(updates).eq("user_id", user.id);
