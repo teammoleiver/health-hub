@@ -815,6 +815,10 @@ function SettingsTab() {
               {scrapingMe ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <History className="w-4 h-4 mr-2" />}
               Scrape my last 50 posts
             </Button>
+            <Button onClick={refineFromPosts} disabled={refining} variant="outline">
+              {refining ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+              Refine voice from my posts
+            </Button>
           </div>
           {s.last_self_analyzed_at && (
             <p className="text-[11px] text-muted-foreground">Last analyzed: {new Date(s.last_self_analyzed_at).toLocaleString()}</p>
