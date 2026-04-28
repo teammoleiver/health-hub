@@ -669,9 +669,19 @@ function SettingsTab() {
     lovable_model: "google/gemini-3-flash-preview",
     default_word_limit: 150,
     voice_notes: "",
+    about_me: "",
+    career_summary: "",
+    expertise: "",
+    target_audience: "",
+    goals: "",
+    writing_samples: "",
+    linkedin_url: "",
+    profile_actor_id: "",
   });
   const [bannedInput, setBannedInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [scrapingMe, setScrapingMe] = useState(false);
 
   useEffect(() => {
     getWriterSettings().then((data: any) => {
@@ -694,8 +704,106 @@ function SettingsTab() {
     } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
   };
 
+  const analyzeMe = async () => {
+    if (!s.linkedin_url?.trim()) { toast.error("Add your LinkedIn URL first"); return; }
+    if (!s.profile_actor_id?.trim()) { toast.error("Add the profile-info Apify actor ID"); return; }
+    setAnalyzing(true);
+    try {
+      // Persist URL + actor first so analyze function reads them
+      await upsertWriterSettings({
+        linkedin_url: s.linkedin_url, profile_actor_id: s.profile_actor_id,
+      });
+      const { data, error } = await analyzeSelfProfile(s.linkedin_url, s.profile_actor_id);
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      // Refresh local form with AI-generated fields
+      const fresh = await getWriterSettings();
+      if (fresh) { setS({ ...s, ...fresh }); setBannedInput(((fresh as any).banned_words || []).join(", ")); }
+      toast.success("LinkedIn analyzed — voice updated");
+    } catch (e: any) { toast.error(e?.message ?? "Analysis failed"); } finally { setAnalyzing(false); }
+  };
+
+  const scrapeMe = async () => {
+    setScrapingMe(true);
+    try {
+      const { data, error } = await scrapeMyLastPosts(50);
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const n = (data as any)?.scraped ?? (data as any)?.results?.[0]?.posts ?? 0;
+      toast.success(`Scraped ${n} of your posts`);
+    } catch (e: any) { toast.error(e?.message ?? "Scrape failed"); } finally { setScrapingMe(false); }
+  };
+
   return (
     <section className="space-y-6 max-w-3xl">
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center gap-2"><Users className="w-5 h-5 text-primary" /><h2 className="font-medium">About Me & Voice</h2></div>
+        <p className="text-xs text-muted-foreground">Teach the AI who you are. These fields are injected into every post the writer produces — so the more specific, the more it sounds like you.</p>
+
+        <div>
+          <label className="text-xs font-medium">About me (bio)</label>
+          <Textarea rows={3} value={s.about_me ?? ""} onChange={(e) => setS({ ...s, about_me: e.target.value })}
+            placeholder="2–3 sentences in first person. Who are you, what do you do, what's your edge." />
+        </div>
+        <div>
+          <label className="text-xs font-medium">Career summary</label>
+          <Textarea rows={3} value={s.career_summary ?? ""} onChange={(e) => setS({ ...s, career_summary: e.target.value })}
+            placeholder="Roles, companies, achievements, years of experience." />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium">Expertise / specialties</label>
+            <Input value={s.expertise ?? ""} onChange={(e) => setS({ ...s, expertise: e.target.value })}
+              placeholder="cold email, n8n, deliverability, B2B GTM…" />
+          </div>
+          <div>
+            <label className="text-xs font-medium">Target audience</label>
+            <Input value={s.target_audience ?? ""} onChange={(e) => setS({ ...s, target_audience: e.target.value })}
+              placeholder="Founders & RevOps leaders at 10–200 person B2B SaaS" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-medium">Goals (what success looks like)</label>
+          <Textarea rows={2} value={s.goals ?? ""} onChange={(e) => setS({ ...s, goals: e.target.value })}
+            placeholder="e.g. Position myself as the go-to person for AI-driven cold outbound. Hit 10k followers in 12 months. Drive 3 inbound leads/week." />
+        </div>
+        <div>
+          <label className="text-xs font-medium">Writing samples (paste 1–3 of your best posts)</label>
+          <Textarea rows={5} value={s.writing_samples ?? ""} onChange={(e) => setS({ ...s, writing_samples: e.target.value })}
+            placeholder="The AI will mimic the rhythm, length, and structure of these samples." />
+        </div>
+
+        <div className="border-t border-border pt-4 space-y-3">
+          <div className="flex items-center gap-2"><LinkIcon className="w-4 h-4 text-primary" /><h3 className="text-sm font-medium">Auto-fill from my LinkedIn</h3></div>
+          <p className="text-xs text-muted-foreground">Paste your LinkedIn URL and the Apify <em>profile-info</em> actor ID. We scrape your profile, AI-summarize it into the fields above, then optionally pull your last 50 posts so the writer learns your style.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium">My LinkedIn URL</label>
+              <Input value={s.linkedin_url ?? ""} onChange={(e) => setS({ ...s, linkedin_url: e.target.value })}
+                placeholder="https://www.linkedin.com/in/your-handle" />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Profile-info Apify actor (URL or ID)</label>
+              <Input value={s.profile_actor_id ?? ""} onChange={(e) => setS({ ...s, profile_actor_id: e.target.value })}
+                placeholder="e.g. https://console.apify.com/actors/XXXXXXXX" />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={analyzeMe} disabled={analyzing} variant="default">
+              {analyzing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+              Analyze my LinkedIn
+            </Button>
+            <Button onClick={scrapeMe} disabled={scrapingMe} variant="secondary">
+              {scrapingMe ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <History className="w-4 h-4 mr-2" />}
+              Scrape my last 50 posts
+            </Button>
+          </div>
+          {s.last_self_analyzed_at && (
+            <p className="text-[11px] text-muted-foreground">Last analyzed: {new Date(s.last_self_analyzed_at).toLocaleString()}</p>
+          )}
+        </div>
+      </Card>
+
       <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2"><Wand2 className="w-5 h-5 text-primary" /><h2 className="font-medium">Writer system prompt</h2></div>
         <p className="text-xs text-muted-foreground">Sets the voice for ALL 7 framework writers. The frameworks define structure; this defines persona. Leave blank for the default B2B operator voice.</p>
