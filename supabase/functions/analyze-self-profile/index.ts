@@ -60,6 +60,11 @@ Deno.serve(async (req: Request) => {
     if (!url) return new Response(JSON.stringify({ error: "LinkedIn URL required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     if (!actorRaw) return new Response(JSON.stringify({ error: "Profile actor ID required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const actorId = normalizeActorId(actorRaw);
+    // Free-plan-friendly fallbacks tried automatically if the chosen actor is blocked
+    const FALLBACK_ACTORS = [
+      "dev_fusion~Linkedin-Profile-Scraper",
+      "apimaestro~linkedin-profile-detail",
+    ];
 
     // Pick an Apify token
     const { data: accounts } = await admin.from("social_apify_accounts").select("*").eq("user_id", user.id);
@@ -67,31 +72,53 @@ Deno.serve(async (req: Request) => {
     const token = account?.api_token || fallbackToken;
     if (!token) return new Response(JSON.stringify({ error: "No Apify token configured" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // Run profile-info actor
+    // Run profile-info actor (auto-fallback on free-plan block)
     const actorInput: Record<string, any> = {
       url, urls: [url], profileUrls: [url], startUrls: [{ url }],
     };
-    const apiUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}`;
-    const apifyRes = await fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(actorInput) });
-    if (!apifyRes.ok) {
-      const txt = await apifyRes.text();
-      return new Response(JSON.stringify({ error: `Apify ${apifyRes.status}: ${txt.slice(0, 400)}` }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const items: any[] = await apifyRes.json();
-    const item = items?.[0] ?? {};
+    const tryActor = async (id: string) => {
+      const apiUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(id)}/run-sync-get-dataset-items?token=${token}`;
+      const r = await fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(actorInput) });
+      const text = await r.text();
+      let json: any[] = [];
+      try { json = JSON.parse(text); } catch { /* not json */ }
+      return { ok: r.ok, status: r.status, text, items: Array.isArray(json) ? json : [] };
+    };
 
-    // Detect Apify actor-level errors returned as dataset items (e.g. free-plan restriction)
-    const actorErr = items?.find?.((x: any) => x && typeof x.error === "string")?.error;
-    if (actorErr) {
-      const isPlanBlock = /free Apify plan|run the actor through the UI/i.test(actorErr);
+    const tried: string[] = [];
+    const candidates = [actorId, ...FALLBACK_ACTORS.filter((x) => x !== actorId)];
+    let items: any[] = [];
+    let usedActor = actorId;
+    let lastBlockedErr: string | null = null;
+    let lastHttp: { status: number; text: string } | null = null;
+
+    for (const id of candidates) {
+      tried.push(id);
+      const res = await tryActor(id);
+      if (!res.ok) { lastHttp = { status: res.status, text: res.text }; continue; }
+      const actorErr = res.items.find?.((x: any) => x && typeof x.error === "string")?.error;
+      const isPlanBlock = actorErr ? /free Apify plan|run the actor through the UI/i.test(actorErr) : false;
+      if (isPlanBlock) { lastBlockedErr = actorErr!; continue; }
+      if (actorErr) {
+        return new Response(JSON.stringify({ error: `Apify actor error: ${actorErr}`, actor_id: id, raw_sample: res.items.slice(0, 1) }),
+          { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      items = res.items;
+      usedActor = id;
+      break;
+    }
+
+    if (!items.length && lastBlockedErr) {
       return new Response(JSON.stringify({
-        error: isPlanBlock
-          ? `This Apify actor (${actorId}) blocks API runs on the free Apify plan. Use a different profile-scraper actor (e.g. "dev_fusion/Linkedin-Profile-Scraper" or "apimaestro/linkedin-profile-detail") or upgrade the Apify account.`
-          : `Apify actor error: ${actorErr}`,
-        actor_id: actorId,
-        raw_sample: items.slice(0, 1),
+        error: `All tried actors are blocked on the free Apify plan. Tried: ${tried.join(", ")}. Open one of these actors in Apify console once to "rent" it (free), then retry: dev_fusion/Linkedin-Profile-Scraper, apimaestro/linkedin-profile-detail.`,
+        tried, raw_error: lastBlockedErr,
       }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    if (!items.length && lastHttp) {
+      return new Response(JSON.stringify({ error: `Apify ${lastHttp.status}: ${lastHttp.text.slice(0, 400)}`, tried }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const item = items?.[0] ?? {};
 
     const fullName = firstString(item.fullName, item.full_name, item.name, item.displayName);
     const headline = firstString(item.headline, item.title, item.subtitle);
@@ -153,7 +180,7 @@ ${JSON.stringify({ fullName, headline, about, company, location, experiences, sk
     const updates: Record<string, any> = {
       user_id: user.id,
       linkedin_url: url,
-      profile_actor_id: actorRaw,
+      profile_actor_id: usedActor,
       last_self_analyzed_at: new Date().toISOString(),
     };
     if (about_me) updates.about_me = about_me;
