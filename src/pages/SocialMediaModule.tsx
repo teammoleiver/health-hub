@@ -682,6 +682,7 @@ function SettingsTab() {
   const [busy, setBusy] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [scrapingMe, setScrapingMe] = useState(false);
+  const [refining, setRefining] = useState(false);
 
   useEffect(() => {
     getWriterSettings().then((data: any) => {
@@ -719,7 +720,9 @@ function SettingsTab() {
       // Refresh local form with AI-generated fields
       const fresh = await getWriterSettings();
       if (fresh) { setS({ ...s, ...(fresh as any) }); setBannedInput(((fresh as any).banned_words || []).join(", ")); }
-      toast.success("LinkedIn analyzed — voice updated");
+      const sc = (data as any)?.scraped;
+      const found = sc ? `Found: ${[sc.fullName, sc.headline].filter(Boolean).join(" · ") || "profile"} (skills:${sc.skillsCount ?? 0}, roles:${sc.experiencesCount ?? 0})` : "voice updated";
+      toast.success(`LinkedIn analyzed — ${found}`);
     } catch (e: any) { toast.error(e?.message ?? "Analysis failed"); } finally { setAnalyzing(false); }
   };
 
@@ -730,8 +733,23 @@ function SettingsTab() {
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       const n = (data as any)?.scraped ?? (data as any)?.results?.[0]?.posts ?? 0;
-      toast.success(`Scraped ${n} of your posts`);
+      // Refresh form — enrich-voice-from-posts has run inside scrapeMyLastPosts
+      const fresh = await getWriterSettings();
+      if (fresh) { setS({ ...s, ...(fresh as any) }); }
+      toast.success(`Scraped ${n} posts — voice refined from real content`);
     } catch (e: any) { toast.error(e?.message ?? "Scrape failed"); } finally { setScrapingMe(false); }
+  };
+
+  const refineFromPosts = async () => {
+    setRefining(true);
+    try {
+      const { data, error } = await enrichVoiceFromPosts();
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const fresh = await getWriterSettings();
+      if (fresh) { setS({ ...s, ...(fresh as any) }); }
+      toast.success(`Voice refined from ${(data as any)?.used_posts ?? 0} posts`);
+    } catch (e: any) { toast.error(e?.message ?? "Refine failed"); } finally { setRefining(false); }
   };
 
   return (
