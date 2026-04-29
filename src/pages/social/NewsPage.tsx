@@ -303,7 +303,6 @@ function HotNewsDialog({ topic, onClose }: { topic: any; onClose: () => void }) 
     await createPlanEntry({
       hook: hookLine.slice(0, 140), body, framework,
       format: "insight", status: "planned",
-      // @ts-expect-error custom field
       source_hotnews_id: topic.id, source_kind: "hot_news",
     } as any);
     toast.success("Added to Content Planner");
