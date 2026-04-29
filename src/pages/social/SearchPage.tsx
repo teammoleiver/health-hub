@@ -85,7 +85,7 @@ export default function SearchPage() {
   }
 
   async function runSearch(useQuery?: string) {
-    const q = (useQuery ?? optimized ?? query).trim();
+    const q = (useQuery || optimized || query || "").trim();
     if (!q) { toast.error("Enter a query"); return; }
     setRunning(true); setResult(null);
     try {
