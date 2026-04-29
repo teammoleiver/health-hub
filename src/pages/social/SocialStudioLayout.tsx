@@ -1,8 +1,9 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Linkedin, Newspaper, CalendarDays, Settings as SettingsIcon, LayoutDashboard } from "lucide-react";
+import { Linkedin, Newspaper, CalendarDays, Settings as SettingsIcon, LayoutDashboard, Search } from "lucide-react";
 
 const tabs = [
   { to: "/social", label: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/social/search", label: "Search", icon: Search },
   { to: "/social/linkedin", label: "LinkedIn", icon: Linkedin },
   { to: "/social/news", label: "News & RSS", icon: Newspaper },
   { to: "/social/planner", label: "Content Planner", icon: CalendarDays },

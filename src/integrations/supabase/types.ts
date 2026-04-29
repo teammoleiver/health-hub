@@ -1393,6 +1393,122 @@ export type Database = {
         }
         Relationships: []
       }
+      social_search_providers: {
+        Row: {
+          api_key_secret_name: string
+          auth_header_name: string
+          auth_header_prefix: string
+          created_at: string
+          default_body: Json
+          default_headers: Json
+          endpoint_url: string
+          http_method: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          provider_kind: string
+          query_field: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key_secret_name?: string
+          auth_header_name?: string
+          auth_header_prefix?: string
+          created_at?: string
+          default_body?: Json
+          default_headers?: Json
+          endpoint_url?: string
+          http_method?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          provider_kind?: string
+          query_field?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key_secret_name?: string
+          auth_header_name?: string
+          auth_header_prefix?: string
+          created_at?: string
+          default_body?: Json
+          default_headers?: Json
+          endpoint_url?: string
+          http_method?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          provider_kind?: string
+          query_field?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      social_search_queries: {
+        Row: {
+          answer: string | null
+          created_at: string
+          depth: string | null
+          duration_ms: number | null
+          error: string | null
+          id: string
+          optimized_query: string | null
+          output_type: string | null
+          provider_id: string | null
+          query: string
+          raw_response: Json | null
+          results: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          depth?: string | null
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          optimized_query?: string | null
+          output_type?: string | null
+          provider_id?: string | null
+          query: string
+          raw_response?: Json | null
+          results?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          depth?: string | null
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          optimized_query?: string | null
+          output_type?: string | null
+          provider_id?: string | null
+          query?: string
+          raw_response?: Json | null
+          results?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_search_queries_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "social_search_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_writer_settings: {
         Row: {
           about_me: string | null
