@@ -66,7 +66,13 @@ Deno.serve(async (req) => {
     if (!apiKey) return json({ error: `Missing secret ${provider.api_key_secret_name}. Add it in project settings.` }, 400);
 
     const outputType = body.outputType ?? provider.default_body?.outputType ?? "sourcedAnswer";
-    const depth = body.depth ?? provider.default_body?.depth ?? "standard";
+    const rawDepth = (body.depth ?? provider.default_body?.depth ?? "standard").toString().toLowerCase();
+    const depthMap: Record<string, string> = {
+      auto: "standard", standard: "standard", normal: "standard", medium: "standard",
+      deep: "deep", thorough: "deep", high: "deep",
+      fast: "fast", quick: "fast", shallow: "fast", low: "fast",
+    };
+    const depth = depthMap[rawDepth] ?? "standard";
     const includeImages = body.includeImages ?? provider.default_body?.includeImages ?? false;
 
     // Build request
