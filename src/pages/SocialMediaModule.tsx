@@ -35,18 +35,18 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export default function SocialMediaModule() {
-  const [tab, setTab] = useState<Tab>("profiles");
+export default function SocialMediaModule({ defaultTab, hideHeader }: { defaultTab?: Tab; hideHeader?: boolean } = {}) {
+  const [tab, setTab] = useState<Tab>(defaultTab ?? "profiles");
 
   return (
-    <div className="container max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
-      <header className="flex items-start gap-3">
+    <div className={hideHeader ? "space-y-6" : "container max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6"}>
+      {!hideHeader && <header className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-display font-bold">S</div>
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-bold">Social Media Studio</h1>
           <p className="text-sm text-muted-foreground">Track LinkedIn voices · scrape posts · turn signal into your own content.</p>
         </div>
-      </header>
+      </header>}
 
       <div className="border-b border-border flex flex-wrap gap-1">
         {TABS.map((t) => (

@@ -854,6 +854,56 @@ export type Database = {
         }
         Relationships: []
       }
+      social_articles: {
+        Row: {
+          article_url: string
+          author: string | null
+          feed_id: string | null
+          fetched_at: string
+          id: string
+          published_at: string | null
+          raw_payload: Json | null
+          snippet: string | null
+          source_label: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          article_url: string
+          author?: string | null
+          feed_id?: string | null
+          fetched_at?: string
+          id?: string
+          published_at?: string | null
+          raw_payload?: Json | null
+          snippet?: string | null
+          source_label?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          article_url?: string
+          author?: string | null
+          feed_id?: string | null
+          fetched_at?: string
+          id?: string
+          published_at?: string | null
+          raw_payload?: Json | null
+          snippet?: string | null
+          source_label?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_articles_feed_id_fkey"
+            columns: ["feed_id"]
+            isOneToOne: false
+            referencedRelation: "social_rss_feeds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_content_plan: {
         Row: {
           body: string | null
@@ -870,6 +920,9 @@ export type Database = {
           posted_at: string | null
           scheduled_date: string | null
           scheduled_day: string | null
+          source_article_id: string | null
+          source_hotnews_id: string | null
+          source_kind: string | null
           source_post_id: string | null
           source_topic_id: string | null
           status: string
@@ -892,6 +945,9 @@ export type Database = {
           posted_at?: string | null
           scheduled_date?: string | null
           scheduled_day?: string | null
+          source_article_id?: string | null
+          source_hotnews_id?: string | null
+          source_kind?: string | null
           source_post_id?: string | null
           source_topic_id?: string | null
           status?: string
@@ -914,6 +970,9 @@ export type Database = {
           posted_at?: string | null
           scheduled_date?: string | null
           scheduled_day?: string | null
+          source_article_id?: string | null
+          source_hotnews_id?: string | null
+          source_kind?: string | null
           source_post_id?: string | null
           source_topic_id?: string | null
           status?: string
@@ -1001,6 +1060,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      social_hot_news: {
+        Row: {
+          article_count: number | null
+          description: string | null
+          generated_at: string
+          id: string
+          related_article_ids: string[] | null
+          score: number | null
+          timeframe: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          article_count?: number | null
+          description?: string | null
+          generated_at?: string
+          id?: string
+          related_article_ids?: string[] | null
+          score?: number | null
+          timeframe?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          article_count?: number | null
+          description?: string | null
+          generated_at?: string
+          id?: string
+          related_article_ids?: string[] | null
+          score?: number | null
+          timeframe?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       social_hot_topics: {
         Row: {
@@ -1178,6 +1273,51 @@ export type Database = {
           updated_at?: string
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      social_rss_feeds: {
+        Row: {
+          active: boolean
+          articles_count: number
+          cadence: string
+          created_at: string
+          feed_url: string
+          id: string
+          label: string | null
+          last_fetch_error: string | null
+          last_fetch_status: string | null
+          last_fetched_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          articles_count?: number
+          cadence?: string
+          created_at?: string
+          feed_url: string
+          id?: string
+          label?: string | null
+          last_fetch_error?: string | null
+          last_fetch_status?: string | null
+          last_fetched_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          articles_count?: number
+          cadence?: string
+          created_at?: string
+          feed_url?: string
+          id?: string
+          label?: string | null
+          last_fetch_error?: string | null
+          last_fetch_status?: string | null
+          last_fetched_at?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

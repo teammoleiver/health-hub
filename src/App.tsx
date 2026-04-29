@@ -23,6 +23,10 @@ import ProjectsModule from "./pages/ProjectsModule";
 import TasksModule from "./pages/TasksModule";
 import CalendarModule from "./pages/CalendarModule";
 import SocialMediaModule from "./pages/SocialMediaModule";
+import SocialStudioLayout from "./pages/social/SocialStudioLayout";
+import SocialOverview from "./pages/social/SocialOverview";
+import NewsPage from "./pages/social/NewsPage";
+import ContentPlannerPage from "./pages/social/ContentPlannerPage";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
@@ -95,7 +99,13 @@ function AppRoutes() {
       <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsModule /></AppLayout></ProtectedRoute>} />
       <Route path="/tasks" element={<ProtectedRoute><AppLayout><TasksModule /></AppLayout></ProtectedRoute>} />
       <Route path="/calendar" element={<ProtectedRoute><AppLayout><CalendarModule /></AppLayout></ProtectedRoute>} />
-      <Route path="/social" element={<ProtectedRoute><AppLayout><SocialMediaModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/social" element={<ProtectedRoute><AppLayout><SocialStudioLayout /></AppLayout></ProtectedRoute>}>
+        <Route index element={<SocialOverview />} />
+        <Route path="linkedin" element={<SocialMediaModule defaultTab="profiles" hideHeader />} />
+        <Route path="news" element={<NewsPage />} />
+        <Route path="planner" element={<ContentPlannerPage />} />
+        <Route path="settings" element={<SocialMediaModule defaultTab="settings" hideHeader />} />
+      </Route>
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsModule /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>

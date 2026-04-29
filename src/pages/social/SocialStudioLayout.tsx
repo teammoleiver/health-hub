@@ -1,0 +1,44 @@
+import { NavLink, Outlet } from "react-router-dom";
+import { Linkedin, Newspaper, CalendarDays, Settings as SettingsIcon, LayoutDashboard } from "lucide-react";
+
+const tabs = [
+  { to: "/social", label: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/social/linkedin", label: "LinkedIn", icon: Linkedin },
+  { to: "/social/news", label: "News & RSS", icon: Newspaper },
+  { to: "/social/planner", label: "Content Planner", icon: CalendarDays },
+  { to: "/social/settings", label: "Settings", icon: SettingsIcon },
+];
+
+export default function SocialStudioLayout() {
+  return (
+    <div className="container max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
+      <header className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-display font-bold">S</div>
+        <div>
+          <h1 className="font-display text-2xl md:text-3xl font-bold">Social Media Studio</h1>
+          <p className="text-sm text-muted-foreground">LinkedIn intelligence · news radar · content planning.</p>
+        </div>
+      </header>
+
+      <nav className="border-b border-border flex flex-wrap gap-1">
+        {tabs.map((t) => (
+          <NavLink
+            key={t.to}
+            to={t.to}
+            end={t.end}
+            className={({ isActive }) =>
+              `flex items-center gap-2 px-3 py-2 text-sm border-b-2 transition-colors -mb-px ${
+                isActive ? "border-primary text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground"
+              }`
+            }
+          >
+            <t.icon className="w-4 h-4" />
+            {t.label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <Outlet />
+    </div>
+  );
+}

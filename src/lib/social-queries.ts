@@ -223,6 +223,57 @@ export async function enrichVoiceFromPosts() {
   return supabase.functions.invoke("enrich-voice-from-posts", { body: {} });
 }
 
+// ── RSS feeds ──
+export async function listRssFeeds() {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("social_rss_feeds" as any).select("*").eq("user_id", u).order("created_at", { ascending: false });
+  return (data as any[]) ?? [];
+}
+export async function createRssFeed(p: { feed_url: string; label?: string; cadence?: string }) {
+  const u = await uid(); if (!u) return null;
+  const { data, error } = await supabase.from("social_rss_feeds" as any).insert({
+    user_id: u, feed_url: p.feed_url.trim(), label: p.label?.trim() || null, cadence: p.cadence || "daily",
+  } as any).select().single();
+  if (error) throw error; return data;
+}
+export async function updateRssFeed(id: string, updates: Record<string, any>) {
+  const { data, error } = await supabase.from("social_rss_feeds" as any).update(updates).eq("id", id).select().single();
+  if (error) throw error; return data;
+}
+export async function deleteRssFeed(id: string) {
+  await supabase.from("social_rss_feeds" as any).delete().eq("id", id);
+}
+export async function fetchRssNow(feed_id?: string) {
+  return supabase.functions.invoke("fetch-rss-articles", { body: feed_id ? { feed_id } : { all_due: false } });
+}
+export async function fetchAllRssDue() {
+  return supabase.functions.invoke("fetch-rss-articles", { body: { all_due: true } });
+}
+
+// ── Articles ──
+export async function listArticles(filters?: { feed_id?: string; limit?: number }) {
+  const u = await uid(); if (!u) return [];
+  let q = supabase.from("social_articles" as any).select("*").eq("user_id", u).order("published_at", { ascending: false, nullsFirst: false }).limit(filters?.limit ?? 200);
+  if (filters?.feed_id) q = q.eq("feed_id", filters.feed_id);
+  const { data } = await q; return (data as any[]) ?? [];
+}
+export async function deleteArticle(id: string) {
+  await supabase.from("social_articles" as any).delete().eq("id", id);
+}
+
+// ── Hot News ──
+export async function listHotNews() {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("social_hot_news" as any).select("*").eq("user_id", u).order("score", { ascending: false });
+  return (data as any[]) ?? [];
+}
+export async function clusterHotNews() {
+  return supabase.functions.invoke("cluster-hot-news", { body: {} });
+}
+export async function deleteHotNews(id: string) {
+  await supabase.from("social_hot_news" as any).delete().eq("id", id);
+}
+
 export function computeAccountHealth(acc: any) {
   const budget = Number(acc.monthly_budget_usd ?? 5);
   const cost = (Number(acc.posts_used_this_period ?? 0) / 10) * Number(acc.cost_per_10_posts_usd ?? 0.5);
