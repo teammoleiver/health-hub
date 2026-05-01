@@ -55,6 +55,13 @@ export default function ContentStudioPage() {
   // edit modal
   const [editing, setEditing] = useState<Item | null>(null);
   const [creating, setCreating] = useState(false);
+  const [managingCats, setManagingCats] = useState(false);
+  const [bulkEditing, setBulkEditing] = useState(false);
+
+  // sort + pagination
+  const [sortKey, setSortKey] = useState<SortKey>("title");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [page, setPage] = useState(1);
 
   async function refresh() {
     setLoading(true);
