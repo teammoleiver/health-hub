@@ -1,0 +1,4 @@
+WITH seed(data) AS (
+  SELECT $$ [{"name": "GTM Uni", "slug": "gtm-uni", "items": [{"title": "GTM Automation 101: What It Is & Why Every Sales Team Needs It", "level": "Beginner", "course_name": "GTM YouTube Plan: Beginner Series", "course_description": "Beginner-friendly walkthrough series introducing GTM automation and the core tool stack — Clay, n8n, HeyReach, Claude, and Lovable. Covers fundamentals, first setups, and basic combined workflows.", "lesson_number": 1.0, "duration": "~11min", "source_url": "https://university.clay.com/", "key_topics": "Tools: Clay, n8n, HeyReach. Topics: Define GTM, Explain the 3 pillars: find leads, enrich data, reach out, Show the tools landscape, Why manual GTM is dead, Real examples of automated outreach vs manual", "item_type": "lesson"}]}] $$::jsonb
+)
+select 1;
