@@ -282,24 +282,26 @@ export default function ContentStudioPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="p-2 w-8"></th>
-                <th className="p-2">Title</th>
-                <th className="p-2">Category</th>
-                <th className="p-2">Level</th>
-                <th className="p-2">Duration</th>
+                <th className="p-2 w-8">
+                  <input type="checkbox" checked={allOnPageSelected} onChange={togglePageSelectAll} />
+                </th>
+                <SortHeader label="Title" k="title" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Category" k="category_name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Level" k="level" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Duration" k="duration" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className="p-2">Platforms</th>
-                <th className="p-2">Status</th>
+                <SortHeader label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className="p-2 w-28"></th>
               </tr>
             </thead>
             <tbody>
               {loading && <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
-              {!loading && filtered.length === 0 && (
+              {!loading && pageItems.length === 0 && (
                 <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">
                   {items.length === 0 ? "Empty library — click 'Seed starter library' to import 557 lessons from your catalog." : "No items match these filters."}
                 </td></tr>
               )}
-              {filtered.map((it) => (
+              {pageItems.map((it) => (
                 <tr key={it.id} className="border-t border-border hover:bg-muted/30">
                   <td className="p-2"><input type="checkbox" checked={selected.has(it.id)} onChange={() => toggleSelect(it.id)} /></td>
                   <td className="p-2 align-top">
