@@ -91,7 +91,7 @@ export default function ContentStudioPage() {
   }
 
   const filtered = useMemo(() => {
-    return items.filter((i) => {
+    const out = items.filter((i) => {
       if (activeCat && i.category_id !== activeCat) return false;
       if (levelFilter && i.level !== levelFilter) return false;
       if (platformFilter && !(i.target_platforms ?? []).includes(platformFilter)) return false;
@@ -101,7 +101,43 @@ export default function ContentStudioPage() {
       }
       return true;
     });
-  }, [items, activeCat, levelFilter, platformFilter, search]);
+    const dir = sortDir === "asc" ? 1 : -1;
+    out.sort((a, b) => {
+      const av = (a as any)[sortKey] ?? "";
+      const bv = (b as any)[sortKey] ?? "";
+      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * dir;
+    });
+    return out;
+  }, [items, activeCat, levelFilter, platformFilter, search, sortKey, sortDir]);
+
+  useEffect(() => { setPage(1); }, [activeCat, levelFilter, platformFilter, search, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const pageItems = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+  function toggleSort(k: SortKey) {
+    if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(k); setSortDir("asc"); }
+  }
+  const allOnPageSelected = pageItems.length > 0 && pageItems.every((i) => selected.has(i.id));
+  function togglePageSelectAll() {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (allOnPageSelected) pageItems.forEach((i) => n.delete(i.id));
+      else pageItems.forEach((i) => n.add(i.id));
+      return n;
+    });
+  }
+  async function handleBulkDelete() {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} item(s)?`)) return;
+    await bulkDeleteContentItems(ids);
+    toast.success(`Deleted ${ids.length} item(s).`);
+    setSelected(new Set());
+    refresh();
+  }
 
   function toggleSelect(id: string) {
     setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
