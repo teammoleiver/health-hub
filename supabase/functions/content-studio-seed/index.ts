@@ -28,10 +28,9 @@ Deno.serve(async (req) => {
 
     const seed = SEED_LIBRARY;
 
-    // If user already has items, abort unless forced
-    const { count } = await supa.from("content_items").select("id", { count: "exact", head: true }).eq("user_id", user.id);
-    if ((count ?? 0) > 0 && !force) {
-      return new Response(JSON.stringify({ skipped: true, message: "Library already seeded.", existing: count }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (force) {
+      await supa.from("content_items").delete().eq("user_id", user.id).eq("origin", "excel");
+      await supa.from("content_categories").delete().eq("user_id", user.id).eq("is_system", true);
     }
 
     let totalCats = 0, totalItems = 0;
@@ -63,9 +62,18 @@ Deno.serve(async (req) => {
         origin: "excel",
         position: idx,
       }));
-      // chunked insert
-      for (let j = 0; j < rows.length; j += 200) {
-        const slice = rows.slice(j, j + 200);
+      const { data: existingRows, error: existingErr } = await supa
+        .from("content_items")
+        .select("title")
+        .eq("user_id", user.id)
+        .eq("category_id", catRow.id);
+      if (existingErr) throw existingErr;
+      const existingTitles = new Set((existingRows ?? []).map((row: any) => row.title));
+      const missingRows = rows.filter((row: any) => !existingTitles.has(row.title));
+
+      // chunked insert of only missing rows, so partial imports are completed without duplicates
+      for (let j = 0; j < missingRows.length; j += 200) {
+        const slice = missingRows.slice(j, j + 200);
         const { error } = await supa.from("content_items").insert(slice);
         if (error) throw error;
         totalItems += slice.length;
