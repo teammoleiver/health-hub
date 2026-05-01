@@ -8,11 +8,12 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Sparkles, Search, Plus, Trash2, Pencil, Globe, Lightbulb, Combine, Send, Loader2, ExternalLink, Filter, Check } from "lucide-react";
+import { Sparkles, Search, Plus, Trash2, Pencil, Globe, Lightbulb, Combine, Send, Loader2, ExternalLink, Filter, Check, Settings2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   listContentCategories, createContentCategory, deleteContentCategory,
   listContentItems, createContentItem, updateContentItem, deleteContentItem,
   seedContentLibrary, contentStudioAI, listContentChatMessages, pushIdeasToPlanner,
+  updateContentCategory, bulkUpdateContentItems, bulkDeleteContentItems,
 } from "@/lib/social-queries";
 
 type Cat = { id: string; name: string; slug: string; color?: string };
