@@ -30,6 +30,10 @@ type ChatMsg = { id: string; role: string; content: string; action_kind: string 
 const PLATFORMS = ["youtube", "linkedin", "instagram", "facebook"] as const;
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 const STATUSES = ["idea", "in_progress", "scripted", "published"];
+const PAGE_SIZE = 25;
+
+type SortKey = "title" | "category_name" | "level" | "duration" | "status";
+type SortDir = "asc" | "desc";
 
 export default function ContentStudioPage() {
   const [cats, setCats] = useState<Cat[]>([]);
