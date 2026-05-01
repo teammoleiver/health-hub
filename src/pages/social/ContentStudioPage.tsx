@@ -45,6 +45,7 @@ export default function ContentStudioPage() {
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const autoSeedAttemptedRef = useRef(false);
 
   // edit modal
   const [editing, setEditing] = useState<Item | null>(null);
@@ -57,6 +58,12 @@ export default function ContentStudioPage() {
     setLoading(false);
   }
   useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    if (!loading && cats.length === 0 && items.length === 0 && !autoSeedAttemptedRef.current) {
+      autoSeedAttemptedRef.current = true;
+      handleSeed(false);
+    }
+  }, [loading, cats.length, items.length]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat]);
 
   async function handleSeed(force = false) {
