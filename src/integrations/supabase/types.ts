@@ -158,6 +158,164 @@ export type Database = {
         }
         Relationships: []
       }
+      content_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_system: boolean | null
+          name: string
+          position: number | null
+          slug: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_system?: boolean | null
+          name: string
+          position?: number | null
+          slug: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          position?: number | null
+          slug?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      content_chat_messages: {
+        Row: {
+          action_kind: string | null
+          content: string
+          created_at: string
+          id: string
+          payload: Json | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          action_kind?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          action_kind?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      content_items: {
+        Row: {
+          category_id: string | null
+          category_name: string | null
+          course_description: string | null
+          course_name: string | null
+          created_at: string
+          creator: string | null
+          duration: string | null
+          id: string
+          item_type: string
+          key_topics: string | null
+          lesson_number: number | null
+          level: string | null
+          notes: string | null
+          origin: string
+          position: number | null
+          published_label: string | null
+          raw_payload: Json | null
+          source_url: string | null
+          status: string
+          target_platforms: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          category_name?: string | null
+          course_description?: string | null
+          course_name?: string | null
+          created_at?: string
+          creator?: string | null
+          duration?: string | null
+          id?: string
+          item_type?: string
+          key_topics?: string | null
+          lesson_number?: number | null
+          level?: string | null
+          notes?: string | null
+          origin?: string
+          position?: number | null
+          published_label?: string | null
+          raw_payload?: Json | null
+          source_url?: string | null
+          status?: string
+          target_platforms?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_id?: string | null
+          category_name?: string | null
+          course_description?: string | null
+          course_name?: string | null
+          created_at?: string
+          creator?: string | null
+          duration?: string | null
+          id?: string
+          item_type?: string
+          key_topics?: string | null
+          lesson_number?: number | null
+          level?: string | null
+          notes?: string | null
+          origin?: string
+          position?: number | null
+          published_label?: string | null
+          raw_payload?: Json | null
+          source_url?: string | null
+          status?: string
+          target_platforms?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "content_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_checklist: {
         Row: {
           bedtime_ok: boolean | null

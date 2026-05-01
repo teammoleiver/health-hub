@@ -312,3 +312,61 @@ export const FRAMEWORK_OPTIONS = [
   { id: "BuildInPublic", name: "Build-in-Public", description: "Show your real work" },
   { id: "Listicle", name: "Listicle", description: "Numbered insights · most-saved" },
 ];
+
+// ── Content Studio ──
+export async function listContentCategories() {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("content_categories" as any).select("*").eq("user_id", u).order("position", { ascending: true });
+  return (data as any[]) ?? [];
+}
+export async function createContentCategory(p: { name: string; slug?: string; color?: string; icon?: string }) {
+  const u = await uid(); if (!u) return null;
+  const slug = (p.slug || p.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const { data, error } = await supabase.from("content_categories" as any).insert({ user_id: u, name: p.name, slug, color: p.color, icon: p.icon } as any).select().single();
+  if (error) throw error; return data;
+}
+export async function deleteContentCategory(id: string) {
+  const { error } = await supabase.from("content_categories" as any).delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function listContentItems(filters?: { category_id?: string; search?: string; level?: string; status?: string; limit?: number }) {
+  const u = await uid(); if (!u) return [];
+  let q = supabase.from("content_items" as any).select("*").eq("user_id", u).order("position", { ascending: true }).limit(filters?.limit ?? 1000);
+  if (filters?.category_id) q = q.eq("category_id", filters.category_id);
+  if (filters?.level) q = q.eq("level", filters.level);
+  if (filters?.status) q = q.eq("status", filters.status);
+  if (filters?.search) q = q.ilike("title", `%${filters.search}%`);
+  const { data } = await q;
+  return (data as any[]) ?? [];
+}
+export async function createContentItem(p: Record<string, any>) {
+  const u = await uid(); if (!u) return null;
+  const { data, error } = await supabase.from("content_items" as any).insert({ ...p, user_id: u } as any).select().single();
+  if (error) throw error; return data;
+}
+export async function updateContentItem(id: string, updates: Record<string, any>) {
+  const { data, error } = await supabase.from("content_items" as any).update(updates).eq("id", id).select().single();
+  if (error) throw error; return data;
+}
+export async function deleteContentItem(id: string) {
+  const { error } = await supabase.from("content_items" as any).delete().eq("id", id);
+  if (error) throw error;
+}
+export async function seedContentLibrary(force = false) {
+  return supabase.functions.invoke("content-studio-seed", { body: { force } });
+}
+export async function contentStudioAI(args: { action: "nl_filter" | "brainstorm" | "combine" | "web_search"; message?: string; item_ids?: string[]; query?: string }) {
+  return supabase.functions.invoke("content-studio-ai", { body: args });
+}
+export async function listContentChatMessages(limit = 50) {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("content_chat_messages" as any).select("*").eq("user_id", u).order("created_at", { ascending: true }).limit(limit);
+  return (data as any[]) ?? [];
+}
+export async function pushIdeasToPlanner(ideas: Array<{ title: string; hook?: string; key_topics?: string }>) {
+  const u = await uid(); if (!u) return null;
+  const rows = ideas.map((i) => ({ user_id: u, hook: i.title, body: [i.hook, i.key_topics].filter(Boolean).join("\n\n"), status: "planned", source_kind: "content_studio" }));
+  const { data, error } = await supabase.from("social_content_plan" as any).insert(rows as any).select();
+  if (error) throw error; return data;
+}
