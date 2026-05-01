@@ -141,7 +141,7 @@ export default function ContentStudioPage() {
           <p className="text-sm text-muted-foreground">Brainstorm, combine, and ship videos for YouTube, LinkedIn, Instagram & Facebook.</p>
         </div>
         <div className="flex gap-2">
-          {cats.length === 0 && (
+          {(cats.length === 0 || items.length === 0) && (
             <Button onClick={() => handleSeed(false)}><Sparkles className="w-4 h-4" /> Seed starter library</Button>
           )}
           <Button variant="outline" onClick={() => setCreating(true)}><Plus className="w-4 h-4" /> New idea</Button>
