@@ -28,6 +28,7 @@ import SocialOverview from "./pages/social/SocialOverview";
 import NewsPage from "./pages/social/NewsPage";
 import ContentPlannerPage from "./pages/social/ContentPlannerPage";
 import SearchPage from "./pages/social/SearchPage";
+import ContentStudioPage from "./pages/social/ContentStudioPage";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
@@ -105,6 +106,7 @@ function AppRoutes() {
         <Route path="search" element={<SearchPage />} />
         <Route path="linkedin" element={<SocialMediaModule defaultTab="profiles" hideHeader />} />
         <Route path="news" element={<NewsPage />} />
+        <Route path="content-studio" element={<ContentStudioPage />} />
         <Route path="planner" element={<ContentPlannerPage />} />
         <Route path="settings" element={<SocialMediaModule defaultTab="settings" hideHeader />} />
       </Route>
