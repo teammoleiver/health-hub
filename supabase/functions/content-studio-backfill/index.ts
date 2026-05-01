@@ -8,13 +8,6 @@ const corsHeaders = {
 };
 
 async function seedForUser(supa: ReturnType<typeof createClient>, userId: string) {
-  const { count, error: countError } = await supa
-    .from("content_items")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-  if (countError) throw countError;
-  if ((count ?? 0) > 0) return { skipped: true, categories: 0, items: 0 };
-
   let totalCats = 0;
   let totalItems = 0;
   const cats = SEED_LIBRARY as Array<{ name: string; slug: string; items: any[] }>;
@@ -48,13 +41,23 @@ async function seedForUser(supa: ReturnType<typeof createClient>, userId: string
       raw_payload: it,
     }));
 
-    for (let j = 0; j < rows.length; j += 200) {
-      const { error } = await supa.from("content_items").insert(rows.slice(j, j + 200));
+    const { data: existingRows, error: existingErr } = await supa
+      .from("content_items")
+      .select("title")
+      .eq("user_id", userId)
+      .eq("category_id", catRow.id);
+    if (existingErr) throw existingErr;
+    const existingTitles = new Set((existingRows ?? []).map((row: any) => row.title));
+    const missingRows = rows.filter((row: any) => !existingTitles.has(row.title));
+
+    for (let j = 0; j < missingRows.length; j += 200) {
+      const slice = missingRows.slice(j, j + 200);
+      const { error } = await supa.from("content_items").insert(slice);
       if (error) throw error;
-      totalItems += Math.min(200, rows.length - j);
+      totalItems += slice.length;
     }
   }
-  return { skipped: false, categories: totalCats, items: totalItems };
+  return { categories: totalCats, items: totalItems };
 }
 
 Deno.serve(async (req) => {
@@ -64,17 +67,15 @@ Deno.serve(async (req) => {
     const { data: profiles, error } = await supa.from("profiles").select("user_id");
     if (error) throw error;
 
-    let seededUsers = 0;
     let totalCategories = 0;
     let totalItems = 0;
     for (const profile of profiles ?? []) {
       const result = await seedForUser(supa, profile.user_id);
-      if (!result.skipped) seededUsers++;
       totalCategories += result.categories;
       totalItems += result.items;
     }
 
-    return new Response(JSON.stringify({ ok: true, users: seededUsers, categories: totalCategories, items: totalItems }), {
+    return new Response(JSON.stringify({ ok: true, users: profiles?.length ?? 0, categories: totalCategories, items: totalItems }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
