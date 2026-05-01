@@ -45,6 +45,7 @@ export default function ContentStudioPage() {
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const autoSeedAttemptedRef = useRef(false);
 
   // edit modal
   const [editing, setEditing] = useState<Item | null>(null);
@@ -57,6 +58,12 @@ export default function ContentStudioPage() {
     setLoading(false);
   }
   useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    if (!loading && cats.length === 0 && items.length === 0 && !autoSeedAttemptedRef.current) {
+      autoSeedAttemptedRef.current = true;
+      handleSeed(false);
+    }
+  }, [loading, cats.length, items.length]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat]);
 
   async function handleSeed(force = false) {
@@ -141,7 +148,7 @@ export default function ContentStudioPage() {
           <p className="text-sm text-muted-foreground">Brainstorm, combine, and ship videos for YouTube, LinkedIn, Instagram & Facebook.</p>
         </div>
         <div className="flex gap-2">
-          {cats.length === 0 && (
+          {(cats.length === 0 || items.length === 0) && (
             <Button onClick={() => handleSeed(false)}><Sparkles className="w-4 h-4" /> Seed starter library</Button>
           )}
           <Button variant="outline" onClick={() => setCreating(true)}><Plus className="w-4 h-4" /> New idea</Button>
