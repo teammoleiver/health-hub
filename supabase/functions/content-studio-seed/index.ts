@@ -1,5 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import seed from "./seed.json" with { type: "json" };
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,6 +23,11 @@ Deno.serve(async (req) => {
     if (!user) return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { force } = await req.json().catch(() => ({}));
+
+    // Load seed JSON (avoid import attributes for edge runtime compatibility)
+    const seedUrl = new URL("./seed.json", import.meta.url);
+    const seedText = await Deno.readTextFile(seedUrl);
+    const seed = JSON.parse(seedText);
 
     // If user already has items, abort unless forced
     const { count } = await supa.from("content_items").select("id", { count: "exact", head: true }).eq("user_id", user.id);
