@@ -329,6 +329,29 @@ export async function deleteContentCategory(id: string) {
   const { error } = await supabase.from("content_categories" as any).delete().eq("id", id);
   if (error) throw error;
 }
+export async function updateContentCategory(id: string, updates: { name?: string; slug?: string; color?: string; icon?: string; position?: number }) {
+  const patch: Record<string, any> = { ...updates };
+  if (updates.name && !updates.slug) {
+    patch.slug = updates.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+  const { data, error } = await supabase.from("content_categories" as any).update(patch).eq("id", id).select().single();
+  if (error) throw error;
+  // Also propagate name to denormalized category_name on items
+  if (updates.name) {
+    await supabase.from("content_items" as any).update({ category_name: updates.name } as any).eq("category_id", id);
+  }
+  return data;
+}
+export async function bulkUpdateContentItems(ids: string[], updates: Record<string, any>) {
+  if (!ids.length) return;
+  const { error } = await supabase.from("content_items" as any).update(updates).in("id", ids);
+  if (error) throw error;
+}
+export async function bulkDeleteContentItems(ids: string[]) {
+  if (!ids.length) return;
+  const { error } = await supabase.from("content_items" as any).delete().in("id", ids);
+  if (error) throw error;
+}
 
 export async function listContentItems(filters?: { category_id?: string; search?: string; level?: string; status?: string; limit?: number }) {
   const u = await uid(); if (!u) return [];
