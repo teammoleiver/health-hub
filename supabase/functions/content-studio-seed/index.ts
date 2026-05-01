@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
         .eq("category_id", catRow.id);
       if (existingErr) throw existingErr;
       const existingTitles = new Set((existingRows ?? []).map((row: any) => row.title));
-      const missingRows = rows.filter((row: any) => !existingTitles.has(row.title));
+      const missingRows = rows.filter((row: any) => typeof row.title === "string" && row.title.trim().length > 0 && !existingTitles.has(row.title));
 
       // chunked insert of only missing rows, so partial imports are completed without duplicates
       for (let j = 0; j < missingRows.length; j += 200) {
