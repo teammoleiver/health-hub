@@ -267,6 +267,13 @@ export default function ContentStudioPage() {
           </SelectContent>
         </Select>
         <span className="text-xs text-muted-foreground">{filtered.length} shown · {selected.size} selected</span>
+        {selected.size > 0 && (
+          <div className="flex gap-2 ml-auto">
+            <Button size="sm" variant="outline" onClick={() => setBulkEditing(true)}><Pencil className="w-4 h-4" /> Bulk edit ({selected.size})</Button>
+            <Button size="sm" variant="outline" onClick={handleBulkDelete}><Trash2 className="w-4 h-4" /> Delete ({selected.size})</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+          </div>
+        )}
       </div>
 
       {/* Table */}
