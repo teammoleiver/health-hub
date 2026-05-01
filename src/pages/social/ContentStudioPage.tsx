@@ -326,6 +326,20 @@ export default function ContentStudioPage() {
             </tbody>
           </table>
         </div>
+        {filtered.length > 0 && (
+          <div className="flex items-center justify-between gap-2 p-3 border-t border-border bg-muted/20 text-xs">
+            <div className="text-muted-foreground">
+              Showing {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length}
+            </div>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(1)}>First</Button>
+              <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-4 h-4" /></Button>
+              <span className="px-2">Page {page} / {totalPages}</span>
+              <Button size="sm" variant="outline" disabled={page === totalPages} onClick={() => setPage(page + 1)}><ChevronRight className="w-4 h-4" /></Button>
+              <Button size="sm" variant="outline" disabled={page === totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {(editing || creating) && (
@@ -336,7 +350,183 @@ export default function ContentStudioPage() {
           onSaved={() => { setEditing(null); setCreating(false); refresh(); }}
         />
       )}
+
+      {managingCats && (
+        <CategoryManager cats={cats} items={items} onClose={() => setManagingCats(false)} onChanged={refresh} />
+      )}
+
+      {bulkEditing && (
+        <BulkEditor
+          count={selected.size}
+          cats={cats}
+          onClose={() => setBulkEditing(false)}
+          onApply={async (updates) => {
+            await bulkUpdateContentItems(Array.from(selected), updates);
+            toast.success(`Updated ${selected.size} item(s).`);
+            setBulkEditing(false);
+            setSelected(new Set());
+            refresh();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function SortHeader({ label, k, sortKey, sortDir, onSort }: { label: string; k: SortKey; sortKey: SortKey; sortDir: SortDir; onSort: (k: SortKey) => void }) {
+  const active = sortKey === k;
+  return (
+    <th className="p-2 select-none">
+      <button className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => onSort(k)}>
+        {label}
+        {active ? (sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ChevronsUpDown className="w-3 h-3 opacity-40" />}
+      </button>
+    </th>
+  );
+}
+
+function CategoryManager({ cats, items, onClose, onChanged }: { cats: Cat[]; items: Item[]; onClose: () => void; onChanged: () => void }) {
+  const [newName, setNewName] = useState("");
+  const [edits, setEdits] = useState<Record<string, string>>(() => Object.fromEntries(cats.map((c) => [c.id, c.name])));
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function rename(id: string) {
+    const name = edits[id]?.trim();
+    if (!name) return;
+    setBusy(id);
+    try { await updateContentCategory(id, { name }); toast.success("Category renamed"); onChanged(); }
+    catch (e: any) { toast.error(e.message || "Failed"); }
+    finally { setBusy(null); }
+  }
+  async function remove(id: string) {
+    const count = items.filter((i) => i.category_id === id).length;
+    if (!confirm(`Delete this category? ${count} item(s) will become uncategorized.`)) return;
+    setBusy(id);
+    try { await deleteContentCategory(id); toast.success("Category deleted"); onChanged(); }
+    catch (e: any) { toast.error(e.message || "Failed"); }
+    finally { setBusy(null); }
+  }
+  async function add() {
+    if (!newName.trim()) return;
+    setBusy("__new");
+    try { await createContentCategory({ name: newName.trim() }); setNewName(""); toast.success("Category added"); onChanged(); }
+    catch (e: any) { toast.error(e.message || "Failed"); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Manage categories</DialogTitle></DialogHeader>
+        <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+          {cats.map((c) => {
+            const count = items.filter((i) => i.category_id === c.id).length;
+            return (
+              <div key={c.id} className="flex items-center gap-2">
+                <Input value={edits[c.id] ?? c.name} onChange={(e) => setEdits({ ...edits, [c.id]: e.target.value })} />
+                <span className="text-xs text-muted-foreground w-12 text-right">{count}</span>
+                <Button size="sm" variant="outline" disabled={busy === c.id || (edits[c.id] ?? c.name) === c.name} onClick={() => rename(c.id)}>Save</Button>
+                <Button size="sm" variant="ghost" disabled={busy === c.id} onClick={() => remove(c.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+              </div>
+            );
+          })}
+        </div>
+        <div className="border-t border-border pt-3 space-y-2">
+          <Label className="text-xs">Add new category</Label>
+          <div className="flex gap-2">
+            <Input placeholder="e.g. Outbound Mastery" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <Button onClick={add} disabled={!newName.trim() || busy === "__new"}><Plus className="w-4 h-4" /> Add</Button>
+          </div>
+        </div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Done</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkEditor({ count, cats, onClose, onApply }: { count: number; cats: Cat[]; onClose: () => void; onApply: (updates: Record<string, any>) => Promise<void> }) {
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [level, setLevel] = useState<string>("");
+  const [status, setStatus] = useState<string>("");
+  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [touchPlatforms, setTouchPlatforms] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  function togglePlatform(p: string) {
+    setTouchPlatforms(true);
+    setPlatforms((cur) => cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]);
+  }
+
+  async function apply() {
+    const updates: Record<string, any> = {};
+    if (categoryId) {
+      const cat = cats.find((c) => c.id === categoryId);
+      updates.category_id = categoryId;
+      updates.category_name = cat?.name ?? null;
+    }
+    if (level) updates.level = level;
+    if (status) updates.status = status;
+    if (touchPlatforms) updates.target_platforms = platforms;
+    if (Object.keys(updates).length === 0) { toast.error("Pick at least one field to change"); return; }
+    setSaving(true);
+    try { await onApply(updates); } finally { setSaving(false); }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Bulk edit {count} item(s)</DialogTitle></DialogHeader>
+        <p className="text-xs text-muted-foreground">Only fields you set will be applied.</p>
+        <div className="space-y-3">
+          <div>
+            <Label>Category</Label>
+            <Select value={categoryId || "none"} onValueChange={(v) => setCategoryId(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="— leave unchanged —" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— leave unchanged —</SelectItem>
+                {cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Level</Label>
+            <Select value={level || "none"} onValueChange={(v) => setLevel(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— leave unchanged —</SelectItem>
+                {LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Status</Label>
+            <Select value={status || "none"} onValueChange={(v) => setStatus(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— leave unchanged —</SelectItem>
+                {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Target platforms {touchPlatforms ? "(will overwrite)" : "(leave unchanged)"}</Label>
+            <div className="flex gap-2 mt-1 items-center flex-wrap">
+              {PLATFORMS.map((p) => (
+                <button key={p} type="button" onClick={() => togglePlatform(p)}
+                  className={`px-3 py-1 text-xs rounded-full border ${platforms.includes(p) ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}>
+                  {p}
+                </button>
+              ))}
+              {touchPlatforms && <button type="button" className="text-xs text-muted-foreground underline" onClick={() => { setTouchPlatforms(false); setPlatforms([]); }}>reset</button>}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={apply} disabled={saving}>{saving && <Loader2 className="w-4 h-4 animate-spin" />} Apply</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
