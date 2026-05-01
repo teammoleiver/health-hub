@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
   Droplets, FolderKanban, CheckSquare, CalendarDays,
-  PanelLeftClose, PanelLeft, Megaphone,
+  PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
@@ -54,6 +54,8 @@ const navGroups: NavGroup[] = [
     label: "Content",
     items: [
       { path: "/social", icon: Megaphone, label: "Social Studio" },
+      { path: "/content-studio", icon: Library, label: "Content Studio" },
+      { path: "/content-planner", icon: ClipboardList, label: "Content Planner" },
     ],
   },
 ];

@@ -106,10 +106,10 @@ function AppRoutes() {
         <Route path="search" element={<SearchPage />} />
         <Route path="linkedin" element={<SocialMediaModule defaultTab="profiles" hideHeader />} />
         <Route path="news" element={<NewsPage />} />
-        <Route path="content-studio" element={<ContentStudioPage />} />
-        <Route path="planner" element={<ContentPlannerPage />} />
         <Route path="settings" element={<SocialMediaModule defaultTab="settings" hideHeader />} />
       </Route>
+      <Route path="/content-studio" element={<ProtectedRoute><AppLayout><ContentStudioPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/content-planner" element={<ProtectedRoute><AppLayout><ContentPlannerPage /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsModule /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
