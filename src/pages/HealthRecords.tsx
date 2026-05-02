@@ -405,9 +405,12 @@ export default function HealthRecords() {
     setAnalyzing(true);
 
     try {
-      // 1. Upload PDF to Supabase storage
+      // 1. Upload PDF to Supabase storage under the user's own folder so RLS allows it.
       setAnalysisProgress("Uploading PDF to storage...");
-      const storagePath = `${Date.now()}_${uploadedFile.name}`;
+      const { data: { user } } = await supabase.auth.getUser();
+      const storagePath = user?.id
+        ? `${user.id}/${Date.now()}_${uploadedFile.name}`
+        : `${Date.now()}_${uploadedFile.name}`;
       const { error: uploadError } = await supabase.storage.from("health-records").upload(storagePath, uploadedFile);
       if (uploadError) console.warn("Storage upload failed:", uploadError.message);
 
