@@ -199,7 +199,6 @@ export default function ContentStudioPage() {
           {(cats.length === 0 || items.length === 0) && (
             <Button onClick={() => handleSeed(false)}><Sparkles className="w-4 h-4" /> Seed starter library</Button>
           )}
-          <Button variant="outline" onClick={() => setManagingCats(true)}><Settings2 className="w-4 h-4" /> Manage categories</Button>
           <Button variant="outline" onClick={() => setCreating(true)}><Plus className="w-4 h-4" /> New idea</Button>
         </div>
       </div>
