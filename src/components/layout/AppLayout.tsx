@@ -64,7 +64,7 @@ const navGroups: NavGroup[] = [
 // Bottom-pinned items (always visible at the bottom of sidebar)
 const bottomNavItems: NavItem[] = [
   { path: "/assistant", icon: MessageCircle, label: "Assistant" },
-  { path: "/admin", icon: Shield, label: "Admin" },
+  { path: "/admin", icon: Shield, label: "Settings" },
   { path: "/settings", icon: UserIcon, label: "Profile" },
 ];
 
