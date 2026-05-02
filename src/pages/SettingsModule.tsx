@@ -100,7 +100,7 @@ export default function SettingsModule() {
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-3xl mx-auto">
-      <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Settings</h1>
+      <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Profile</h1>
 
       {/* Profile */}
       <div className="glass-card rounded-xl p-5">
