@@ -580,6 +580,7 @@ export type Database = {
           carbs_per_serving: number | null
           category: string
           created_at: string | null
+          created_by: string | null
           fat_g: number | null
           fat_per_serving: number | null
           fiber_g: number | null
@@ -600,6 +601,7 @@ export type Database = {
           carbs_per_serving?: number | null
           category: string
           created_at?: string | null
+          created_by?: string | null
           fat_g?: number | null
           fat_per_serving?: number | null
           fiber_g?: number | null
@@ -620,6 +622,7 @@ export type Database = {
           carbs_per_serving?: number | null
           category?: string
           created_at?: string | null
+          created_by?: string | null
           fat_g?: number | null
           fat_per_serving?: number | null
           fiber_g?: number | null
@@ -1830,57 +1833,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      user_profile: {
-        Row: {
-          created_at: string | null
-          date_of_birth: string | null
-          fasting_52_enabled: boolean | null
-          fasting_52_start_date: string | null
-          full_name: string | null
-          height_cm: number | null
-          id: string
-          name: string | null
-          openai_api_key: string | null
-          preferred_language: string | null
-          starting_weight_kg: number | null
-          target_weight_final_kg: number | null
-          target_weight_m1_kg: number | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          date_of_birth?: string | null
-          fasting_52_enabled?: boolean | null
-          fasting_52_start_date?: string | null
-          full_name?: string | null
-          height_cm?: number | null
-          id?: string
-          name?: string | null
-          openai_api_key?: string | null
-          preferred_language?: string | null
-          starting_weight_kg?: number | null
-          target_weight_final_kg?: number | null
-          target_weight_m1_kg?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          date_of_birth?: string | null
-          fasting_52_enabled?: boolean | null
-          fasting_52_start_date?: string | null
-          full_name?: string | null
-          height_cm?: number | null
-          id?: string
-          name?: string | null
-          openai_api_key?: string | null
-          preferred_language?: string | null
-          starting_weight_kg?: number | null
-          target_weight_final_kg?: number | null
-          target_weight_m1_kg?: number | null
-          user_id?: string | null
-        }
-        Relationships: []
       }
       water_logs: {
         Row: {
