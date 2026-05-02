@@ -6,6 +6,7 @@ import {
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
   Droplets, FolderKanban, CheckSquare, CalendarDays,
   PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList,
+  Shield, User as UserIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
@@ -63,7 +64,8 @@ const navGroups: NavGroup[] = [
 // Bottom-pinned items (always visible at the bottom of sidebar)
 const bottomNavItems: NavItem[] = [
   { path: "/assistant", icon: MessageCircle, label: "Assistant" },
-  { path: "/settings", icon: Settings, label: "Settings" },
+  { path: "/admin", icon: Shield, label: "Admin" },
+  { path: "/settings", icon: UserIcon, label: "Profile" },
 ];
 
 // Flat list for lookups

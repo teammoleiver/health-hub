@@ -19,6 +19,7 @@ import GoalsModule from "./pages/GoalsModule";
 import AssistantModule from "./pages/AssistantModule";
 import SleepModule from "./pages/SleepModule";
 import SettingsModule from "./pages/SettingsModule";
+import AdminPanel from "./pages/AdminPanel";
 import ProjectsModule from "./pages/ProjectsModule";
 import TasksModule from "./pages/TasksModule";
 import CalendarModule from "./pages/CalendarModule";
@@ -111,6 +112,7 @@ function AppRoutes() {
       <Route path="/content-studio" element={<ProtectedRoute><AppLayout><ContentStudioPage /></AppLayout></ProtectedRoute>} />
       <Route path="/content-planner" element={<ProtectedRoute><AppLayout><ContentPlannerPage /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsModule /></AppLayout></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute><AppLayout><AdminPanel /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
