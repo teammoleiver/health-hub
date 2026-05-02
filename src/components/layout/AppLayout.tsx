@@ -121,50 +121,50 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         style={{ background: "hsl(var(--sidebar-background))" }}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-sidebar-border">
+        <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-sidebar-border">
           <img
             src={syncvidaLogo}
             alt="Syncvida"
-            className="w-7 h-7 object-contain"
+            className="w-6 h-6 object-contain"
           />
           {sidebarOpen && (
-            <span className="text-sidebar-foreground font-display font-bold text-base">
+            <span className="text-sidebar-foreground font-display font-bold text-sm">
               Syncvida
             </span>
           )}
         </div>
 
         {/* Navigation groups */}
-        <nav className="flex-1 py-2 px-2 overflow-y-auto">
+        <nav className="flex-1 min-h-0 py-1 px-2 overflow-y-auto scrollbar-none">
           {navGroups.map((group, gi) => (
-            <div key={gi} className={gi > 0 ? "mt-3" : ""}>
+            <div key={gi} className={gi > 0 ? "mt-1.5" : ""}>
               {/* Group label */}
               {group.label && sidebarOpen && (
-                <div className="px-3 pt-2 pb-1.5">
-                  <span className="text-[10px] uppercase tracking-widest text-sidebar-foreground/40 font-semibold">
+                <div className="px-3 pt-1 pb-0.5">
+                  <span className="text-[9px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold">
                     {group.label}
                   </span>
                 </div>
               )}
               {/* Separator line for collapsed sidebar when group has label */}
               {group.label && !sidebarOpen && (
-                <div className="mx-3 my-2 border-t border-sidebar-border/50" />
+                <div className="mx-3 my-1.5 border-t border-sidebar-border/50" />
               )}
 
-              <div className="space-y-0.5">
+              <div className="space-y-[1px]">
                 {group.items.map((item) => {
                   const active = location.pathname === item.path;
                   return (
                     <Link
                       key={item.path}
                       to={item.path}
-                      className={`flex items-center gap-2.5 px-3 py-[7px] rounded-md transition-all text-[13px] ${
+                      className={`flex items-center gap-2.5 px-3 py-[5px] rounded-md transition-all text-[13px] leading-tight ${
                         active
                           ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
                           : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                       } ${!sidebarOpen ? "justify-center px-0" : ""}`}
                     >
-                      <item.icon className="w-[18px] h-[18px] shrink-0" />
+                      <item.icon className="w-[17px] h-[17px] shrink-0" />
                       {sidebarOpen && <span>{item.label}</span>}
                     </Link>
                   );
@@ -175,20 +175,20 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </nav>
 
         {/* Bottom-pinned: Assistant & Settings */}
-        <div className="px-2 pb-1 space-y-0.5">
+        <div className="px-2 pt-1.5 pb-1 space-y-[1px] border-t border-sidebar-border/50">
           {bottomNavItems.map((item) => {
             const active = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-2.5 px-3 py-[7px] rounded-md transition-all text-[13px] ${
+                className={`flex items-center gap-2.5 px-3 py-[5px] rounded-md transition-all text-[13px] leading-tight ${
                   active
                     ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
                     : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 } ${!sidebarOpen ? "justify-center px-0" : ""}`}
               >
-                <item.icon className="w-[18px] h-[18px] shrink-0" />
+                <item.icon className="w-[17px] h-[17px] shrink-0" />
                 {sidebarOpen && <span>{item.label}</span>}
               </Link>
             );
@@ -198,20 +198,20 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {/* Water progress widget */}
         <Link
           to="/nutrition"
-          className="mx-2 mb-1.5 p-2.5 rounded-lg bg-sidebar-accent/40 hover:bg-sidebar-accent/70 transition block"
+          className="mx-2 mt-1 mb-1 px-2.5 py-1.5 rounded-lg bg-sidebar-accent/40 hover:bg-sidebar-accent/70 transition block"
         >
           {sidebarOpen ? (
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Droplets className="w-3.5 h-3.5 text-blue-400" />
-                  <span className="text-[11px] font-medium text-sidebar-foreground/70">Water</span>
+                  <span className="text-[10px] font-medium text-sidebar-foreground/70">Water</span>
                 </div>
-                <span className={`text-[11px] font-bold ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/50"}`}>
+                <span className={`text-[10px] font-bold ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/50"}`}>
                   {(waterMl / 1000).toFixed(1)}L
                 </span>
               </div>
-              <div className="h-1 bg-sidebar-border rounded-full overflow-hidden">
+              <div className="h-[3px] bg-sidebar-border rounded-full overflow-hidden">
                 <motion.div
                   className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500"
                   initial={false}
@@ -229,10 +229,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </Link>
 
         {/* Footer */}
-        <div className="px-2 py-2 border-t border-sidebar-border flex items-center gap-1.5">
+        <div className="px-2 py-1 border-t border-sidebar-border flex items-center gap-1.5">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-sidebar-foreground/40 hover:text-sidebar-foreground p-1.5 rounded-md hover:bg-sidebar-accent transition"
+            className="text-sidebar-foreground/40 hover:text-sidebar-foreground p-1 rounded-md hover:bg-sidebar-accent transition"
             title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
             {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
@@ -240,7 +240,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {sidebarOpen && (
             <button
               onClick={() => setDark(!dark)}
-              className="text-sidebar-foreground/40 hover:text-sidebar-foreground p-1.5 rounded-md hover:bg-sidebar-accent transition ml-auto"
+              className="text-sidebar-foreground/40 hover:text-sidebar-foreground p-1 rounded-md hover:bg-sidebar-accent transition ml-auto"
               title={dark ? "Light mode" : "Dark mode"}
             >
               {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
