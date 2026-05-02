@@ -226,7 +226,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Provide templateName or subject+html" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const recipientEmail = to || claimsData.claims.email;
+    // Recipient is always the authenticated user — prevents abuse of SES identity
+    // for sending arbitrary phishing/spam to third parties. The `to` field is ignored.
+    void to;
+    const recipientEmail = claimsData.claims.email;
     if (!recipientEmail) {
       return new Response(JSON.stringify({ error: "No recipient email" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

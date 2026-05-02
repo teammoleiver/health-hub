@@ -1,9 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 
 const AVATAR_BUCKET = "health-records";
-const AVATAR_FOLDER = "avatars";
 const AVATAR_SIGNED_URL_TTL = 60 * 60 * 24 * 7;
 const AVATAR_EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
+
+// Avatars are stored under the user's own folder so the bucket's owner-scoped
+// RLS policy (path prefix == auth.uid()) allows reads/writes.
+const avatarFolderForUser = (userId: string) => `${userId}/avatars`;
 
 function appendCacheBuster(url: string) {
   return `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
@@ -21,7 +24,7 @@ function extractAvatarPath(value?: string | null) {
   if (!value) return null;
 
   const sanitized = value.split("?")[0];
-  if (sanitized.startsWith(`${AVATAR_FOLDER}/`)) return sanitized;
+  if (sanitized.includes("/avatars/")) return sanitized;
   if (!isHttpUrl(sanitized)) return null;
 
   try {
@@ -103,7 +106,9 @@ export async function resolveAvatarUrl({
   const storedPath = extractAvatarPath(storedAvatar);
   const candidatePaths = [
     ...(storedPath ? [storedPath] : []),
-    ...(userId ? AVATAR_EXTENSIONS.map((ext) => `${AVATAR_FOLDER}/${userId}.${ext}`) : []),
+    ...(userId
+      ? AVATAR_EXTENSIONS.map((ext) => `${avatarFolderForUser(userId)}/avatar.${ext}`)
+      : []),
   ].filter((path, index, allPaths) => !!path && allPaths.indexOf(path) === index);
 
   for (const path of candidatePaths) {
@@ -116,7 +121,7 @@ export async function resolveAvatarUrl({
 
 export async function uploadAvatar(file: File, userId: string) {
   const compressedAvatar = await compressAvatar(file);
-  const filePath = `${AVATAR_FOLDER}/${userId}.jpg`;
+  const filePath = `${avatarFolderForUser(userId)}/avatar.jpg`;
 
   const { error } = await supabase.storage
     .from(AVATAR_BUCKET)

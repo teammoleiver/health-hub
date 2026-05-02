@@ -21,20 +21,24 @@ export async function getUserProfile() {
   if (!uid) return null;
   const { data, error } = await supabase.from("user_profile").select("*").eq("user_id", uid).limit(1).maybeSingle();
   if (error && error.code !== "PGRST116") console.error("getUserProfile", error);
-  return data;
+  // Cast as any: legacy callers reference removed `openai_api_key` field; those code paths
+  // now gracefully no-op (the field is intentionally not stored in the DB).
+  return data as any;
 }
 
-export async function updateUserProfile(updates: TablesUpdate<"user_profile">) {
+export async function updateUserProfile(updates: Record<string, any>) {
   const uid = await getCurrentUserId();
   if (!uid) return null;
+  // Strip any attempt to write secrets that are no longer columns
+  const { openai_api_key: _omit, ...safeUpdates } = updates as Record<string, any>;
   const profile = await getUserProfile();
   if (!profile) {
     // Create if not exists
-    const { data, error } = await supabase.from("user_profile").insert({ ...updates, user_id: uid } as any).select().single();
+    const { data, error } = await supabase.from("user_profile").insert({ ...safeUpdates, user_id: uid } as any).select().single();
     if (error) console.error("createUserProfile", error);
     return data;
   }
-  const { data, error } = await supabase.from("user_profile").update(updates).eq("id", profile.id).select().single();
+  const { data, error } = await supabase.from("user_profile").update(safeUpdates as any).eq("id", profile.id).select().single();
   if (error) console.error("updateUserProfile", error);
   return data;
 }
