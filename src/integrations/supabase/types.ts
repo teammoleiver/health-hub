@@ -1834,6 +1834,54 @@ export type Database = {
           },
         ]
       }
+      user_profile: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          fasting_52_enabled: boolean | null
+          fasting_52_start_date: string | null
+          full_name: string | null
+          height_cm: number | null
+          id: string
+          name: string | null
+          preferred_language: string | null
+          starting_weight_kg: number | null
+          target_weight_final_kg: number | null
+          target_weight_m1_kg: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          fasting_52_enabled?: boolean | null
+          fasting_52_start_date?: string | null
+          full_name?: string | null
+          height_cm?: number | null
+          id?: string
+          name?: string | null
+          preferred_language?: string | null
+          starting_weight_kg?: number | null
+          target_weight_final_kg?: number | null
+          target_weight_m1_kg?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          fasting_52_enabled?: boolean | null
+          fasting_52_start_date?: string | null
+          full_name?: string | null
+          height_cm?: number | null
+          id?: string
+          name?: string | null
+          preferred_language?: string | null
+          starting_weight_kg?: number | null
+          target_weight_final_kg?: number | null
+          target_weight_m1_kg?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       water_logs: {
         Row: {
           created_at: string | null
