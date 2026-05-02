@@ -24,7 +24,7 @@ export default function AdminPanel() {
           <Shield className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Admin Panel</h1>
+          <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Settings</h1>
           <p className="text-xs md:text-sm text-muted-foreground">Centralized settings for every module in Syncvida.</p>
         </div>
       </header>
