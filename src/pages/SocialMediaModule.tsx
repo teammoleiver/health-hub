@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import {
   listSocialProfiles, createSocialProfile, updateSocialProfile, deleteSocialProfile,
-  bulkCreateSocialProfiles,
+  bulkCreateSocialProfiles, listExistingProfileUrls,
   listSocialPosts, createManualSocialPost, deleteSocialPost,
   listHotTopics, clusterHotTopics, deleteHotTopic,
   listContentPlan, createPlanEntry, updatePlanEntry, deletePlanEntry,
@@ -84,6 +84,7 @@ function ProfilesTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [importing, setImporting] = useState(false);
   const [detailProfile, setDetailProfile] = useState<any | null>(null);
+  const [importPreview, setImportPreview] = useState<{ rows: Array<Record<string, any>>; headers: string[]; mapped: Record<number, string> } | null>(null);
 
   const load = async () => { setLoading(true); setProfiles(await listSocialProfiles()); setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -154,16 +155,12 @@ function ProfilesTab() {
             <input type="file" accept=".csv,text/csv" className="hidden" onChange={async (e) => {
               const file = e.target.files?.[0]; e.currentTarget.value = "";
               if (!file) return;
-              setImporting(true);
               try {
                 const text = await file.text();
-                const rows = parseProfilesCsv(text);
-                if (!rows.length) { toast.error("No valid rows found"); return; }
-                const res = await bulkCreateSocialProfiles(rows);
-                toast.success(`Imported ${res.inserted} profile(s)${res.skipped ? ` · skipped ${res.skipped}` : ""}`);
-                load();
-              } catch (err: any) { toast.error(err?.message ?? "CSV import failed"); }
-              finally { setImporting(false); }
+                const parsed = parseProfilesCsvWithHeaders(text);
+                if (!parsed.rows.length) { toast.error("No data rows found"); return; }
+                setImportPreview(parsed);
+              } catch (err: any) { toast.error(err?.message ?? "CSV parse failed"); }
             }} />
           </label>
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
@@ -237,6 +234,23 @@ function ProfilesTab() {
       }
 
       <ProfileDetailDialog profile={detailProfile} onClose={() => setDetailProfile(null)} onSaved={() => { setDetailProfile(null); load(); }} />
+      <ImportPreviewDialog
+        preview={importPreview}
+        onClose={() => setImportPreview(null)}
+        onConfirm={async (rowsToImport) => {
+          setImporting(true);
+          try {
+            const res = await bulkCreateSocialProfiles(rowsToImport);
+            const parts = [`Imported ${res.inserted}`];
+            if (res.duplicates) parts.push(`${res.duplicates} duplicate(s) skipped`);
+            if (res.skipped) parts.push(`${res.skipped} invalid skipped`);
+            toast.success(parts.join(" · "));
+            setImportPreview(null);
+            load();
+          } catch (err: any) { toast.error(err?.message ?? "Import failed"); }
+          finally { setImporting(false); }
+        }}
+      />
     </section>
   );
 }
@@ -319,6 +333,173 @@ function parseProfilesCsv(text: string): Array<Record<string, any>> {
     if (row.full_name && !row.display_name) row.display_name = row.full_name;
     return row;
   }).filter((r) => r.profile_url);
+}
+
+function parseProfilesCsvWithHeaders(text: string): { rows: Array<Record<string, any>>; headers: string[]; mapped: Record<number, string> } {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
+  if (lines.length < 2) return { rows: [], headers: [], mapped: {} };
+  const headers = parseCsvLine(lines[0]).map((h) => h.trim());
+  const mapped: Record<number, string> = {};
+  headers.forEach((h, i) => {
+    const lower = h.toLowerCase();
+    const f = PROFILE_CSV_FIELDS.find((f) => f.label.toLowerCase() === lower || f.key === lower || (f.aliases ?? []).some((a) => a.toLowerCase() === lower));
+    if (f) mapped[i] = f.key;
+  });
+  const numeric = new Set(["num_followers", "profile_completeness_score", "decision_maker_score"]);
+  const rows = lines.slice(1).map((line) => {
+    const cells = parseCsvLine(line);
+    const row: Record<string, any> = {};
+    cells.forEach((v, i) => {
+      const k = mapped[i]; if (!k) return;
+      const val = v.trim(); if (!val) return;
+      row[k] = numeric.has(k) ? Number(val) : val;
+    });
+    if (row.full_name && !row.display_name) row.display_name = row.full_name;
+    return row;
+  });
+  return { rows, headers, mapped };
+}
+
+function ImportPreviewDialog({ preview, onClose, onConfirm }: {
+  preview: { rows: Array<Record<string, any>>; headers: string[]; mapped: Record<number, string> } | null;
+  onClose: () => void;
+  onConfirm: (rows: Array<Record<string, any>>) => void;
+}) {
+  const [existingUrls, setExistingUrls] = useState<Set<string>>(new Set());
+  const [excluded, setExcluded] = useState<Set<number>>(new Set());
+  const [ignoreDupes, setIgnoreDupes] = useState(true);
+
+  useEffect(() => {
+    setExcluded(new Set()); setExistingUrls(new Set());
+    if (!preview) return;
+    const urls = preview.rows.map((r) => r.profile_url).filter(Boolean);
+    listExistingProfileUrls(urls).then((u) => setExistingUrls(new Set(u)));
+  }, [preview]);
+
+  if (!preview) return null;
+
+  const seenInFile = new Map<string, number>();
+  const issues = preview.rows.map((r, idx) => {
+    const list: string[] = [];
+    if (!r.profile_url) list.push("Missing LinkedIn URL");
+    else {
+      try { new URL(r.profile_url); } catch { list.push("Invalid URL"); }
+      const prev = seenInFile.get(r.profile_url);
+      if (prev !== undefined) list.push(`Duplicate of row ${prev + 1}`);
+      else seenInFile.set(r.profile_url, idx);
+      if (existingUrls.has(r.profile_url)) list.push("Already in your list");
+    }
+    if (!r.full_name && !r.display_name && !r.first_name) list.push("No name");
+    return list;
+  });
+
+  const mappedFields = Array.from(new Set(Object.values(preview.mapped)));
+  const unmapped = preview.headers.filter((_, i) => !preview.mapped[i]);
+  const errorCount = issues.filter((i) => i.some((x) => x.startsWith("Missing") || x.startsWith("Invalid"))).length;
+  const dupeCount = issues.filter((i) => i.some((x) => x.startsWith("Duplicate") || x.startsWith("Already"))).length;
+
+  const finalRows = preview.rows.filter((_, i) => {
+    if (excluded.has(i)) return false;
+    const issueList = issues[i];
+    if (issueList.some((x) => x.startsWith("Missing") || x.startsWith("Invalid"))) return false;
+    if (!ignoreDupes && issueList.some((x) => x.startsWith("Duplicate") || x.startsWith("Already"))) return false;
+    return true;
+  });
+
+  return (
+    <Dialog open={!!preview} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Review CSV import · {preview.rows.length} rows</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <Card className="p-3">
+            <p className="text-xs font-medium mb-2">Field mapping</p>
+            <div className="flex flex-wrap gap-1">
+              {mappedFields.map((k) => {
+                const f = PROFILE_CSV_FIELDS.find((f) => f.key === k);
+                return <Badge key={k} variant="secondary" className="text-[10px]">✓ {f?.label ?? k}</Badge>;
+              })}
+              {unmapped.map((h) => <Badge key={h} variant="outline" className="text-[10px] text-muted-foreground">⊘ {h} (ignored)</Badge>)}
+            </div>
+          </Card>
+
+          <div className="flex flex-wrap gap-3 items-center text-xs">
+            <Badge variant={errorCount ? "destructive" : "secondary"}>{errorCount} error(s)</Badge>
+            <Badge variant={dupeCount ? "default" : "secondary"}>{dupeCount} duplicate(s)</Badge>
+            <Badge variant="secondary">{finalRows.length} will import</Badge>
+            <label className="flex items-center gap-2 ml-auto">
+              <Switch checked={ignoreDupes} onCheckedChange={setIgnoreDupes} />
+              <span>Ignore duplicates (skip)</span>
+            </label>
+          </div>
+
+          {(errorCount > 0 || dupeCount > 0) && (
+            <Card className="p-3 bg-muted/40">
+              <p className="text-xs font-medium mb-1">Suggestions</p>
+              <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                {errorCount > 0 && <li>Fix or remove rows with missing/invalid LinkedIn URLs (rows are auto-skipped).</li>}
+                {dupeCount > 0 && <li>Toggle "Ignore duplicates" off to block them, or leave on to skip silently.</li>}
+                <li>Use the trash icon below to manually exclude any specific row.</li>
+              </ul>
+            </Card>
+          )}
+
+          <div className="border border-border rounded-lg overflow-x-auto max-h-[40vh]">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40 sticky top-0">
+                <tr>
+                  <th className="text-left px-2 py-1">#</th>
+                  <th className="text-left px-2 py-1">Name</th>
+                  <th className="text-left px-2 py-1">LinkedIn URL</th>
+                  <th className="text-left px-2 py-1">Company</th>
+                  <th className="text-left px-2 py-1">Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.rows.map((r, i) => {
+                  const issueList = issues[i];
+                  const isExcluded = excluded.has(i);
+                  const hasError = issueList.some((x) => x.startsWith("Missing") || x.startsWith("Invalid"));
+                  return (
+                    <tr key={i} className={`border-t border-border ${isExcluded ? "opacity-40" : ""}`}>
+                      <td className="px-2 py-1">{i + 1}</td>
+                      <td className="px-2 py-1">{r.full_name || r.display_name || [r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}</td>
+                      <td className="px-2 py-1 truncate max-w-[200px]">{r.profile_url || "—"}</td>
+                      <td className="px-2 py-1">{r.company || "—"}</td>
+                      <td className="px-2 py-1">
+                        {issueList.length === 0
+                          ? <Badge variant="secondary" className="text-[10px]">OK</Badge>
+                          : issueList.map((x, j) => (
+                              <Badge key={j} variant={hasError ? "destructive" : "outline"} className="text-[10px] mr-1">{x}</Badge>
+                            ))}
+                      </td>
+                      <td className="px-2 py-1">
+                        <Button size="sm" variant="ghost" onClick={() => {
+                          setExcluded((s) => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n; });
+                        }}>
+                          {isExcluded ? <Check className="w-3 h-3" /> : <Trash2 className="w-3 h-3 text-destructive" />}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button disabled={!finalRows.length} onClick={() => onConfirm(finalRows)}>
+              Import {finalRows.length} profile(s)
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | null; onClose: () => void; onSaved: () => void }) {
