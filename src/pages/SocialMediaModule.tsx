@@ -297,8 +297,8 @@ function ProfilesTab() {
 
       {loading ? <div className="text-center py-12 text-muted-foreground"><Loader2 className="w-6 h-6 mx-auto animate-spin" /></div> :
         filtered.length === 0 ? <Card className="p-8 text-center text-muted-foreground">No profiles yet. Add a LinkedIn URL to start tracking.</Card> :
-        <div className="border border-border rounded-lg overflow-x-auto">
-          <table className="w-full text-sm table-fixed">
+        <div className="border border-border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide">
               <tr>
                 <th className="w-8 px-2 py-2">
