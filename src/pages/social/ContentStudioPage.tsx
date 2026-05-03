@@ -559,25 +559,46 @@ function CatChip({ label, active, onClick }: { label: string; active: boolean; o
 }
 
 function ChatBubble({ msg, onIngest }: { msg: ChatMsg; onIngest: (idea: any, sourceCat?: string) => void }) {
-  const ideas = msg.payload?.ideas as any[] | undefined;
+  const allIdeas = msg.payload?.ideas as any[] | undefined;
   const combined = msg.payload?.combined as string | undefined;
+  const [dismissed, setDismissed] = useState<Set<number>>(new Set());
+  const [hidden, setHidden] = useState(false);
+  const ideas = allIdeas?.map((idea, i) => ({ idea, i })).filter(({ i }) => !dismissed.has(i));
+  if (hidden) return null;
   return (
     <div className={`rounded-md p-2 ${msg.role === "user" ? "bg-primary/10" : "bg-muted/60"}`}>
-      <div className="text-xs uppercase text-muted-foreground mb-1">{msg.role}{msg.action_kind ? ` · ${msg.action_kind}` : ""}</div>
+      <div className="text-xs uppercase text-muted-foreground mb-1 flex items-center justify-between">
+        <span>{msg.role}{msg.action_kind ? ` · ${msg.action_kind}` : ""}</span>
+        {msg.role !== "user" && (
+          <button onClick={() => setHidden(true)} className="text-muted-foreground hover:text-foreground" title="Dismiss">
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </div>
       <div className="whitespace-pre-wrap">{msg.content}</div>
       {combined && <div className="mt-2 p-2 rounded bg-background border border-border whitespace-pre-wrap text-xs">{combined}</div>}
       {ideas && ideas.length > 0 && (
         <div className="mt-2 space-y-2">
-          {ideas.map((idea, i) => (
+          {ideas.map(({ idea, i }) => (
             <div key={i} className="p-2 rounded bg-background border border-border flex items-start justify-between gap-2">
               <div className="text-xs">
                 <div className="font-semibold">{idea.title}</div>
                 {idea.hook && <div className="text-muted-foreground">{idea.hook}</div>}
                 {idea.source_url && <a href={idea.source_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 mt-1"><ExternalLink className="w-3 h-3" />source</a>}
               </div>
-              <Button size="sm" variant="outline" onClick={() => onIngest(idea)}><Check className="w-3 h-3" /> Add</Button>
+              <div className="flex gap-1 shrink-0">
+                <Button size="sm" variant="outline" onClick={() => { onIngest(idea); setDismissed((s) => new Set(s).add(i)); }}>
+                  <Check className="w-3 h-3" /> Add
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setDismissed((s) => new Set(s).add(i))} title="Reject">
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
           ))}
+          {allIdeas && ideas.length === 0 && (
+            <div className="text-xs text-muted-foreground italic">All ideas dismissed.</div>
+          )}
         </div>
       )}
     </div>
