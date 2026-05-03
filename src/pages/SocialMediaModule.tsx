@@ -394,14 +394,19 @@ function ProfilesTab() {
       <ImportPreviewDialog
         preview={importPreview}
         onClose={() => setImportPreview(null)}
-        onConfirm={async (rowsToImport) => {
+        onConfirm={async (rowsToImport, mode) => {
           setImporting(true);
           try {
-            const res = await bulkCreateSocialProfiles(rowsToImport);
-            const parts = [`Imported ${res.inserted}`];
-            if (res.duplicates) parts.push(`${res.duplicates} duplicate(s) skipped`);
-            if (res.skipped) parts.push(`${res.skipped} invalid skipped`);
-            toast.success(parts.join(" · "));
+            if (mode === "merge") {
+              const res = await bulkMergeBlankSocialProfiles(rowsToImport);
+              toast.success(`Merged: ${res.updated} updated · ${res.unchanged} already complete · ${res.notFound} not in list`);
+            } else {
+              const res = await bulkCreateSocialProfiles(rowsToImport);
+              const parts = [`Imported ${res.inserted}`];
+              if (res.duplicates) parts.push(`${res.duplicates} duplicate(s) skipped`);
+              if (res.skipped) parts.push(`${res.skipped} invalid skipped`);
+              toast.success(parts.join(" · "));
+            }
             setImportPreview(null);
             load();
           } catch (err: any) { toast.error(err?.message ?? "Import failed"); }
