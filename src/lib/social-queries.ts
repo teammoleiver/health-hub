@@ -40,11 +40,11 @@ export async function bulkCreateSocialProfiles(rows: Array<Record<string, any>>)
   if (!valid.length) return { inserted: 0, skipped: rows.length, duplicates: 0 };
 
   // Check existing URLs to compute duplicates
-  const urls = valid.map((r) => r.profile_url);
+  const urls = valid.map((r: any) => r.profile_url);
   const { data: existing } = await supabase.from("social_profiles" as any)
     .select("profile_url").eq("user_id", u).in("profile_url", urls);
   const existingSet = new Set(((existing as any[]) ?? []).map((r) => r.profile_url));
-  const fresh = valid.filter((r) => !existingSet.has(r.profile_url));
+  const fresh = valid.filter((r: any) => !existingSet.has(r.profile_url));
   const duplicates = valid.length - fresh.length;
   if (!fresh.length) return { inserted: 0, skipped: rows.length - valid.length, duplicates };
 
