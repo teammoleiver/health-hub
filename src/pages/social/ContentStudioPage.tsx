@@ -14,6 +14,7 @@ import {
   listContentItems, createContentItem, updateContentItem, deleteContentItem,
   seedContentLibrary, contentStudioAI, listContentChatMessages, pushIdeasToPlanner,
   updateContentCategory, bulkUpdateContentItems, bulkDeleteContentItems,
+  createPlannerPost, PLANNER_PLATFORMS,
 } from "@/lib/social-queries";
 
 type Cat = { id: string; name: string; slug: string; color?: string };
@@ -58,6 +59,7 @@ export default function ContentStudioPage() {
   const [creating, setCreating] = useState(false);
   const [managingCats, setManagingCats] = useState(false);
   const [bulkEditing, setBulkEditing] = useState(false);
+  const [planning, setPlanning] = useState<Item | null>(null);
 
   // sort + pagination
   const [sortKey, setSortKey] = useState<SortKey>("title");
@@ -337,6 +339,7 @@ export default function ContentStudioPage() {
                   <td className="p-2 align-top">
                     <div className="flex gap-1">
                       {it.source_url && <a href={it.source_url} target="_blank" rel="noreferrer" className="p-1 hover:text-primary" title="Open"><ExternalLink className="w-4 h-4" /></a>}
+                      <button className="p-1 hover:text-primary" onClick={() => setPlanning(it)} title="Send to Content Planner"><Calendar className="w-4 h-4" /></button>
                       <button className="p-1 hover:text-primary" onClick={() => setEditing(it)} title="Edit"><Pencil className="w-4 h-4" /></button>
                       <button className="p-1 hover:text-destructive" onClick={async () => { if (confirm("Delete this item?")) { await deleteContentItem(it.id); refresh(); } }} title="Delete"><Trash2 className="w-4 h-4" /></button>
                     </div>
@@ -389,6 +392,8 @@ export default function ContentStudioPage() {
           }}
         />
       )}
+
+      {planning && <SendToPlannerDialog item={planning} onClose={() => setPlanning(null)} onSent={() => setPlanning(null)} />}
     </div>
   );
 }
