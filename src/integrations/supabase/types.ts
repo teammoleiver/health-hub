@@ -1390,71 +1390,131 @@ export type Database = {
         Row: {
           active: boolean
           apify_actor_id: string | null
+          certifications_summary: string | null
           company: string | null
+          company_domain: string | null
+          company_industries: string | null
+          company_size: string | null
+          country: string | null
           created_at: string
+          decision_maker_score: number | null
           display_name: string | null
+          education_summary: string | null
+          email: string | null
+          enrich_person_summary: string | null
+          first_name: string | null
           followers: number | null
+          full_name: string | null
+          gtm_relevance: string | null
           id: string
           info_summary: string | null
           is_self: boolean
+          job_category: string | null
+          job_title: string | null
+          last_name: string | null
           last_scrape_error: string | null
           last_scrape_status: string | null
           last_scraped_at: string | null
+          linkedin_activity_level: string | null
           location: string | null
           notes: string | null
+          num_followers: number | null
+          profile_completeness_score: number | null
           profile_url: string
           scrape_cadence: string
+          shared_background: string | null
           tags: string[] | null
           title: string | null
           updated_at: string
           user_id: string
           username: string | null
+          work_experience_summary: string | null
         }
         Insert: {
           active?: boolean
           apify_actor_id?: string | null
+          certifications_summary?: string | null
           company?: string | null
+          company_domain?: string | null
+          company_industries?: string | null
+          company_size?: string | null
+          country?: string | null
           created_at?: string
+          decision_maker_score?: number | null
           display_name?: string | null
+          education_summary?: string | null
+          email?: string | null
+          enrich_person_summary?: string | null
+          first_name?: string | null
           followers?: number | null
+          full_name?: string | null
+          gtm_relevance?: string | null
           id?: string
           info_summary?: string | null
           is_self?: boolean
+          job_category?: string | null
+          job_title?: string | null
+          last_name?: string | null
           last_scrape_error?: string | null
           last_scrape_status?: string | null
           last_scraped_at?: string | null
+          linkedin_activity_level?: string | null
           location?: string | null
           notes?: string | null
+          num_followers?: number | null
+          profile_completeness_score?: number | null
           profile_url: string
           scrape_cadence?: string
+          shared_background?: string | null
           tags?: string[] | null
           title?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
+          work_experience_summary?: string | null
         }
         Update: {
           active?: boolean
           apify_actor_id?: string | null
+          certifications_summary?: string | null
           company?: string | null
+          company_domain?: string | null
+          company_industries?: string | null
+          company_size?: string | null
+          country?: string | null
           created_at?: string
+          decision_maker_score?: number | null
           display_name?: string | null
+          education_summary?: string | null
+          email?: string | null
+          enrich_person_summary?: string | null
+          first_name?: string | null
           followers?: number | null
+          full_name?: string | null
+          gtm_relevance?: string | null
           id?: string
           info_summary?: string | null
           is_self?: boolean
+          job_category?: string | null
+          job_title?: string | null
+          last_name?: string | null
           last_scrape_error?: string | null
           last_scrape_status?: string | null
           last_scraped_at?: string | null
+          linkedin_activity_level?: string | null
           location?: string | null
           notes?: string | null
+          num_followers?: number | null
+          profile_completeness_score?: number | null
           profile_url?: string
           scrape_cadence?: string
+          shared_background?: string | null
           tags?: string[] | null
           title?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null
+          work_experience_summary?: string | null
         }
         Relationships: []
       }

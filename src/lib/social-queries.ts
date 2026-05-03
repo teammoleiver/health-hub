@@ -15,6 +15,7 @@ export async function createSocialProfile(p: {
   profile_url: string; username?: string; display_name?: string; company?: string;
   location?: string; title?: string; info_summary?: string; followers?: number;
   scrape_cadence?: string; apify_actor_id?: string; tags?: string[];
+  [key: string]: any;
 }) {
   const u = await uid(); if (!u) return null;
   const username = p.username || (() => {
@@ -23,6 +24,23 @@ export async function createSocialProfile(p: {
   const { data, error } = await supabase.from("social_profiles" as any).insert({ ...p, username, user_id: u } as any).select().single();
   if (error) throw error;
   return data;
+}
+
+export async function bulkCreateSocialProfiles(rows: Array<Record<string, any>>) {
+  const u = await uid(); if (!u) return { inserted: 0, skipped: 0 };
+  const valid = rows
+    .filter((r) => r.profile_url && String(r.profile_url).trim())
+    .map((r) => {
+      let username = r.username;
+      if (!username) {
+        try { username = new URL(r.profile_url).pathname.split("/").filter(Boolean).pop() ?? ""; } catch { username = ""; }
+      }
+      return { ...r, username, user_id: u };
+    });
+  if (!valid.length) return { inserted: 0, skipped: rows.length };
+  const { data, error } = await supabase.from("social_profiles" as any).insert(valid as any).select("id");
+  if (error) throw error;
+  return { inserted: (data as any[])?.length ?? 0, skipped: rows.length - valid.length };
 }
 export async function updateSocialProfile(id: string, updates: Record<string, any>) {
   const { data, error } = await supabase.from("social_profiles" as any).update(updates).eq("id", id).select().single();
