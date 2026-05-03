@@ -108,6 +108,45 @@ export async function bulkUpdateSocialProfiles(ids: string[], updates: Record<st
   return updated;
 }
 
+// Merge-only: for each row matched by profile_url, fill ONLY columns that are
+// currently null/empty on the existing record. Never overwrites existing data.
+export async function bulkMergeBlankSocialProfiles(rows: Array<Record<string, any>>) {
+  const u = await uid(); if (!u) return { updated: 0, unchanged: 0, notFound: 0 };
+  const urls = rows.map((r) => r.profile_url).filter(Boolean) as string[];
+  if (!urls.length) return { updated: 0, unchanged: 0, notFound: 0 };
+
+  // Fetch existing rows
+  const CHUNK = 200;
+  const existing: any[] = [];
+  for (let i = 0; i < urls.length; i += CHUNK) {
+    const part = urls.slice(i, i + CHUNK);
+    const { data } = await supabase.from("social_profiles" as any)
+      .select("*").eq("user_id", u).in("profile_url", part);
+    existing.push(...((data as any[]) ?? []));
+  }
+  const byUrl = new Map<string, any>(existing.map((r) => [r.profile_url, r]));
+
+  let updated = 0, unchanged = 0, notFound = 0;
+  for (const row of rows) {
+    const cur = byUrl.get(row.profile_url);
+    if (!cur) { notFound++; continue; }
+    const patch: Record<string, any> = {};
+    for (const [k, v] of Object.entries(row)) {
+      if (k === "profile_url" || k === "user_id" || k === "id" || k === "username") continue;
+      if (v === null || v === undefined || v === "") continue;
+      const existingVal = cur[k];
+      const isEmpty = existingVal === null || existingVal === undefined || existingVal === "" ||
+        (typeof existingVal === "number" && Number.isNaN(existingVal));
+      if (isEmpty) patch[k] = v;
+    }
+    if (Object.keys(patch).length === 0) { unchanged++; continue; }
+    const { error } = await supabase.from("social_profiles" as any).update(patch).eq("id", cur.id);
+    if (error) throw error;
+    updated++;
+  }
+  return { updated, unchanged, notFound };
+}
+
 export async function bulkDeleteSocialProfiles(ids: string[]) {
   if (!ids.length) return 0;
   const CHUNK = 200;
