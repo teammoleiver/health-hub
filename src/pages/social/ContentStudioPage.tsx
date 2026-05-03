@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Sparkles, Search, Plus, Trash2, Pencil, Globe, Lightbulb, Combine, Send, Loader2, ExternalLink, Filter, Check, Settings2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, Search, Plus, Trash2, Pencil, Globe, Lightbulb, Combine, Send, Loader2, ExternalLink, Filter, Check, Settings2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, X, Calendar } from "lucide-react";
 import {
   listContentCategories, createContentCategory, deleteContentCategory,
   listContentItems, createContentItem, updateContentItem, deleteContentItem,
@@ -23,7 +23,7 @@ type Item = {
   key_topics: string | null; course_name: string | null; course_description: string | null;
   lesson_number: number | null; creator: string | null; published_label: string | null;
   target_platforms: string[] | null; status: string; item_type: string; origin: string;
-  notes: string | null;
+  notes: string | null; created_at?: string;
 };
 type ChatMsg = { id: string; role: string; content: string; action_kind: string | null; payload: any };
 
@@ -32,7 +32,7 @@ const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 const STATUSES = ["idea", "in_progress", "scripted", "published"];
 const PAGE_SIZE = 25;
 
-type SortKey = "title" | "category_name" | "level" | "duration" | "status";
+type SortKey = "title" | "category_name" | "level" | "duration" | "status" | "created_at";
 type SortDir = "asc" | "desc";
 
 export default function ContentStudioPage() {
@@ -42,6 +42,7 @@ export default function ContentStudioPage() {
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState<string>("");
   const [platformFilter, setPlatformFilter] = useState<string>("");
+  const [originFilter, setOriginFilter] = useState<string>("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
@@ -95,6 +96,9 @@ export default function ContentStudioPage() {
       if (activeCat && i.category_id !== activeCat) return false;
       if (levelFilter && i.level !== levelFilter) return false;
       if (platformFilter && !(i.target_platforms ?? []).includes(platformFilter)) return false;
+      if (originFilter === "brainstorm" && i.origin !== "ai") return false;
+      if (originFilter === "web_search" && i.origin !== "web_search") return false;
+      if (originFilter === "manual" && !["manual", "seed"].includes(i.origin)) return false;
       if (search) {
         const s = search.toLowerCase();
         if (!`${i.title} ${i.key_topics ?? ""} ${i.course_name ?? ""} ${i.creator ?? ""}`.toLowerCase().includes(s)) return false;
@@ -108,9 +112,9 @@ export default function ContentStudioPage() {
       return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * dir;
     });
     return out;
-  }, [items, activeCat, levelFilter, platformFilter, search, sortKey, sortDir]);
+  }, [items, activeCat, levelFilter, platformFilter, originFilter, search, sortKey, sortDir]);
 
-  useEffect(() => { setPage(1); }, [activeCat, levelFilter, platformFilter, search, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [activeCat, levelFilter, platformFilter, originFilter, search, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageStart = (page - 1) * PAGE_SIZE;
@@ -188,7 +192,7 @@ export default function ContentStudioPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -265,6 +269,15 @@ export default function ContentStudioPage() {
             {PLATFORMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={originFilter || "all"} onValueChange={(v) => setOriginFilter(v === "all" ? "" : v)}>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Source" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All sources</SelectItem>
+            <SelectItem value="brainstorm">🧠 Brainstorm (AI)</SelectItem>
+            <SelectItem value="web_search">🌐 Web search</SelectItem>
+            <SelectItem value="manual">✍️ Manual / seed</SelectItem>
+          </SelectContent>
+        </Select>
         <span className="text-xs text-muted-foreground">{filtered.length} shown · {selected.size} selected</span>
         {selected.size > 0 && (
           <div className="flex gap-2 ml-auto">
@@ -290,13 +303,14 @@ export default function ContentStudioPage() {
                 <SortHeader label="Duration" k="duration" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className="p-2">Platforms</th>
                 <SortHeader label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Added" k="created_at" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className="p-2 w-28"></th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
+              {loading && <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
               {!loading && pageItems.length === 0 && (
-                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">
+                <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">
                   {items.length === 0 ? "Empty library — click 'Seed starter library' to import 557 lessons from your catalog." : "No items match these filters."}
                 </td></tr>
               )}
@@ -304,7 +318,11 @@ export default function ContentStudioPage() {
                 <tr key={it.id} className="border-t border-border hover:bg-muted/30">
                   <td className="p-2"><input type="checkbox" checked={selected.has(it.id)} onChange={() => toggleSelect(it.id)} /></td>
                   <td className="p-2 align-top">
-                    <div className="font-medium">{it.title}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      {it.title}
+                      {it.origin === "ai" && <Badge variant="secondary" className="text-[10px]">brainstorm</Badge>}
+                      {it.origin === "web_search" && <Badge variant="secondary" className="text-[10px]">web</Badge>}
+                    </div>
                     {it.key_topics && <div className="text-xs text-muted-foreground line-clamp-2">{it.key_topics}</div>}
                     {it.creator && <div className="text-xs text-muted-foreground">by {it.creator}</div>}
                   </td>
@@ -313,6 +331,9 @@ export default function ContentStudioPage() {
                   <td className="p-2 align-top text-xs">{it.duration ?? "—"}</td>
                   <td className="p-2 align-top text-xs">{(it.target_platforms ?? []).join(", ") || "—"}</td>
                   <td className="p-2 align-top"><Badge variant="outline" className="text-xs">{it.status}</Badge></td>
+                  <td className="p-2 align-top text-xs text-muted-foreground whitespace-nowrap">
+                    {it.created_at ? new Date(it.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—"}
+                  </td>
                   <td className="p-2 align-top">
                     <div className="flex gap-1">
                       {it.source_url && <a href={it.source_url} target="_blank" rel="noreferrer" className="p-1 hover:text-primary" title="Open"><ExternalLink className="w-4 h-4" /></a>}
@@ -538,25 +559,46 @@ function CatChip({ label, active, onClick }: { label: string; active: boolean; o
 }
 
 function ChatBubble({ msg, onIngest }: { msg: ChatMsg; onIngest: (idea: any, sourceCat?: string) => void }) {
-  const ideas = msg.payload?.ideas as any[] | undefined;
+  const allIdeas = msg.payload?.ideas as any[] | undefined;
   const combined = msg.payload?.combined as string | undefined;
+  const [dismissed, setDismissed] = useState<Set<number>>(new Set());
+  const [hidden, setHidden] = useState(false);
+  const ideas = allIdeas?.map((idea, i) => ({ idea, i })).filter(({ i }) => !dismissed.has(i));
+  if (hidden) return null;
   return (
     <div className={`rounded-md p-2 ${msg.role === "user" ? "bg-primary/10" : "bg-muted/60"}`}>
-      <div className="text-xs uppercase text-muted-foreground mb-1">{msg.role}{msg.action_kind ? ` · ${msg.action_kind}` : ""}</div>
+      <div className="text-xs uppercase text-muted-foreground mb-1 flex items-center justify-between">
+        <span>{msg.role}{msg.action_kind ? ` · ${msg.action_kind}` : ""}</span>
+        {msg.role !== "user" && (
+          <button onClick={() => setHidden(true)} className="text-muted-foreground hover:text-foreground" title="Dismiss">
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </div>
       <div className="whitespace-pre-wrap">{msg.content}</div>
       {combined && <div className="mt-2 p-2 rounded bg-background border border-border whitespace-pre-wrap text-xs">{combined}</div>}
       {ideas && ideas.length > 0 && (
         <div className="mt-2 space-y-2">
-          {ideas.map((idea, i) => (
+          {ideas.map(({ idea, i }) => (
             <div key={i} className="p-2 rounded bg-background border border-border flex items-start justify-between gap-2">
               <div className="text-xs">
                 <div className="font-semibold">{idea.title}</div>
                 {idea.hook && <div className="text-muted-foreground">{idea.hook}</div>}
                 {idea.source_url && <a href={idea.source_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 mt-1"><ExternalLink className="w-3 h-3" />source</a>}
               </div>
-              <Button size="sm" variant="outline" onClick={() => onIngest(idea)}><Check className="w-3 h-3" /> Add</Button>
+              <div className="flex gap-1 shrink-0">
+                <Button size="sm" variant="outline" onClick={() => { onIngest(idea); setDismissed((s) => new Set(s).add(i)); }}>
+                  <Check className="w-3 h-3" /> Add
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setDismissed((s) => new Set(s).add(i))} title="Reject">
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
           ))}
+          {allIdeas && ideas.length === 0 && (
+            <div className="text-xs text-muted-foreground italic">All ideas dismissed.</div>
+          )}
         </div>
       )}
     </div>
