@@ -27,7 +27,7 @@ export async function createSocialProfile(p: {
 }
 
 export async function bulkCreateSocialProfiles(rows: Array<Record<string, any>>) {
-  const u = await uid(); if (!u) return { inserted: 0, skipped: 0 };
+  const u = await uid(); if (!u) return { inserted: 0, skipped: 0, duplicates: 0 };
   const valid = rows
     .filter((r) => r.profile_url && String(r.profile_url).trim())
     .map((r) => {
@@ -37,10 +37,29 @@ export async function bulkCreateSocialProfiles(rows: Array<Record<string, any>>)
       }
       return { ...r, username, user_id: u };
     });
-  if (!valid.length) return { inserted: 0, skipped: rows.length };
-  const { data, error } = await supabase.from("social_profiles" as any).insert(valid as any).select("id");
+  if (!valid.length) return { inserted: 0, skipped: rows.length, duplicates: 0 };
+
+  // Check existing URLs to compute duplicates
+  const urls = valid.map((r) => r.profile_url);
+  const { data: existing } = await supabase.from("social_profiles" as any)
+    .select("profile_url").eq("user_id", u).in("profile_url", urls);
+  const existingSet = new Set(((existing as any[]) ?? []).map((r) => r.profile_url));
+  const fresh = valid.filter((r) => !existingSet.has(r.profile_url));
+  const duplicates = valid.length - fresh.length;
+  if (!fresh.length) return { inserted: 0, skipped: rows.length - valid.length, duplicates };
+
+  const { data, error } = await supabase.from("social_profiles" as any)
+    .upsert(fresh as any, { onConflict: "user_id,profile_url", ignoreDuplicates: true })
+    .select("id");
   if (error) throw error;
-  return { inserted: (data as any[])?.length ?? 0, skipped: rows.length - valid.length };
+  return { inserted: (data as any[])?.length ?? 0, skipped: rows.length - valid.length, duplicates };
+}
+
+export async function listExistingProfileUrls(urls: string[]): Promise<string[]> {
+  const u = await uid(); if (!u || !urls.length) return [];
+  const { data } = await supabase.from("social_profiles" as any)
+    .select("profile_url").eq("user_id", u).in("profile_url", urls);
+  return ((data as any[]) ?? []).map((r) => r.profile_url);
 }
 export async function updateSocialProfile(id: string, updates: Record<string, any>) {
   const { data, error } = await supabase.from("social_profiles" as any).update(updates).eq("id", id).select().single();
