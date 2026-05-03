@@ -84,6 +84,7 @@ function ProfilesTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [importing, setImporting] = useState(false);
   const [detailProfile, setDetailProfile] = useState<any | null>(null);
+  const [importPreview, setImportPreview] = useState<{ rows: Array<Record<string, any>>; headers: string[]; mapped: Record<number, string> } | null>(null);
 
   const load = async () => { setLoading(true); setProfiles(await listSocialProfiles()); setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -154,16 +155,12 @@ function ProfilesTab() {
             <input type="file" accept=".csv,text/csv" className="hidden" onChange={async (e) => {
               const file = e.target.files?.[0]; e.currentTarget.value = "";
               if (!file) return;
-              setImporting(true);
               try {
                 const text = await file.text();
-                const rows = parseProfilesCsv(text);
-                if (!rows.length) { toast.error("No valid rows found"); return; }
-                const res = await bulkCreateSocialProfiles(rows);
-                toast.success(`Imported ${res.inserted} profile(s)${res.skipped ? ` · skipped ${res.skipped}` : ""}`);
-                load();
-              } catch (err: any) { toast.error(err?.message ?? "CSV import failed"); }
-              finally { setImporting(false); }
+                const parsed = parseProfilesCsvWithHeaders(text);
+                if (!parsed.rows.length) { toast.error("No data rows found"); return; }
+                setImportPreview(parsed);
+              } catch (err: any) { toast.error(err?.message ?? "CSV parse failed"); }
             }} />
           </label>
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
@@ -237,6 +234,23 @@ function ProfilesTab() {
       }
 
       <ProfileDetailDialog profile={detailProfile} onClose={() => setDetailProfile(null)} onSaved={() => { setDetailProfile(null); load(); }} />
+      <ImportPreviewDialog
+        preview={importPreview}
+        onClose={() => setImportPreview(null)}
+        onConfirm={async (rowsToImport) => {
+          setImporting(true);
+          try {
+            const res = await bulkCreateSocialProfiles(rowsToImport);
+            const parts = [`Imported ${res.inserted}`];
+            if (res.duplicates) parts.push(`${res.duplicates} duplicate(s) skipped`);
+            if (res.skipped) parts.push(`${res.skipped} invalid skipped`);
+            toast.success(parts.join(" · "));
+            setImportPreview(null);
+            load();
+          } catch (err: any) { toast.error(err?.message ?? "Import failed"); }
+          finally { setImporting(false); }
+        }}
+      />
     </section>
   );
 }
