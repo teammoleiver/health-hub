@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity } from "lucide-react";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import {
   listSocialProfiles, createSocialProfile, updateSocialProfile, deleteSocialProfile,
+  bulkCreateSocialProfiles,
   listSocialPosts, createManualSocialPost, deleteSocialPost,
   listHotTopics, clusterHotTopics, deleteHotTopic,
   listContentPlan, createPlanEntry, updatePlanEntry, deletePlanEntry,
