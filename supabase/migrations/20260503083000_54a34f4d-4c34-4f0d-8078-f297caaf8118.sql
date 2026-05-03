@@ -1,0 +1,1 @@
+UPDATE public.content_items SET created_at = now();
