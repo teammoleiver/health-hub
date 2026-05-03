@@ -209,3 +209,82 @@ function CategoriesAdmin() {
     </div>
   );
 }
+const PLATFORM_ICONS: Record<string, any> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, twitter: Twitter, youtube: Youtube };
+const DEFAULT_TEMPLATE = {
+  platform: "{{platform}}",
+  hook: "{{hook}}",
+  body: "{{body}}",
+  image_url: "{{image_url}}",
+  scheduled_at: "{{scheduled_at}}",
+  plan_id: "{{plan_id}}",
+};
+
+function WebhooksAdmin() {
+  const [rows, setRows] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  async function refresh() {
+    setLoading(true);
+    const list = await listWebhookSettings();
+    const map: Record<string, any> = {};
+    for (const p of PLANNER_PLATFORMS) {
+      const found = (list as any[]).find((r) => r.platform === p);
+      map[p] = found ?? { platform: p, webhook_url: "", json_template: DEFAULT_TEMPLATE, active: true };
+      map[p].__template_str = JSON.stringify(map[p].json_template ?? DEFAULT_TEMPLATE, null, 2);
+    }
+    setRows(map);
+    setLoading(false);
+  }
+  useEffect(() => { refresh(); }, []);
+
+  async function save(platform: string) {
+    const r = rows[platform];
+    let parsed: any = DEFAULT_TEMPLATE;
+    try { parsed = r.__template_str ? JSON.parse(r.__template_str) : DEFAULT_TEMPLATE; }
+    catch { toast.error("JSON template is invalid"); return; }
+    setSaving(platform);
+    try {
+      await upsertWebhookSetting({ platform: platform as any, webhook_url: r.webhook_url || null, json_template: parsed, active: r.active });
+      toast.success(`${platform} saved`);
+      await refresh();
+    } catch (e: any) { toast.error(e?.message ?? "Save failed"); } finally { setSaving(null); }
+  }
+
+  if (loading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>;
+
+  return (
+    <div className="space-y-5">
+      {PLANNER_PLATFORMS.map((p) => {
+        const Ic = PLATFORM_ICONS[p];
+        const r = rows[p] ?? {};
+        return (
+          <div key={p} className="border border-border rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-medium capitalize"><Ic className="w-4 h-4" /> {p}</div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Active</span>
+                <Switch checked={!!r.active} onCheckedChange={(v) => setRows({ ...rows, [p]: { ...r, active: v } })} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Webhook URL</Label>
+              <Input placeholder="https://hooks.zapier.com/... or https://n8n.example.com/webhook/..."
+                value={r.webhook_url ?? ""} onChange={(e) => setRows({ ...rows, [p]: { ...r, webhook_url: e.target.value } })} />
+            </div>
+            <div>
+              <Label className="text-xs">JSON payload template</Label>
+              <Textarea rows={8} className="font-mono text-xs"
+                value={r.__template_str ?? ""} onChange={(e) => setRows({ ...rows, [p]: { ...r, __template_str: e.target.value } })} />
+            </div>
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => save(p)} disabled={saving === p}>
+                {saving === p ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Save {p}
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
