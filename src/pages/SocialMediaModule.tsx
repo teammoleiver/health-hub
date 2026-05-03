@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import {
   listSocialProfiles, createSocialProfile, updateSocialProfile, deleteSocialProfile,
-  bulkCreateSocialProfiles,
+  bulkCreateSocialProfiles, listExistingProfileUrls,
   listSocialPosts, createManualSocialPost, deleteSocialPost,
   listHotTopics, clusterHotTopics, deleteHotTopic,
   listContentPlan, createPlanEntry, updatePlanEntry, deletePlanEntry,
