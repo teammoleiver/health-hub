@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import {
   listSocialProfiles, createSocialProfile, updateSocialProfile, deleteSocialProfile,
-  bulkCreateSocialProfiles, listExistingProfileUrls, bulkUpdateSocialProfiles, bulkDeleteSocialProfiles,
+  bulkCreateSocialProfiles, listExistingProfileUrls, bulkUpdateSocialProfiles, bulkDeleteSocialProfiles, bulkMergeBlankSocialProfiles,
   listSocialPosts, createManualSocialPost, deleteSocialPost,
   listHotTopics, clusterHotTopics, deleteHotTopic,
   listContentPlan, createPlanEntry, updatePlanEntry, deletePlanEntry,
@@ -394,14 +394,19 @@ function ProfilesTab() {
       <ImportPreviewDialog
         preview={importPreview}
         onClose={() => setImportPreview(null)}
-        onConfirm={async (rowsToImport) => {
+        onConfirm={async (rowsToImport, mode) => {
           setImporting(true);
           try {
-            const res = await bulkCreateSocialProfiles(rowsToImport);
-            const parts = [`Imported ${res.inserted}`];
-            if (res.duplicates) parts.push(`${res.duplicates} duplicate(s) skipped`);
-            if (res.skipped) parts.push(`${res.skipped} invalid skipped`);
-            toast.success(parts.join(" · "));
+            if (mode === "merge") {
+              const res = await bulkMergeBlankSocialProfiles(rowsToImport);
+              toast.success(`Merged: ${res.updated} updated · ${res.unchanged} already complete · ${res.notFound} not in list`);
+            } else {
+              const res = await bulkCreateSocialProfiles(rowsToImport);
+              const parts = [`Imported ${res.inserted}`];
+              if (res.duplicates) parts.push(`${res.duplicates} duplicate(s) skipped`);
+              if (res.skipped) parts.push(`${res.skipped} invalid skipped`);
+              toast.success(parts.join(" · "));
+            }
             setImportPreview(null);
             load();
           } catch (err: any) { toast.error(err?.message ?? "Import failed"); }
@@ -520,11 +525,12 @@ function parseProfilesCsvWithHeaders(text: string): { rows: Array<Record<string,
 function ImportPreviewDialog({ preview, onClose, onConfirm }: {
   preview: { rows: Array<Record<string, any>>; headers: string[]; mapped: Record<number, string> } | null;
   onClose: () => void;
-  onConfirm: (rows: Array<Record<string, any>>) => void;
+  onConfirm: (rows: Array<Record<string, any>>, mode: "create" | "merge") => void;
 }) {
   const [existingUrls, setExistingUrls] = useState<Set<string>>(new Set());
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [ignoreDupes, setIgnoreDupes] = useState(true);
+  const [mode, setMode] = useState<"create" | "merge">("create");
 
   useEffect(() => {
     setExcluded(new Set()); setExistingUrls(new Set());
@@ -559,9 +565,13 @@ function ImportPreviewDialog({ preview, onClose, onConfirm }: {
     if (excluded.has(i)) return false;
     const issueList = issues[i];
     if (issueList.some((x) => x.startsWith("Missing") || x.startsWith("Invalid"))) return false;
-    if (!ignoreDupes && issueList.some((x) => x.startsWith("Duplicate") || x.startsWith("Already"))) return false;
+    if (mode === "create" && !ignoreDupes && issueList.some((x) => x.startsWith("Duplicate") || x.startsWith("Already"))) return false;
     return true;
   });
+  // In merge mode, only rows already in the list make sense
+  const rowsForMode = mode === "merge"
+    ? finalRows.filter((r) => existingUrls.has(r.profile_url))
+    : finalRows;
 
   return (
     <Dialog open={!!preview} onOpenChange={(o) => !o && onClose()}>
@@ -585,12 +595,30 @@ function ImportPreviewDialog({ preview, onClose, onConfirm }: {
           <div className="flex flex-wrap gap-3 items-center text-xs">
             <Badge variant={errorCount ? "destructive" : "secondary"}>{errorCount} error(s)</Badge>
             <Badge variant={dupeCount ? "default" : "secondary"}>{dupeCount} duplicate(s)</Badge>
-            <Badge variant="secondary">{finalRows.length} will import</Badge>
-            <label className="flex items-center gap-2 ml-auto">
-              <Switch checked={ignoreDupes} onCheckedChange={setIgnoreDupes} />
-              <span>Ignore duplicates (skip)</span>
-            </label>
+            <Badge variant="secondary">{rowsForMode.length} will {mode === "merge" ? "merge" : "import"}</Badge>
+            <div className="flex items-center gap-3 ml-auto">
+              <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
+                <button type="button" onClick={() => setMode("create")} className={`px-2 py-1 text-xs rounded ${mode === "create" ? "bg-primary text-primary-foreground" : ""}`}>Create new</button>
+                <button type="button" onClick={() => setMode("merge")} className={`px-2 py-1 text-xs rounded ${mode === "merge" ? "bg-primary text-primary-foreground" : ""}`}>Merge into existing</button>
+              </div>
+              {mode === "create" && (
+                <label className="flex items-center gap-2">
+                  <Switch checked={ignoreDupes} onCheckedChange={setIgnoreDupes} />
+                  <span>Ignore duplicates</span>
+                </label>
+              )}
+            </div>
           </div>
+
+          {mode === "merge" && (
+            <Card className="p-3 bg-muted/40">
+              <p className="text-xs text-muted-foreground">
+                <strong>Merge mode:</strong> matches rows by LinkedIn URL and only fills fields that are currently empty
+                on existing profiles. Existing values are never overwritten. Use this to enrich the ~840 profiles that
+                are missing followers, country, scores, or summaries.
+              </p>
+            </Card>
+          )}
 
           {(errorCount > 0 || dupeCount > 0) && (
             <Card className="p-3 bg-muted/40">
@@ -649,8 +677,8 @@ function ImportPreviewDialog({ preview, onClose, onConfirm }: {
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button disabled={!finalRows.length} onClick={() => onConfirm(finalRows)}>
-              Import {finalRows.length} profile(s)
+            <Button disabled={!rowsForMode.length} onClick={() => onConfirm(rowsForMode, mode)}>
+              {mode === "merge" ? `Merge ${rowsForMode.length} profile(s)` : `Import ${rowsForMode.length} profile(s)`}
             </Button>
           </div>
         </div>
