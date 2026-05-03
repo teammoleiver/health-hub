@@ -82,12 +82,14 @@ function ProfilesTab() {
   const [scrapingAll, setScrapingAll] = useState(false);
   const [rotatingId, setRotatingId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [detailProfile, setDetailProfile] = useState<any | null>(null);
 
   const load = async () => { setLoading(true); setProfiles(await listSocialProfiles()); setLoading(false); };
   useEffect(() => { load(); }, []);
 
   const filtered = profiles.filter((p) =>
-    !search || [p.username, p.display_name, p.company, p.location, p.profile_url, p.title].some((f) => (f ?? "").toString().toLowerCase().includes(search.toLowerCase()))
+    !search || [p.username, p.display_name, p.full_name, p.first_name, p.last_name, p.company, p.location, p.profile_url, p.title, p.job_title, p.email, p.company_domain].some((f) => (f ?? "").toString().toLowerCase().includes(search.toLowerCase()))
   );
 
   const runOne = async (id: string) => {
@@ -139,6 +141,31 @@ function ProfilesTab() {
             {scrapingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
             Run All Active
           </Button>
+          <Button variant="outline" onClick={() => downloadCsvTemplate()}>
+            <Download className="w-4 h-4 mr-2" />Template
+          </Button>
+          <label className="inline-flex">
+            <Button variant="outline" asChild disabled={importing}>
+              <span className="cursor-pointer">
+                {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                Import CSV
+              </span>
+            </Button>
+            <input type="file" accept=".csv,text/csv" className="hidden" onChange={async (e) => {
+              const file = e.target.files?.[0]; e.currentTarget.value = "";
+              if (!file) return;
+              setImporting(true);
+              try {
+                const text = await file.text();
+                const rows = parseProfilesCsv(text);
+                if (!rows.length) { toast.error("No valid rows found"); return; }
+                const res = await bulkCreateSocialProfiles(rows);
+                toast.success(`Imported ${res.inserted} profile(s)${res.skipped ? ` · skipped ${res.skipped}` : ""}`);
+                load();
+              } catch (err: any) { toast.error(err?.message ?? "CSV import failed"); }
+              finally { setImporting(false); }
+            }} />
+          </label>
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
             <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-2" />Add Profile</Button></DialogTrigger>
             <AddProfileDialog onCreated={() => { setShowAdd(false); load(); }} />
@@ -154,10 +181,12 @@ function ProfilesTab() {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide">
               <tr>
-                <th className="text-left px-3 py-2 font-medium">LinkedIn URL</th>
                 <th className="text-left px-3 py-2 font-medium">Name</th>
+                <th className="text-left px-3 py-2 font-medium">Job Title</th>
                 <th className="text-left px-3 py-2 font-medium">Company</th>
-                <th className="text-left px-3 py-2 font-medium">Location</th>
+                <th className="text-left px-3 py-2 font-medium">GTM</th>
+                <th className="text-left px-3 py-2 font-medium">DM Score</th>
+                <th className="text-left px-3 py-2 font-medium">URL</th>
                 <th className="text-left px-3 py-2 font-medium">Cadence</th>
                 <th className="text-left px-3 py-2 font-medium">Last Scrape</th>
                 <th className="text-left px-3 py-2 font-medium">Active</th>
@@ -166,15 +195,17 @@ function ProfilesTab() {
             </thead>
             <tbody>
               {filtered.map((p) => (
-                <tr key={p.id} className="border-t border-border hover:bg-muted/20">
-                  <td className="px-3 py-2"><a href={p.profile_url} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate max-w-[180px] inline-flex items-center gap-1">{p.username || p.profile_url.slice(-24)} <ArrowUpRight className="w-3 h-3" /></a></td>
-                  <td className="px-3 py-2 font-medium">{p.display_name || "—"}</td>
-                  <td className="px-3 py-2">{p.company || "—"}</td>
-                  <td className="px-3 py-2">{p.location || "—"}</td>
+                <tr key={p.id} className="border-t border-border hover:bg-muted/20 cursor-pointer" onClick={() => setDetailProfile(p)}>
+                  <td className="px-3 py-2 font-medium">{p.full_name || p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}</td>
+                  <td className="px-3 py-2">{p.job_title || p.title || "—"}</td>
+                  <td className="px-3 py-2">{p.company || "—"}{p.company_domain && <span className="block text-[10px] text-muted-foreground">{p.company_domain}</span>}</td>
+                  <td className="px-3 py-2">{p.gtm_relevance ? <Badge variant="secondary" className="text-[10px]">{p.gtm_relevance}</Badge> : "—"}</td>
+                  <td className="px-3 py-2 text-xs">{p.decision_maker_score ?? "—"}</td>
+                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}><a href={p.profile_url} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate max-w-[140px] inline-flex items-center gap-1">{p.username || p.profile_url.slice(-20)} <ArrowUpRight className="w-3 h-3" /></a></td>
                   <td className="px-3 py-2">
                     <Select value={p.scrape_cadence ?? "daily"} onValueChange={async (v) => { await updateSocialProfile(p.id, { scrape_cadence: v }); load(); }}>
                       <SelectTrigger className="h-7 w-[100px] text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
+                      <SelectContent onClick={(e) => e.stopPropagation()}>
                         <SelectItem value="off">Off</SelectItem>
                         <SelectItem value="daily">Daily</SelectItem>
                         <SelectItem value="weekly">Weekly</SelectItem>
@@ -185,8 +216,8 @@ function ProfilesTab() {
                     {p.last_scraped_at ? new Date(p.last_scraped_at).toLocaleString() : "—"}
                     {p.last_scrape_status === "error" && <Badge variant="destructive" className="ml-1 text-[10px]">err</Badge>}
                   </td>
-                  <td className="px-3 py-2"><Switch checked={p.active} onCheckedChange={async (v) => { await updateSocialProfile(p.id, { active: v }); load(); }} /></td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}><Switch checked={p.active} onCheckedChange={async (v) => { await updateSocialProfile(p.id, { active: v }); load(); }} /></td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <Button size="sm" variant="ghost" onClick={() => runOne(p.id)} disabled={scrapingId === p.id}>
                       {scrapingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                     </Button>
@@ -204,7 +235,133 @@ function ProfilesTab() {
           </table>
         </div>
       }
+
+      <ProfileDetailDialog profile={detailProfile} onClose={() => setDetailProfile(null)} onSaved={() => { setDetailProfile(null); load(); }} />
     </section>
+  );
+}
+
+// ───────── CSV helpers + Detail dialog ─────────
+const PROFILE_CSV_FIELDS: Array<{ key: string; label: string; aliases?: string[] }> = [
+  { key: "full_name", label: "Full Name" },
+  { key: "first_name", label: "First Name" },
+  { key: "last_name", label: "Last Name" },
+  { key: "job_title", label: "Job Title", aliases: ["title"] },
+  { key: "job_category", label: "Job Category" },
+  { key: "gtm_relevance", label: "GTM Relevance" },
+  { key: "company", label: "Company" },
+  { key: "company_domain", label: "Company Domain" },
+  { key: "profile_url", label: "LinkedIn URL", aliases: ["linkedin", "url"] },
+  { key: "location", label: "Location" },
+  { key: "email", label: "Email" },
+  { key: "company_industries", label: "Company Industries" },
+  { key: "company_size", label: "Company Size" },
+  { key: "enrich_person_summary", label: "Enrich person Summary", aliases: ["summary", "person summary"] },
+  { key: "num_followers", label: "Num Followers", aliases: ["followers"] },
+  { key: "country", label: "Country" },
+  { key: "profile_completeness_score", label: "Profile Completeness Score" },
+  { key: "shared_background", label: "Shared Background" },
+  { key: "linkedin_activity_level", label: "LinkedIn Activity Level" },
+  { key: "decision_maker_score", label: "Decision-Maker Score" },
+  { key: "work_experience_summary", label: "Work Experience Summary" },
+  { key: "education_summary", label: "Education Summary" },
+  { key: "certifications_summary", label: "Certifications Summary" },
+];
+
+function downloadCsvTemplate() {
+  const headers = PROFILE_CSV_FIELDS.map((f) => f.label);
+  const csv = headers.join(",") + "\n";
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "linkedin-profiles-template.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function parseCsvLine(line: string): string[] {
+  const out: string[] = []; let cur = ""; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) {
+      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') q = false;
+      else cur += c;
+    } else {
+      if (c === ',') { out.push(cur); cur = ""; }
+      else if (c === '"') q = true;
+      else cur += c;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function parseProfilesCsv(text: string): Array<Record<string, any>> {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
+  if (lines.length < 2) return [];
+  const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+  const headerMap: Record<number, string> = {};
+  headers.forEach((h, i) => {
+    const f = PROFILE_CSV_FIELDS.find((f) => f.label.toLowerCase() === h || f.key === h || (f.aliases ?? []).some((a) => a.toLowerCase() === h));
+    if (f) headerMap[i] = f.key;
+  });
+  const numeric = new Set(["num_followers", "profile_completeness_score", "decision_maker_score"]);
+  return lines.slice(1).map((line) => {
+    const cells = parseCsvLine(line);
+    const row: Record<string, any> = {};
+    cells.forEach((v, i) => {
+      const k = headerMap[i]; if (!k) return;
+      const val = v.trim();
+      if (!val) return;
+      row[k] = numeric.has(k) ? Number(val) : val;
+    });
+    if (row.full_name && !row.display_name) row.display_name = row.full_name;
+    return row;
+  }).filter((r) => r.profile_url);
+}
+
+function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | null; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState<Record<string, any>>({});
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setForm(profile ?? {}); }, [profile]);
+  if (!profile) return null;
+  const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
+  return (
+    <Dialog open={!!profile} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{form.full_name || form.display_name || form.username || "Profile"}</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {PROFILE_CSV_FIELDS.map((f) => {
+            const isLong = ["enrich_person_summary", "shared_background", "work_experience_summary", "education_summary", "certifications_summary"].includes(f.key);
+            return (
+              <div key={f.key} className={isLong ? "md:col-span-2" : ""}>
+                <label className="text-xs font-medium">{f.label}</label>
+                {isLong
+                  ? <Textarea value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} rows={3} />
+                  : <Input value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button disabled={busy} onClick={async () => {
+            setBusy(true);
+            try {
+              const updates: Record<string, any> = {};
+              PROFILE_CSV_FIELDS.forEach((f) => { updates[f.key] = form[f.key] === "" ? null : form[f.key]; });
+              await updateSocialProfile(profile.id, updates);
+              toast.success("Profile updated");
+              onSaved();
+            } catch (e: any) { toast.error(e?.message ?? "Save failed"); }
+            finally { setBusy(false); }
+          }}>{busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Save</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
