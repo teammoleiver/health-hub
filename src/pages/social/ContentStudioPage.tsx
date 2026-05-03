@@ -687,3 +687,69 @@ function ItemEditor({ item, cats, onClose, onSaved }: { item: Item | null; cats:
     </Dialog>
   );
 }
+function SendToPlannerDialog({ item, onClose, onSent }: { item: Item; onClose: () => void; onSent: () => void }) {
+  const today = new Date();
+  const dflt = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+  const initialPlatforms = (item.target_platforms?.length ? item.target_platforms : ["youtube"]) as string[];
+  const [date, setDate] = useState(dflt);
+  const [time, setTime] = useState("09:00");
+  const [platforms, setPlatforms] = useState<string[]>(initialPlatforms);
+  const [status, setStatus] = useState("scheduled");
+  const [busy, setBusy] = useState(false);
+  function toggle(p: string) { setPlatforms((cur) => cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]); }
+  async function send() {
+    if (!platforms.length) { toast.error("Pick at least one platform"); return; }
+    setBusy(true);
+    try {
+      await createPlannerPost({
+        hook: item.title,
+        body: item.key_topics ?? item.notes ?? "",
+        scheduled_date: date, scheduled_time: time + ":00",
+        platforms, status,
+        source_kind: "content_studio", source_content_item_id: item.id,
+      });
+      toast.success(`Scheduled in Planner for ${date} ${time}`);
+      onSent();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
+  }
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Send to Content Planner</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="text-sm font-medium">{item.title}</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+            <div><Label>Time</Label><Input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></div>
+          </div>
+          <div>
+            <Label>Platforms</Label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {PLANNER_PLATFORMS.map((p) => (
+                <button key={p} type="button" onClick={() => toggle(p)}
+                  className={`px-3 py-1 text-xs rounded-full border capitalize ${platforms.includes(p) ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="planned">planned (no auto-post)</SelectItem>
+                <SelectItem value="scheduled">scheduled (auto-post at date/time)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">Scheduled posts fire to your platform webhooks (configure in Settings → Webhooks).</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={send} disabled={busy}>{busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Send to Planner</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
