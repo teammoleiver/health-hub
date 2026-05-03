@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import {
   listSocialProfiles, createSocialProfile, updateSocialProfile, deleteSocialProfile,
-  bulkCreateSocialProfiles, listExistingProfileUrls,
+  bulkCreateSocialProfiles, listExistingProfileUrls, bulkUpdateSocialProfiles, bulkDeleteSocialProfiles,
   listSocialPosts, createManualSocialPost, deleteSocialPost,
   listHotTopics, clusterHotTopics, deleteHotTopic,
   listContentPlan, createPlanEntry, updatePlanEntry, deletePlanEntry,
@@ -89,6 +89,8 @@ function ProfilesTab() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = async () => { setLoading(true); setProfiles(await listSocialProfiles()); setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -123,6 +125,7 @@ function ProfilesTab() {
   const paged = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   useEffect(() => { setPage(1); }, [search, sortKey, sortDir]);
+  useEffect(() => { setSelectedIds(new Set()); }, [search]);
 
   const toggleSort = (key: string) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -137,6 +140,34 @@ function ProfilesTab() {
       </button>
     </th>
   );
+
+  const pageIds = paged.map((p: any) => p.id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+  const someOnPageSelected = pageIds.some((id) => selectedIds.has(id));
+  const togglePageSelection = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+  const toggleRowSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const runBulk = async (label: string, fn: () => Promise<any>) => {
+    setBulkBusy(true);
+    try { await fn(); toast.success(label); setSelectedIds(new Set()); load(); }
+    catch (err: any) { toast.error(err?.message ?? "Bulk action failed"); }
+    finally { setBulkBusy(false); }
+  };
+  const selectAllFiltered = () => setSelectedIds(new Set(sorted.map((p: any) => p.id)));
+  const clearSelection = () => setSelectedIds(new Set());
 
   const runOne = async (id: string) => {
     setScrapingId(id);
@@ -215,6 +246,31 @@ function ProfilesTab() {
         </div>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+          <span className="font-medium">{selectedIds.size} selected</span>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={selectAllFiltered}>Select all {sorted.length}</Button>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={clearSelection}>Clear</Button>
+          <span className="mx-1 text-muted-foreground">·</span>
+          <span className="text-muted-foreground">Cadence:</span>
+          <Select onValueChange={(v) => runBulk(`Cadence set to ${v}`, () => bulkUpdateSocialProfiles(Array.from(selectedIds), { scrape_cadence: v }))}>
+            <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue placeholder="Set…" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="off">Never (Off)</SelectItem>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={bulkBusy} onClick={() => runBulk("Activated", () => bulkUpdateSocialProfiles(Array.from(selectedIds), { active: true }))}>Activate</Button>
+          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={bulkBusy} onClick={() => runBulk("Deactivated", () => bulkUpdateSocialProfiles(Array.from(selectedIds), { active: false }))}>Deactivate</Button>
+          <Button size="sm" variant="destructive" className="h-7 text-xs" disabled={bulkBusy} onClick={() => {
+            if (!confirm(`Delete ${selectedIds.size} profile(s)? This cannot be undone.`)) return;
+            runBulk("Deleted", () => bulkDeleteSocialProfiles(Array.from(selectedIds)));
+          }}>Delete</Button>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{filtered.length} profile{filtered.length === 1 ? "" : "s"}{search ? ` (filtered from ${profiles.length})` : ""}</span>
         <div className="flex items-center gap-2">
@@ -245,13 +301,22 @@ function ProfilesTab() {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide">
               <tr>
+                <th className="w-8 px-2 py-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Select page"
+                    checked={allOnPageSelected}
+                    ref={(el) => { if (el) el.indeterminate = !allOnPageSelected && someOnPageSelected; }}
+                    onChange={togglePageSelection}
+                    className="cursor-pointer"
+                  />
+                </th>
                 <SortHeader k="name" label="Name" />
                 <SortHeader k="job_title" label="Job Title" />
                 <SortHeader k="company" label="Company" />
                 <SortHeader k="gtm_relevance" label="GTM" />
                 <SortHeader k="num_followers" label="Followers" />
                 <SortHeader k="decision_maker_score" label="DM Score" />
-                <th className="text-left px-3 py-2 font-medium">URL</th>
                 <SortHeader k="scrape_cadence" label="Cadence" />
                 <SortHeader k="last_scraped_at" label="Last Scrape" />
                 <SortHeader k="active" label="Active" />
@@ -261,20 +326,30 @@ function ProfilesTab() {
             <tbody>
               {paged.map((p) => (
                 <tr key={p.id} className="border-t border-border hover:bg-muted/20 cursor-pointer" onClick={() => setDetailProfile(p)}>
-                  <td className="px-3 py-2 font-medium">{p.full_name || p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}</td>
-                  <td className="px-3 py-2">{p.job_title || p.title || "—"}</td>
-                  <td className="px-3 py-2">{p.company || "—"}{p.company_domain && <span className="block text-[10px] text-muted-foreground">{p.company_domain}</span>}</td>
+                  <td className="px-2 py-2 w-8" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleRowSelection(p.id)} className="cursor-pointer" />
+                  </td>
+                  <td className="px-3 py-2 font-medium truncate">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="truncate">{p.full_name || p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}</span>
+                      <a href={p.profile_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-primary shrink-0" title={p.profile_url}>
+                        <ArrowUpRight className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 truncate">{p.job_title || p.title || "—"}</td>
+                  <td className="px-3 py-2 truncate">{p.company || "—"}{p.company_domain && <span className="block text-[10px] text-muted-foreground truncate">{p.company_domain}</span>}</td>
                   <td className="px-3 py-2">{p.gtm_relevance ? <Badge variant="secondary" className="text-[10px]">{p.gtm_relevance}</Badge> : "—"}</td>
                   <td className="px-3 py-2 text-xs tabular-nums">{typeof p.num_followers === "number" ? p.num_followers.toLocaleString() : "—"}</td>
                   <td className="px-3 py-2 text-xs">{p.decision_maker_score ?? "—"}</td>
-                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}><a href={p.profile_url} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate max-w-[140px] inline-flex items-center gap-1">{p.username || p.profile_url.slice(-20)} <ArrowUpRight className="w-3 h-3" /></a></td>
                   <td className="px-3 py-2">
                     <Select value={p.scrape_cadence ?? "daily"} onValueChange={async (v) => { await updateSocialProfile(p.id, { scrape_cadence: v }); load(); }}>
                       <SelectTrigger className="h-7 w-[100px] text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent onClick={(e) => e.stopPropagation()}>
-                        <SelectItem value="off">Off</SelectItem>
+                        <SelectItem value="off">Never</SelectItem>
                         <SelectItem value="daily">Daily</SelectItem>
                         <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
                       </SelectContent>
                     </Select>
                   </td>

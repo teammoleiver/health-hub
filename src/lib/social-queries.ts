@@ -8,8 +8,22 @@ async function uid(): Promise<string | null> {
 // ── Profiles ──
 export async function listSocialProfiles() {
   const u = await uid(); if (!u) return [];
-  const { data } = await supabase.from("social_profiles" as any).select("*").eq("user_id", u).order("created_at", { ascending: false });
-  return (data as any[]) ?? [];
+  // Paginate past Supabase's default 1000-row cap
+  const PAGE = 1000;
+  const all: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("social_profiles" as any)
+      .select("*")
+      .eq("user_id", u)
+      .order("created_at", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) break;
+    const batch = (data as any[]) ?? [];
+    all.push(...batch);
+    if (batch.length < PAGE) break;
+  }
+  return all;
 }
 export async function createSocialProfile(p: {
   profile_url: string; username?: string; display_name?: string; company?: string;
@@ -39,27 +53,72 @@ export async function bulkCreateSocialProfiles(rows: Array<Record<string, any>>)
     });
   if (!valid.length) return { inserted: 0, skipped: rows.length, duplicates: 0 };
 
-  // Check existing URLs to compute duplicates
+  // Check existing URLs to compute duplicates (chunked to avoid URL length limits)
   const urls = valid.map((r: any) => r.profile_url);
-  const { data: existing } = await supabase.from("social_profiles" as any)
-    .select("profile_url").eq("user_id", u).in("profile_url", urls);
-  const existingSet = new Set(((existing as any[]) ?? []).map((r) => r.profile_url));
+  const existingSet = new Set<string>();
+  const CHUNK = 200;
+  for (let i = 0; i < urls.length; i += CHUNK) {
+    const part = urls.slice(i, i + CHUNK);
+    const { data: existing } = await supabase.from("social_profiles" as any)
+      .select("profile_url").eq("user_id", u).in("profile_url", part);
+    ((existing as any[]) ?? []).forEach((r) => existingSet.add(r.profile_url));
+  }
   const fresh = valid.filter((r: any) => !existingSet.has(r.profile_url));
   const duplicates = valid.length - fresh.length;
   if (!fresh.length) return { inserted: 0, skipped: rows.length - valid.length, duplicates };
 
-  const { data, error } = await supabase.from("social_profiles" as any)
-    .upsert(fresh as any, { onConflict: "user_id,profile_url", ignoreDuplicates: true })
-    .select("id");
-  if (error) throw error;
-  return { inserted: (data as any[])?.length ?? 0, skipped: rows.length - valid.length, duplicates };
+  // Insert in batches of 500 to stay within edge/timeout limits
+  const BATCH_SIZE = 500;
+  let inserted = 0;
+  for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
+    const batch = fresh.slice(i, i + BATCH_SIZE);
+    const { data, error } = await supabase.from("social_profiles" as any)
+      .upsert(batch as any, { onConflict: "user_id,profile_url", ignoreDuplicates: true })
+      .select("id");
+    if (error) throw error;
+    inserted += (data as any[])?.length ?? 0;
+  }
+  return { inserted, skipped: rows.length - valid.length, duplicates };
 }
 
 export async function listExistingProfileUrls(urls: string[]): Promise<string[]> {
   const u = await uid(); if (!u || !urls.length) return [];
-  const { data } = await supabase.from("social_profiles" as any)
-    .select("profile_url").eq("user_id", u).in("profile_url", urls);
-  return ((data as any[]) ?? []).map((r) => r.profile_url);
+  const out: string[] = [];
+  const CHUNK = 200;
+  for (let i = 0; i < urls.length; i += CHUNK) {
+    const part = urls.slice(i, i + CHUNK);
+    const { data } = await supabase.from("social_profiles" as any)
+      .select("profile_url").eq("user_id", u).in("profile_url", part);
+    ((data as any[]) ?? []).forEach((r) => out.push(r.profile_url));
+  }
+  return out;
+}
+
+export async function bulkUpdateSocialProfiles(ids: string[], updates: Record<string, any>) {
+  if (!ids.length) return 0;
+  const CHUNK = 200;
+  let updated = 0;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const part = ids.slice(i, i + CHUNK);
+    const { data, error } = await supabase.from("social_profiles" as any)
+      .update(updates).in("id", part).select("id");
+    if (error) throw error;
+    updated += (data as any[])?.length ?? 0;
+  }
+  return updated;
+}
+
+export async function bulkDeleteSocialProfiles(ids: string[]) {
+  if (!ids.length) return 0;
+  const CHUNK = 200;
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const part = ids.slice(i, i + CHUNK);
+    const { error } = await supabase.from("social_profiles" as any).delete().in("id", part);
+    if (error) throw error;
+    deleted += part.length;
+  }
+  return deleted;
 }
 export async function updateSocialProfile(id: string, updates: Record<string, any>) {
   const { data, error } = await supabase.from("social_profiles" as any).update(updates).eq("id", id).select().single();
