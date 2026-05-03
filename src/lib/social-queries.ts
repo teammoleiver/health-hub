@@ -393,3 +393,33 @@ export async function pushIdeasToPlanner(ideas: Array<{ title: string; hook?: st
   const { data, error } = await supabase.from("social_content_plan" as any).insert(rows as any).select();
   if (error) throw error; return data;
 }
+
+// ── Webhook settings (per platform per user) ──
+export const PLANNER_PLATFORMS = ["linkedin", "facebook", "instagram", "twitter", "youtube"] as const;
+export type PlannerPlatform = typeof PLANNER_PLATFORMS[number];
+
+export async function listWebhookSettings() {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase.from("social_webhook_settings" as any).select("*").eq("user_id", u);
+  return (data as any[]) ?? [];
+}
+export async function upsertWebhookSetting(p: { platform: PlannerPlatform; webhook_url?: string | null; json_template?: any; active?: boolean }) {
+  const u = await uid(); if (!u) return null;
+  const { data, error } = await supabase.from("social_webhook_settings" as any).upsert({ user_id: u, ...p } as any, { onConflict: "user_id,platform" }).select().single();
+  if (error) throw error; return data;
+}
+
+// ── Planner: send/schedule ──
+export async function pushSinglePost(plan_id: string) {
+  return supabase.functions.invoke("dispatch-due-posts", { body: { plan_id } });
+}
+export async function createPlannerPost(p: {
+  hook: string; body?: string; image_url?: string;
+  scheduled_date?: string; scheduled_time?: string;
+  platforms?: string[]; status?: string;
+  source_kind?: string; source_content_item_id?: string;
+}) {
+  const u = await uid(); if (!u) return null;
+  const { data, error } = await supabase.from("social_content_plan" as any).insert({ ...p, user_id: u } as any).select().single();
+  if (error) throw error; return data;
+}

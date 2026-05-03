@@ -5,12 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, Heart, FolderKanban, User as UserIcon } from "lucide-react";
+import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, Heart, FolderKanban, User as UserIcon, Webhook, Linkedin, Facebook, Instagram, Twitter, Youtube, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   listContentCategories, createContentCategory,
   updateContentCategory, deleteContentCategory, listContentItems,
+  listWebhookSettings, upsertWebhookSetting, PLANNER_PLATFORMS,
 } from "@/lib/social-queries";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import SocialMediaModule from "./SocialMediaModule";
 
 type Cat = { id: string; name: string; slug: string; color?: string };
@@ -32,6 +35,7 @@ export default function AdminPanel() {
       <Tabs defaultValue="content" className="space-y-4">
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="content"><Library className="w-4 h-4 mr-1.5" />Content</TabsTrigger>
+          <TabsTrigger value="webhooks"><Webhook className="w-4 h-4 mr-1.5" />Webhooks</TabsTrigger>
           <TabsTrigger value="social"><Megaphone className="w-4 h-4 mr-1.5" />Social Studio</TabsTrigger>
           <TabsTrigger value="planner"><ClipboardList className="w-4 h-4 mr-1.5" />Content Planner</TabsTrigger>
           <TabsTrigger value="health"><Heart className="w-4 h-4 mr-1.5" />Health</TabsTrigger>
@@ -47,6 +51,21 @@ export default function AdminPanel() {
             </div>
             <p className="text-xs text-muted-foreground mb-4">Shared across Content Studio, Content Planner, and Social Studio. Rename, add, or remove categories — changes propagate to every linked item.</p>
             <CategoriesAdmin />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="webhooks" className="space-y-4">
+          <Card className="p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Webhook className="w-4 h-4 text-primary" />
+              <h2 className="font-display font-semibold">Posting webhooks</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Configure one webhook URL per platform. When a Content Planner post is scheduled and its time arrives,
+              we POST the JSON template (rendered with <code>{`{{hook}}`}</code>, <code>{`{{body}}`}</code>, <code>{`{{image_url}}`}</code>,
+              <code>{`{{scheduled_at}}`}</code>, <code>{`{{plan_id}}`}</code>, <code>{`{{platform}}`}</code>) to that URL — works with Zapier, n8n, Make, or any HTTP endpoint.
+            </p>
+            <WebhooksAdmin />
           </Card>
         </TabsContent>
 
@@ -187,6 +206,85 @@ function CategoriesAdmin() {
           <Button onClick={add} disabled={!newName.trim() || busy === "__new"}><Plus className="w-4 h-4" /> Add</Button>
         </div>
       </div>
+    </div>
+  );
+}
+const PLATFORM_ICONS: Record<string, any> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, twitter: Twitter, youtube: Youtube };
+const DEFAULT_TEMPLATE = {
+  platform: "{{platform}}",
+  hook: "{{hook}}",
+  body: "{{body}}",
+  image_url: "{{image_url}}",
+  scheduled_at: "{{scheduled_at}}",
+  plan_id: "{{plan_id}}",
+};
+
+function WebhooksAdmin() {
+  const [rows, setRows] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  async function refresh() {
+    setLoading(true);
+    const list = await listWebhookSettings();
+    const map: Record<string, any> = {};
+    for (const p of PLANNER_PLATFORMS) {
+      const found = (list as any[]).find((r) => r.platform === p);
+      map[p] = found ?? { platform: p, webhook_url: "", json_template: DEFAULT_TEMPLATE, active: true };
+      map[p].__template_str = JSON.stringify(map[p].json_template ?? DEFAULT_TEMPLATE, null, 2);
+    }
+    setRows(map);
+    setLoading(false);
+  }
+  useEffect(() => { refresh(); }, []);
+
+  async function save(platform: string) {
+    const r = rows[platform];
+    let parsed: any = DEFAULT_TEMPLATE;
+    try { parsed = r.__template_str ? JSON.parse(r.__template_str) : DEFAULT_TEMPLATE; }
+    catch { toast.error("JSON template is invalid"); return; }
+    setSaving(platform);
+    try {
+      await upsertWebhookSetting({ platform: platform as any, webhook_url: r.webhook_url || null, json_template: parsed, active: r.active });
+      toast.success(`${platform} saved`);
+      await refresh();
+    } catch (e: any) { toast.error(e?.message ?? "Save failed"); } finally { setSaving(null); }
+  }
+
+  if (loading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>;
+
+  return (
+    <div className="space-y-5">
+      {PLANNER_PLATFORMS.map((p) => {
+        const Ic = PLATFORM_ICONS[p];
+        const r = rows[p] ?? {};
+        return (
+          <div key={p} className="border border-border rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-medium capitalize"><Ic className="w-4 h-4" /> {p}</div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Active</span>
+                <Switch checked={!!r.active} onCheckedChange={(v) => setRows({ ...rows, [p]: { ...r, active: v } })} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Webhook URL</Label>
+              <Input placeholder="https://hooks.zapier.com/... or https://n8n.example.com/webhook/..."
+                value={r.webhook_url ?? ""} onChange={(e) => setRows({ ...rows, [p]: { ...r, webhook_url: e.target.value } })} />
+            </div>
+            <div>
+              <Label className="text-xs">JSON payload template</Label>
+              <Textarea rows={8} className="font-mono text-xs"
+                value={r.__template_str ?? ""} onChange={(e) => setRows({ ...rows, [p]: { ...r, __template_str: e.target.value } })} />
+            </div>
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => save(p)} disabled={saving === p}>
+                {saving === p ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Save {p}
+              </Button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

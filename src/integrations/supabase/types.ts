@@ -1077,11 +1077,14 @@ export type Database = {
           image_url: string | null
           notes: string | null
           pillar: string | null
+          platforms: string[]
           position: number | null
           posted_at: string | null
           scheduled_date: string | null
           scheduled_day: string | null
+          scheduled_time: string | null
           source_article_id: string | null
+          source_content_item_id: string | null
           source_hotnews_id: string | null
           source_kind: string | null
           source_post_id: string | null
@@ -1089,6 +1092,10 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          webhook_error: string | null
+          webhook_response: Json | null
+          webhook_sent_at: string | null
+          webhook_status: string | null
           week_number: number | null
         }
         Insert: {
@@ -1102,11 +1109,14 @@ export type Database = {
           image_url?: string | null
           notes?: string | null
           pillar?: string | null
+          platforms?: string[]
           position?: number | null
           posted_at?: string | null
           scheduled_date?: string | null
           scheduled_day?: string | null
+          scheduled_time?: string | null
           source_article_id?: string | null
+          source_content_item_id?: string | null
           source_hotnews_id?: string | null
           source_kind?: string | null
           source_post_id?: string | null
@@ -1114,6 +1124,10 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          webhook_error?: string | null
+          webhook_response?: Json | null
+          webhook_sent_at?: string | null
+          webhook_status?: string | null
           week_number?: number | null
         }
         Update: {
@@ -1127,11 +1141,14 @@ export type Database = {
           image_url?: string | null
           notes?: string | null
           pillar?: string | null
+          platforms?: string[]
           position?: number | null
           posted_at?: string | null
           scheduled_date?: string | null
           scheduled_day?: string | null
+          scheduled_time?: string | null
           source_article_id?: string | null
+          source_content_item_id?: string | null
           source_hotnews_id?: string | null
           source_kind?: string | null
           source_post_id?: string | null
@@ -1139,6 +1156,10 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          webhook_error?: string | null
+          webhook_response?: Json | null
+          webhook_sent_at?: string | null
+          webhook_status?: string | null
           week_number?: number | null
         }
         Relationships: [
@@ -1669,6 +1690,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      social_webhook_settings: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          json_template: Json
+          platform: string
+          updated_at: string
+          user_id: string
+          webhook_url: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          json_template?: Json
+          platform: string
+          updated_at?: string
+          user_id: string
+          webhook_url?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          json_template?: Json
+          platform?: string
+          updated_at?: string
+          user_id?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
       }
       social_writer_settings: {
         Row: {
