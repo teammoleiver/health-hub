@@ -5,12 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, Heart, FolderKanban, User as UserIcon } from "lucide-react";
+import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, Heart, FolderKanban, User as UserIcon, Webhook, Linkedin, Facebook, Instagram, Twitter, Youtube, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   listContentCategories, createContentCategory,
   updateContentCategory, deleteContentCategory, listContentItems,
+  listWebhookSettings, upsertWebhookSetting, PLANNER_PLATFORMS,
 } from "@/lib/social-queries";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import SocialMediaModule from "./SocialMediaModule";
 
 type Cat = { id: string; name: string; slug: string; color?: string };
@@ -32,6 +35,7 @@ export default function AdminPanel() {
       <Tabs defaultValue="content" className="space-y-4">
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="content"><Library className="w-4 h-4 mr-1.5" />Content</TabsTrigger>
+          <TabsTrigger value="webhooks"><Webhook className="w-4 h-4 mr-1.5" />Webhooks</TabsTrigger>
           <TabsTrigger value="social"><Megaphone className="w-4 h-4 mr-1.5" />Social Studio</TabsTrigger>
           <TabsTrigger value="planner"><ClipboardList className="w-4 h-4 mr-1.5" />Content Planner</TabsTrigger>
           <TabsTrigger value="health"><Heart className="w-4 h-4 mr-1.5" />Health</TabsTrigger>
@@ -47,6 +51,21 @@ export default function AdminPanel() {
             </div>
             <p className="text-xs text-muted-foreground mb-4">Shared across Content Studio, Content Planner, and Social Studio. Rename, add, or remove categories — changes propagate to every linked item.</p>
             <CategoriesAdmin />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="webhooks" className="space-y-4">
+          <Card className="p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Webhook className="w-4 h-4 text-primary" />
+              <h2 className="font-display font-semibold">Posting webhooks</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Configure one webhook URL per platform. When a Content Planner post is scheduled and its time arrives,
+              we POST the JSON template (rendered with <code>{`{{hook}}`}</code>, <code>{`{{body}}`}</code>, <code>{`{{image_url}}`}</code>,
+              <code>{`{{scheduled_at}}`}</code>, <code>{`{{plan_id}}`}</code>, <code>{`{{platform}}`}</code>) to that URL — works with Zapier, n8n, Make, or any HTTP endpoint.
+            </p>
+            <WebhooksAdmin />
           </Card>
         </TabsContent>
 
