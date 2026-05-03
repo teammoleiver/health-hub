@@ -662,7 +662,15 @@ function ImportPreviewDialog({ preview, onClose, onConfirm }: {
 function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | null; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<Record<string, any>>({});
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setForm(profile ?? {}); }, [profile]);
+  const [tab, setTab] = useState<"details" | "history">("details");
+  const [posts, setPosts] = useState<any[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  useEffect(() => { setForm(profile ?? {}); setTab("details"); setPosts([]); }, [profile]);
+  useEffect(() => {
+    if (!profile || tab !== "history") return;
+    setPostsLoading(true);
+    listPostsForProfile(profile.id).then((p) => { setPosts(p); setPostsLoading(false); });
+  }, [tab, profile]);
   if (!profile) return null;
   const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
   return (
@@ -671,12 +679,20 @@ function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | nul
         <DialogHeader>
           <DialogTitle>{form.full_name || form.display_name || form.username || "Profile"}</DialogTitle>
         </DialogHeader>
+        <div className="flex gap-2 border-b border-border mb-3">
+          <button type="button" onClick={() => setTab("details")} className={`px-3 py-2 text-sm border-b-2 -mb-px ${tab === "details" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>Details</button>
+          <button type="button" onClick={() => setTab("history")} className={`px-3 py-2 text-sm border-b-2 -mb-px ${tab === "history" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>Scraped posts {posts.length ? `(${posts.length})` : ""}</button>
+        </div>
+        {tab === "details" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {PROFILE_CSV_FIELDS.map((f) => {
             const isLong = ["enrich_person_summary", "shared_background", "work_experience_summary", "education_summary", "certifications_summary"].includes(f.key);
             return (
               <div key={f.key} className={isLong ? "md:col-span-2" : ""}>
-                <label className="text-xs font-medium">{f.label}</label>
+                <label className="text-xs font-medium flex items-center justify-between">
+                  <span>{f.label}</span>
+                  {(form[f.key] === null || form[f.key] === undefined || form[f.key] === "") && <span className="text-[10px] text-muted-foreground italic">no data yet</span>}
+                </label>
                 {isLong
                   ? <Textarea value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} rows={3} />
                   : <Input value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />}
@@ -684,6 +700,27 @@ function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | nul
             );
           })}
         </div>
+        ) : (
+          <div>
+            {postsLoading ? <div className="py-10 text-center"><Loader2 className="w-5 h-5 mx-auto animate-spin" /></div> :
+              posts.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">No posts scraped yet for this profile. The full history is preserved here once scraping starts.</p> :
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">{posts.length} posts on file. Full history is kept and never deleted.</p>
+                {posts.map((p) => (
+                  <Card key={p.id} className="p-3 space-y-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</span>
+                      <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
+                    {p.post_url && <a href={p.post_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+                  </Card>
+                ))}
+              </div>
+            }
+          </div>
+        )}
+        {tab === "details" && (
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button disabled={busy} onClick={async () => {
@@ -698,6 +735,7 @@ function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | nul
             finally { setBusy(false); }
           }}>{busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Save</Button>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );
