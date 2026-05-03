@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download } from "lucide-react";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,12 +85,57 @@ function ProfilesTab() {
   const [importing, setImporting] = useState(false);
   const [detailProfile, setDetailProfile] = useState<any | null>(null);
   const [importPreview, setImportPreview] = useState<{ rows: Array<Record<string, any>>; headers: string[]; mapped: Record<number, string> } | null>(null);
+  const [sortKey, setSortKey] = useState<string>("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const load = async () => { setLoading(true); setProfiles(await listSocialProfiles()); setLoading(false); };
   useEffect(() => { load(); }, []);
 
   const filtered = profiles.filter((p) =>
     !search || [p.username, p.display_name, p.full_name, p.first_name, p.last_name, p.company, p.location, p.profile_url, p.title, p.job_title, p.email, p.company_domain].some((f) => (f ?? "").toString().toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const nameOf = (p: any) => p.full_name || p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "";
+  const sorted = [...filtered].sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    const getter: Record<string, (p: any) => any> = {
+      name: nameOf,
+      job_title: (p) => p.job_title || p.title || "",
+      company: (p) => p.company || "",
+      gtm_relevance: (p) => p.gtm_relevance || "",
+      decision_maker_score: (p) => p.decision_maker_score ?? -Infinity,
+      num_followers: (p) => p.num_followers ?? -Infinity,
+      scrape_cadence: (p) => p.scrape_cadence || "",
+      last_scraped_at: (p) => p.last_scraped_at ? new Date(p.last_scraped_at).getTime() : 0,
+      active: (p) => (p.active ? 1 : 0),
+      created_at: (p) => p.created_at ? new Date(p.created_at).getTime() : 0,
+    };
+    const fn = getter[sortKey] ?? getter.created_at;
+    const av = fn(a); const bv = fn(b);
+    if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+    return String(av).localeCompare(String(bv)) * dir;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [search, sortKey, sortDir]);
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir(key === "name" || key === "job_title" || key === "company" || key === "gtm_relevance" || key === "scrape_cadence" ? "asc" : "desc"); }
+  };
+
+  const SortHeader = ({ k, label, align = "left" }: { k: string; label: string; align?: "left" | "right" }) => (
+    <th className={`${align === "right" ? "text-right" : "text-left"} px-3 py-2 font-medium`}>
+      <button type="button" onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 hover:text-foreground">
+        {label}
+        {sortKey === k ? (sortDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ChevronsUpDown className="w-3 h-3 opacity-40" />}
+      </button>
+    </th>
   );
 
   const runOne = async (id: string) => {
@@ -170,7 +215,29 @@ function ProfilesTab() {
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">{profiles.length} profiles total</p>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span>{filtered.length} profile{filtered.length === 1 ? "" : "s"}{search ? ` (filtered from ${profiles.length})` : ""}</span>
+        <div className="flex items-center gap-2">
+          <span>Sort:</span>
+          <Select value={sortKey} onValueChange={(v) => setSortKey(v)}>
+            <SelectTrigger className="h-7 w-[170px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_at">Date added</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="num_followers">Followers</SelectItem>
+              <SelectItem value="decision_maker_score">DM Score</SelectItem>
+              <SelectItem value="company">Company</SelectItem>
+              <SelectItem value="job_title">Job Title</SelectItem>
+              <SelectItem value="gtm_relevance">GTM Relevance</SelectItem>
+              <SelectItem value="last_scraped_at">Last Scrape</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}>
+            {sortDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+          </Button>
+        </div>
+      </div>
 
       {loading ? <div className="text-center py-12 text-muted-foreground"><Loader2 className="w-6 h-6 mx-auto animate-spin" /></div> :
         filtered.length === 0 ? <Card className="p-8 text-center text-muted-foreground">No profiles yet. Add a LinkedIn URL to start tracking.</Card> :
@@ -178,25 +245,27 @@ function ProfilesTab() {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide">
               <tr>
-                <th className="text-left px-3 py-2 font-medium">Name</th>
-                <th className="text-left px-3 py-2 font-medium">Job Title</th>
-                <th className="text-left px-3 py-2 font-medium">Company</th>
-                <th className="text-left px-3 py-2 font-medium">GTM</th>
-                <th className="text-left px-3 py-2 font-medium">DM Score</th>
+                <SortHeader k="name" label="Name" />
+                <SortHeader k="job_title" label="Job Title" />
+                <SortHeader k="company" label="Company" />
+                <SortHeader k="gtm_relevance" label="GTM" />
+                <SortHeader k="num_followers" label="Followers" />
+                <SortHeader k="decision_maker_score" label="DM Score" />
                 <th className="text-left px-3 py-2 font-medium">URL</th>
-                <th className="text-left px-3 py-2 font-medium">Cadence</th>
-                <th className="text-left px-3 py-2 font-medium">Last Scrape</th>
-                <th className="text-left px-3 py-2 font-medium">Active</th>
+                <SortHeader k="scrape_cadence" label="Cadence" />
+                <SortHeader k="last_scraped_at" label="Last Scrape" />
+                <SortHeader k="active" label="Active" />
                 <th className="text-right px-3 py-2 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => (
+              {paged.map((p) => (
                 <tr key={p.id} className="border-t border-border hover:bg-muted/20 cursor-pointer" onClick={() => setDetailProfile(p)}>
                   <td className="px-3 py-2 font-medium">{p.full_name || p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}</td>
                   <td className="px-3 py-2">{p.job_title || p.title || "—"}</td>
                   <td className="px-3 py-2">{p.company || "—"}{p.company_domain && <span className="block text-[10px] text-muted-foreground">{p.company_domain}</span>}</td>
                   <td className="px-3 py-2">{p.gtm_relevance ? <Badge variant="secondary" className="text-[10px]">{p.gtm_relevance}</Badge> : "—"}</td>
+                  <td className="px-3 py-2 text-xs tabular-nums">{typeof p.num_followers === "number" ? p.num_followers.toLocaleString() : "—"}</td>
                   <td className="px-3 py-2 text-xs">{p.decision_maker_score ?? "—"}</td>
                   <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}><a href={p.profile_url} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate max-w-[140px] inline-flex items-center gap-1">{p.username || p.profile_url.slice(-20)} <ArrowUpRight className="w-3 h-3" /></a></td>
                   <td className="px-3 py-2">
@@ -232,6 +301,19 @@ function ProfilesTab() {
           </table>
         </div>
       }
+
+      {!loading && sorted.length > 0 && (
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
+          <span>Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, sorted.length)} of {sorted.length}</span>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="h-7" disabled={safePage <= 1} onClick={() => setPage(1)}>« First</Button>
+            <Button size="sm" variant="outline" className="h-7" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</Button>
+            <span className="px-2">Page {safePage} of {totalPages}</span>
+            <Button size="sm" variant="outline" className="h-7" disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
+            <Button size="sm" variant="outline" className="h-7" disabled={safePage >= totalPages} onClick={() => setPage(totalPages)}>Last »</Button>
+          </div>
+        </div>
+      )}
 
       <ProfileDetailDialog profile={detailProfile} onClose={() => setDetailProfile(null)} onSaved={() => { setDetailProfile(null); load(); }} />
       <ImportPreviewDialog
