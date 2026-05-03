@@ -213,8 +213,8 @@ function ListView({ entries, onOpen }: { entries: any[]; onOpen: (e: any) => voi
 function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: boolean; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<any>({
     hook: "", body: "", image_url: "", scheduled_date: "", scheduled_time: "",
-    platforms: [], status: "planned", ...entry,
-    platforms: entry.platforms ?? [],
+    status: "planned", ...entry,
+    platforms: entry?.platforms ?? [],
   });
   const [busy, setBusy] = useState(false);
 
