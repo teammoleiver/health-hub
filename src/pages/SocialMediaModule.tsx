@@ -1310,7 +1310,11 @@ function SettingsTab() {
       if ((data as any)?.error) throw new Error((data as any).error);
       const fresh = await getWriterSettings();
       if (fresh) { setS({ ...s, ...(fresh as any) }); }
-      toast.success(`Voice refined from ${(data as any)?.used_posts ?? 0} posts`);
+      const d = data as any;
+      const parts = [`Voice refined from ${d?.used_posts ?? 0} posts`];
+      if (d?.generated_system_prompt) parts.push("Writer system prompt regenerated");
+      if (d?.frameworks_rewritten) parts.push(`${d.frameworks_rewritten}/7 framework prompts rewritten in your voice`);
+      toast.success(parts.join(" • "));
     } catch (e: any) { toast.error(e?.message ?? "Refine failed"); } finally { setRefining(false); }
   };
 
