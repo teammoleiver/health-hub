@@ -1354,19 +1354,12 @@ function SettingsTab() {
         </div>
 
         <div className="border-t border-border pt-4 space-y-3">
-          <div className="flex items-center gap-2"><LinkIcon className="w-4 h-4 text-primary" /><h3 className="text-sm font-medium">Auto-fill from my LinkedIn</h3></div>
-          <p className="text-xs text-muted-foreground">Paste your LinkedIn URL and the Apify <em>profile-info</em> actor ID. We scrape your profile, AI-summarize it into the fields above, then optionally pull your last 50 posts so the writer learns your style.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium">My LinkedIn URL</label>
-              <Input value={s.linkedin_url ?? ""} onChange={(e) => setS({ ...s, linkedin_url: e.target.value })}
-                placeholder="https://www.linkedin.com/in/your-handle" />
-            </div>
-            <div>
-              <label className="text-xs font-medium">Profile-info Apify actor (URL or ID)</label>
-              <Input value={s.profile_actor_id ?? ""} onChange={(e) => setS({ ...s, profile_actor_id: e.target.value })}
-                placeholder="e.g. https://console.apify.com/actors/XXXXXXXX" />
-            </div>
+          <div className="flex items-center gap-2"><LinkIcon className="w-4 h-4 text-primary" /><h3 className="text-sm font-medium">Auto-fill from my LinkedIn (via Linkup web search)</h3></div>
+          <p className="text-xs text-muted-foreground">Paste your LinkedIn URL. We use <strong>Linkup</strong> to deep-search the public web for your profile, company, experience and recent posts, then AI-summarize everything into the fields above.</p>
+          <div>
+            <label className="text-xs font-medium">My LinkedIn URL</label>
+            <Input value={s.linkedin_url ?? ""} onChange={(e) => setS({ ...s, linkedin_url: e.target.value })}
+              placeholder="https://www.linkedin.com/in/your-handle" />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={analyzeMe} disabled={analyzing} variant="default">
