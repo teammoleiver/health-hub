@@ -143,10 +143,44 @@ Deno.serve(async (req: Request) => {
     let career_summary = "";
     let expertise = skills.slice(0, 20).join(", ");
     let target_audience = "";
+
+    // ── Linkup web enrichment: search the public web for extra context about this person/company ──
+    const linkupKey = Deno.env.get("LINKUP_API_KEY");
+    let linkupContext = "";
+    let linkupSources: { name?: string; url?: string }[] = [];
+    if (linkupKey && (fullName || url)) {
+      try {
+        const q = [
+          fullName ? `"${fullName}"` : "",
+          company ? `"${company}"` : "",
+          headline ?? "",
+          url,
+        ].filter(Boolean).join(" ");
+        const lr = await fetch("https://api.linkup.so/v1/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${linkupKey}` },
+          body: JSON.stringify({
+            q,
+            depth: "deep",
+            outputType: "sourcedAnswer",
+            includeImages: false,
+          }),
+        });
+        if (lr.ok) {
+          const lj = await lr.json();
+          linkupContext = (lj?.answer ?? lj?.sourcedAnswer ?? "").toString().slice(0, 4000);
+          const srcs = lj?.sources ?? lj?.results ?? [];
+          if (Array.isArray(srcs)) linkupSources = srcs.slice(0, 8).map((s: any) => ({ name: s?.name ?? s?.title, url: s?.url }));
+        } else {
+          console.warn("Linkup non-OK:", lr.status, (await lr.text()).slice(0, 300));
+        }
+      } catch (e) { console.warn("Linkup error:", e); }
+    }
+
     if (lovableKey && hasAnyData) {
       try {
-        const prompt = `You are rewriting a LinkedIn persona using ONLY the JSON below. Rules:
-- Do NOT invent facts, companies, skills, audiences, or achievements.
+        const prompt = `You are rewriting a LinkedIn persona using ONLY the JSON below plus the optional WEB CONTEXT (treat web context as supporting evidence, not primary truth). Rules:
+- Do NOT invent facts. Only use claims supported by the JSON or clearly stated in WEB CONTEXT.
 - If a field cannot be supported by the JSON, return an empty string for it.
 - Use first person ("I"). Keep wording concrete and specific to what is provided.
 - Do not use generic filler like "versatile skill set", "passionate professional", "various roles", "exploring new opportunities".
@@ -154,7 +188,10 @@ Deno.serve(async (req: Request) => {
 Return JSON with keys: about_me (1-3 sentences, only from "about"/"headline"/role data), career_summary (one short paragraph built strictly from "experiences"; empty string if none), expertise (comma-separated; ONLY items from "skills" or clearly stated in "headline"/"about"; empty if none), target_audience (only if obviously implied by headline/about; otherwise empty).
 
 Profile JSON:
-${JSON.stringify({ fullName, headline, about, company, location, experiences, skills }).slice(0, 8000)}`;
+${JSON.stringify({ fullName, headline, about, company, location, experiences, skills }).slice(0, 8000)}
+
+WEB CONTEXT (from Linkup public web search; may be empty):
+${linkupContext || "(none)"}`;
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
@@ -217,6 +254,7 @@ ${JSON.stringify({ fullName, headline, about, company, location, experiences, sk
       self_profile_id: selfProfileId,
       scraped: { fullName, headline, about, company, location, followers, skillsCount: skills.length, experiencesCount: experiences.length },
       summary: { about_me, career_summary, expertise, target_audience },
+      web_context: linkupContext ? { answer: linkupContext, sources: linkupSources } : null,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     return new Response(JSON.stringify({ error: String(e?.message ?? e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
