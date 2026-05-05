@@ -901,7 +901,7 @@ function PostsTab() {
                   <td className="px-3 py-2">{p.comments}</td>
                   <td className="px-3 py-2 text-xs">{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</td>
                   <td className="px-3 py-2 text-right">
-                    {p.post_url && <a href={p.post_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-primary inline-flex"><ArrowUpRight className="w-4 h-4" /></a>}
+                    {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-primary inline-flex"><ArrowUpRight className="w-4 h-4" /></a>}
                   </td>
                 </tr>
               ))}
@@ -974,7 +974,7 @@ function PostInspectorDialog({ post, onClose }: { post: any; onClose: () => void
           <Card className="p-4 bg-muted/30 whitespace-pre-wrap text-sm">{post.post_text}</Card>
           <div className="text-xs text-muted-foreground flex gap-3">
             <span>👍 {post.likes}</span><span>💬 {post.comments}</span><span>🔁 {post.shares}</span>
-            {post.post_url && <a href={post.post_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+            {post.post_url && <a href={normalizeLinkedInUrl(post.post_url)} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
           </div>
 
           <div className="border-t border-border pt-4">
@@ -2005,7 +2005,7 @@ function ProfileHistoryButton({ profile }: { profile: any }) {
                   <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
-                {p.post_url && <a href={p.post_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+                {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
               </Card>
             ))}
           </div>
