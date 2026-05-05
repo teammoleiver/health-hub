@@ -1239,18 +1239,24 @@ function SettingsTab() {
     writing_samples: "",
     linkedin_url: "",
     profile_actor_id: "",
+    reference_websites: [] as string[],
+    reference_web_context: "",
+    last_websites_enriched_at: null as string | null,
   });
   const [bannedInput, setBannedInput] = useState("");
+  const [websitesInput, setWebsitesInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [scrapingMe, setScrapingMe] = useState(false);
   const [refining, setRefining] = useState(false);
+  const [enrichingSites, setEnrichingSites] = useState(false);
 
   useEffect(() => {
     getWriterSettings().then((data: any) => {
       if (data) {
         setS({ ...s, ...data });
         setBannedInput((data.banned_words || []).join(", "));
+        setWebsitesInput(((data.reference_websites as string[] | null) || []).join("\n"));
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1316,6 +1322,24 @@ function SettingsTab() {
       if (d?.frameworks_rewritten) parts.push(`${d.frameworks_rewritten}/7 framework prompts rewritten in your voice`);
       toast.success(parts.join(" • "));
     } catch (e: any) { toast.error(e?.message ?? "Refine failed"); } finally { setRefining(false); }
+  };
+
+  const enrichWebsites = async () => {
+    const list = websitesInput.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
+    if (!list.length) { toast.error("Add at least one website URL"); return; }
+    setEnrichingSites(true);
+    try {
+      const { data, error } = await enrichFromWebsites(list);
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const fresh = await getWriterSettings();
+      if (fresh) {
+        setS({ ...s, ...(fresh as any) });
+        setWebsitesInput((((fresh as any).reference_websites as string[]) || []).join("\n"));
+      }
+      const d = data as any;
+      toast.success(`Enriched from ${d?.sites_used ?? 0}/${d?.sites_processed ?? list.length} websites — context appended to every prompt`);
+    } catch (e: any) { toast.error(e?.message ?? "Website enrichment failed"); } finally { setEnrichingSites(false); }
   };
 
   return (
