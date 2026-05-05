@@ -29,6 +29,18 @@ import {
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
 
+// Normalize a LinkedIn post URL so the browser doesn't choke on raw `urn:li:activity:...` colons.
+function normalizeLinkedInUrl(raw?: string | null): string {
+  if (!raw) return "";
+  let url = String(raw).trim();
+  if (!url) return "";
+  // Extract activity id if present and rebuild a clean URL.
+  const m = url.match(/urn[:%]li[:%](?:activity|share|ugcPost)[:%](\d+)/i);
+  if (m) return `https://www.linkedin.com/feed/update/urn:li:activity:${m[1]}/`;
+  if (!/^https?:\/\//i.test(url)) url = `https://${url.replace(/^\/+/, "")}`;
+  return url;
+}
+
 const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { id: "profiles", label: "Profiles to Track", icon: Users },
   { id: "posts", label: "Scraped Posts", icon: FileText },
