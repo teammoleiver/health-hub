@@ -11,7 +11,7 @@ const tabs = [
 
 export default function SocialStudioLayout() {
   return (
-    <div className="container max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 py-6 space-y-6">
       <header className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-display font-bold">S</div>
         <div>
