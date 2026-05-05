@@ -23,7 +23,7 @@ import {
   listScrapeRuns, rotateNowScrape, retryWithAccount,
   listPostsForProfile,
   listFrameworkPrompts, saveFrameworkPrompt, suggestFrameworkPromptImprovement,
-  analyzeSelfProfile, scrapeMyLastPosts, enrichVoiceFromPosts,
+  analyzeSelfProfile, scrapeMyLastPosts, enrichVoiceFromPosts, enrichFromWebsites,
 } from "@/lib/social-queries";
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
@@ -1239,18 +1239,24 @@ function SettingsTab() {
     writing_samples: "",
     linkedin_url: "",
     profile_actor_id: "",
+    reference_websites: [] as string[],
+    reference_web_context: "",
+    last_websites_enriched_at: null as string | null,
   });
   const [bannedInput, setBannedInput] = useState("");
+  const [websitesInput, setWebsitesInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [scrapingMe, setScrapingMe] = useState(false);
   const [refining, setRefining] = useState(false);
+  const [enrichingSites, setEnrichingSites] = useState(false);
 
   useEffect(() => {
     getWriterSettings().then((data: any) => {
       if (data) {
         setS({ ...s, ...data });
         setBannedInput((data.banned_words || []).join(", "));
+        setWebsitesInput(((data.reference_websites as string[] | null) || []).join("\n"));
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1318,6 +1324,24 @@ function SettingsTab() {
     } catch (e: any) { toast.error(e?.message ?? "Refine failed"); } finally { setRefining(false); }
   };
 
+  const enrichWebsites = async () => {
+    const list = websitesInput.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
+    if (!list.length) { toast.error("Add at least one website URL"); return; }
+    setEnrichingSites(true);
+    try {
+      const { data, error } = await enrichFromWebsites(list);
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const fresh = await getWriterSettings();
+      if (fresh) {
+        setS({ ...s, ...(fresh as any) });
+        setWebsitesInput((((fresh as any).reference_websites as string[]) || []).join("\n"));
+      }
+      const d = data as any;
+      toast.success(`Enriched from ${d?.sites_used ?? 0}/${d?.sites_processed ?? list.length} websites — context appended to every prompt`);
+    } catch (e: any) { toast.error(e?.message ?? "Website enrichment failed"); } finally { setEnrichingSites(false); }
+  };
+
   return (
     <section className="space-y-6 max-w-3xl">
       <Card className="p-5 space-y-4">
@@ -1383,6 +1407,36 @@ function SettingsTab() {
             <p className="text-[11px] text-muted-foreground">Last analyzed: {new Date(s.last_self_analyzed_at).toLocaleString()}</p>
           )}
         </div>
+      </Card>
+
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center gap-2"><LinkIcon className="w-5 h-5 text-primary" /><h2 className="font-medium">Reference websites (competitors & topics)</h2></div>
+        <p className="text-xs text-muted-foreground">
+          Add websites of competitors, thought leaders, or publications relevant to your space. We use <strong>Linkup</strong> to deep-scrape each site, then AI-distill a competitive context block that gets appended to your Writer system prompt — so every post you generate is informed by what others in your space are saying. The more websites you add, the smarter your prompts get.
+        </p>
+        <div>
+          <label className="text-xs font-medium">Website URLs (one per line, or comma-separated)</label>
+          <Textarea rows={5} value={websitesInput} onChange={(e) => setWebsitesInput(e.target.value)}
+            placeholder={"https://competitor.com\nhttps://blog.thoughtleader.io\nhttps://industry-publication.com"} />
+          <p className="text-[11px] text-muted-foreground mt-1">Up to 25 sites. Each enrichment runs a deep web search per URL.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={enrichWebsites} disabled={enrichingSites} variant="default">
+            {enrichingSites ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+            Enrich from websites
+          </Button>
+          {s.last_websites_enriched_at && (
+            <span className="text-[11px] text-muted-foreground self-center">Last enriched: {new Date(s.last_websites_enriched_at).toLocaleString()}</span>
+          )}
+        </div>
+        {s.reference_web_context && (
+          <div>
+            <label className="text-xs font-medium">Distilled web context (appended to every prompt)</label>
+            <Textarea rows={8} value={s.reference_web_context ?? ""} onChange={(e) => setS({ ...s, reference_web_context: e.target.value })}
+              placeholder="Auto-generated after you click 'Enrich from websites'." />
+            <p className="text-[11px] text-muted-foreground mt-1">You can edit this manually. It is injected into the Writer system prompt and used when rewriting framework prompts.</p>
+          </div>
+        )}
       </Card>
 
       <Card className="p-5 space-y-4">

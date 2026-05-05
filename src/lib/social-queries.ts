@@ -358,6 +358,11 @@ export async function enrichVoiceFromPosts() {
   return supabase.functions.invoke("enrich-voice-from-posts", { body: {} });
 }
 
+// ── Reference websites enrichment (Linkup deep-search of competitor/topic sites) ──
+export async function enrichFromWebsites(websites?: string[]) {
+  return supabase.functions.invoke("enrich-from-websites", { body: websites ? { websites } : {} });
+}
+
 // ── RSS feeds ──
 export async function listRssFeeds() {
   const u = await uid(); if (!u) return [];
