@@ -251,6 +251,9 @@ export async function upsertWriterSettings(s: Record<string, any>) {
 export async function scrapeProfile(profile_id: string) {
   return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id } });
 }
+export async function generatePostImage(args: { hook: string; post_body?: string; entry_id?: string | null }) {
+  return supabase.functions.invoke("generate-post-image", { body: args });
+}
 export async function rotateNowScrape(profile_id: string) {
   return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id, force_rotate: true } });
 }
