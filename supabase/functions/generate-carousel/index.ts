@@ -172,6 +172,59 @@ async function refreshCanvaToken(supabase: any, refreshToken: string) {
   return data.access_token;
 }
 
+async function readCachedAccessToken(supabase: any) {
+  const { data: row, error } = await supabase
+    .from("canva_oauth_tokens")
+    .select("access_token_ciphertext,access_token_iv,expires_at")
+    .eq("id", "default")
+    .maybeSingle();
+  if (error) throw new Error(`Canva token cache read failed: ${error.message}`);
+  if (!row?.access_token_ciphertext || !row?.access_token_iv || !row?.expires_at) return null;
+  const expiresAt = new Date(row.expires_at).getTime();
+  if (!Number.isFinite(expiresAt) || expiresAt - TOKEN_REFRESH_SKEW_MS <= Date.now()) return null;
+  return await decryptToken(row.access_token_ciphertext, row.access_token_iv);
+}
+async function waitForCachedAccessToken(supabase: any) {
+  for (let i = 0; i < 8; i++) {
+    await sleep(750);
+    const token = await readCachedAccessToken(supabase);
+    if (token) return token;
+  }
+  return null;
+}
+async function acquireRefreshLock(supabase: any, lockOwner: string) {
+  const lockUntil = new Date(Date.now() + TOKEN_REFRESH_LOCK_MS).toISOString();
+  const nowIso = new Date().toISOString();
+  const { data: updated, error } = await supabase.from("canva_oauth_tokens")
+    .update({ refresh_lock_owner: lockOwner, refresh_lock_until: lockUntil })
+    .eq("id", "default")
+    .or(`refresh_lock_until.is.null,refresh_lock_until.lt.${nowIso}`)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`Canva token lock failed: ${error.message}`);
+  if (updated?.id) return true;
+
+  const refreshToken = Deno.env.get("CANVA_REFRESH_TOKEN");
+  if (!refreshToken) return false;
+  const encrypted = await encryptToken(refreshToken);
+  const { error: insertError } = await supabase.from("canva_oauth_tokens").insert({
+    id: "default",
+    refresh_token_ciphertext: encrypted.ciphertext,
+    refresh_token_iv: encrypted.iv,
+    refresh_lock_owner: lockOwner,
+    refresh_lock_until: lockUntil,
+  });
+  if (!insertError) return true;
+  if (insertError.code === "23505") return false;
+  throw new Error(`Canva token lock failed: ${insertError.message}`);
+}
+async function releaseRefreshLock(supabase: any, lockOwner: string) {
+  await supabase.from("canva_oauth_tokens")
+    .update({ refresh_lock_owner: null, refresh_lock_until: null })
+    .eq("id", "default")
+    .eq("refresh_lock_owner", lockOwner);
+}
+
 async function getCryptoKey() {
   const secret = Deno.env.get("CANVA_CLIENT_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!secret) throw new Error("Canva token encryption key is not configured");
