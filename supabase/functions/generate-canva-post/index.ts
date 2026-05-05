@@ -158,6 +158,7 @@ async function refreshCanvaToken(supabase: any, refreshToken: string) {
   if (!res.ok) {
     const message = await res.text();
     if (message.includes("invalid_grant")) {
+      await supabase.from("canva_oauth_tokens").delete().eq("id", "default");
       throw new Error("Canva authorization expired or was revoked. Reconnect Canva to generate a new refresh token.");
     }
     throw new Error(`Canva token refresh failed: ${message}`);
