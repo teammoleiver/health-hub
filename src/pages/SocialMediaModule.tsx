@@ -29,16 +29,16 @@ import {
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
 
-// Normalize a LinkedIn post URL so the browser doesn't choke on raw `urn:li:activity:...` colons.
+// Build a clean LinkedIn post URL. Stored URLs sometimes contain raw `urn:li:activity:...`
+// which Chrome can mangle (the colons are reserved). Rebuild from the activity id and
+// route through LinkedIn's canonical `/posts/` permalink which works without auth-context.
 function normalizeLinkedInUrl(raw?: string | null): string {
   if (!raw) return "";
-  let url = String(raw).trim();
+  const url = String(raw).trim();
   if (!url) return "";
-  // Extract activity id if present and rebuild a clean URL.
-  const m = url.match(/urn[:%]li[:%](?:activity|share|ugcPost)[:%](\d+)/i);
-  if (m) return `https://www.linkedin.com/feed/update/urn:li:activity:${m[1]}/`;
-  if (!/^https?:\/\//i.test(url)) url = `https://${url.replace(/^\/+/, "")}`;
-  return url;
+  const m = url.match(/(?:activity|share|ugcPost)[:%-](\d{15,})/i);
+  if (m) return `https://www.linkedin.com/feed/update/urn%3Ali%3Aactivity%3A${m[1]}/`;
+  return /^https?:\/\//i.test(url) ? url : `https://${url.replace(/^\/+/, "")}`;
 }
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
@@ -767,7 +767,7 @@ function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | nul
                       <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
                     </div>
                     <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
-                    {p.post_url && <a href={p.post_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+                    {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
                   </Card>
                 ))}
               </div>
