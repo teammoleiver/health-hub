@@ -299,7 +299,20 @@ function ProfilesTab() {
       {loading ? <div className="text-center py-12 text-muted-foreground"><Loader2 className="w-6 h-6 mx-auto animate-spin" /></div> :
         filtered.length === 0 ? <Card className="p-8 text-center text-muted-foreground">No profiles yet. Add a LinkedIn URL to start tracking.</Card> :
         <div className="border border-border rounded-lg overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[1200px] table-fixed">
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-[180px]" />
+              <col className="w-[260px]" />
+              <col className="w-[160px]" />
+              <col className="w-[80px]" />
+              <col className="w-[90px]" />
+              <col className="w-[80px]" />
+              <col className="w-[110px]" />
+              <col className="w-[140px]" />
+              <col className="w-[70px]" />
+              <col className="w-[160px]" />
+            </colgroup>
             <thead className="bg-muted/40 text-xs uppercase tracking-wide">
               <tr>
                 <th className="w-8 px-2 py-2">
@@ -338,8 +351,8 @@ function ProfilesTab() {
                       </a>
                     </div>
                   </td>
-                  <td className="px-3 py-2 truncate">{p.job_title || p.title || "—"}</td>
-                  <td className="px-3 py-2 truncate">{p.company || "—"}{p.company_domain && <span className="block text-[10px] text-muted-foreground truncate">{p.company_domain}</span>}</td>
+                  <td className="px-3 py-2 truncate" title={p.job_title || p.title || ""}>{p.job_title || p.title || "—"}</td>
+                  <td className="px-3 py-2 truncate" title={p.company || ""}>{p.company || "—"}{p.company_domain && <span className="block text-[10px] text-muted-foreground truncate">{p.company_domain}</span>}</td>
                   <td className="px-3 py-2">{p.gtm_relevance ? <Badge variant="secondary" className="text-[10px]">{p.gtm_relevance}</Badge> : "—"}</td>
                   <td className="px-3 py-2 text-xs tabular-nums">{typeof p.num_followers === "number" ? p.num_followers.toLocaleString() : "—"}</td>
                   <td className="px-3 py-2 text-xs">{p.decision_maker_score ?? "—"}</td>
@@ -359,7 +372,7 @@ function ProfilesTab() {
                     {p.last_scrape_status === "error" && <Badge variant="destructive" className="ml-1 text-[10px]">err</Badge>}
                   </td>
                   <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}><Switch checked={p.active} onCheckedChange={async (v) => { await updateSocialProfile(p.id, { active: v }); load(); }} /></td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-2 py-2 text-right whitespace-nowrap sticky right-0 bg-background border-l border-border" onClick={(e) => e.stopPropagation()}>
                     <Button size="sm" variant="ghost" onClick={() => runOne(p.id)} disabled={scrapingId === p.id}>
                       {scrapingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                     </Button>
