@@ -158,6 +158,48 @@ export type Database = {
         }
         Relationships: []
       }
+      carousels: {
+        Row: {
+          canva_design_id: string | null
+          canva_edit_url: string | null
+          canva_view_url: string | null
+          copy: Json | null
+          created_at: string
+          error_message: string | null
+          id: string
+          image_url: string | null
+          posts: Json
+          status: string
+          user_id: string
+        }
+        Insert: {
+          canva_design_id?: string | null
+          canva_edit_url?: string | null
+          canva_view_url?: string | null
+          copy?: Json | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          posts: Json
+          status?: string
+          user_id: string
+        }
+        Update: {
+          canva_design_id?: string | null
+          canva_edit_url?: string | null
+          canva_view_url?: string | null
+          copy?: Json | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          posts?: Json
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       content_categories: {
         Row: {
           color: string | null
