@@ -23,7 +23,7 @@ import {
   listScrapeRuns, rotateNowScrape, retryWithAccount,
   listPostsForProfile,
   listFrameworkPrompts, saveFrameworkPrompt, suggestFrameworkPromptImprovement,
-  analyzeSelfProfile, scrapeMyLastPosts, enrichVoiceFromPosts,
+  analyzeSelfProfile, scrapeMyLastPosts, enrichVoiceFromPosts, enrichFromWebsites,
 } from "@/lib/social-queries";
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
