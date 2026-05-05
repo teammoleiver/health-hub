@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
     let list: string[] = Array.isArray(websites)
       ? websites
       : (Array.isArray((settings as any)?.reference_websites) ? (settings as any).reference_websites : []);
-    list = Array.from(new Set(list.map(normalizeUrl).filter(Boolean) as string[])).slice(0, 25);
+    list = Array.from(new Set(list.map(normalizeUrl).filter(Boolean) as string[])).slice(0, 100);
 
     if (Array.isArray(websites)) {
       const persistPatch = { user_id: user.id, reference_websites: list } as Record<string, any>;
@@ -144,6 +144,20 @@ Rules: be concrete, no filler, no marketing speak. If a section has nothing supp
     };
     if (settings) await admin.from("social_writer_settings").update(updates).eq("user_id", user.id);
     else await admin.from("social_writer_settings").insert(updates);
+
+    // Save a history row so the user can review what was scraped & how it was distilled
+    await admin.from("social_website_enrichments").insert({
+      user_id: user.id,
+      websites: list,
+      sites_processed: list.length,
+      sites_used: usable.length,
+      per_site: perSite.map((s) => ({
+        url: s.url,
+        answer: (s.answer || "").slice(0, 6000),
+        sources: (s.sources || []).slice(0, 8),
+      })),
+      reference_web_context,
+    });
 
     return jr({
       ok: true,
