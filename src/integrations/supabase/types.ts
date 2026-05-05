@@ -1799,11 +1799,14 @@ export type Database = {
           id: string
           last_self_analyzed_at: string | null
           last_voice_enriched_at: string | null
+          last_websites_enriched_at: string | null
           linkedin_url: string | null
           lovable_model: string | null
           openai_model: string | null
           preferred_provider: string
           profile_actor_id: string | null
+          reference_web_context: string | null
+          reference_websites: string[]
           target_audience: string | null
           updated_at: string
           user_id: string
@@ -1824,11 +1827,14 @@ export type Database = {
           id?: string
           last_self_analyzed_at?: string | null
           last_voice_enriched_at?: string | null
+          last_websites_enriched_at?: string | null
           linkedin_url?: string | null
           lovable_model?: string | null
           openai_model?: string | null
           preferred_provider?: string
           profile_actor_id?: string | null
+          reference_web_context?: string | null
+          reference_websites?: string[]
           target_audience?: string | null
           updated_at?: string
           user_id: string
@@ -1849,11 +1855,14 @@ export type Database = {
           id?: string
           last_self_analyzed_at?: string | null
           last_voice_enriched_at?: string | null
+          last_websites_enriched_at?: string | null
           linkedin_url?: string | null
           lovable_model?: string | null
           openai_model?: string | null
           preferred_provider?: string
           profile_actor_id?: string | null
+          reference_web_context?: string | null
+          reference_websites?: string[]
           target_audience?: string | null
           updated_at?: string
           user_id?: string
