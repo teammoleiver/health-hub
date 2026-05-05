@@ -298,20 +298,20 @@ function ProfilesTab() {
 
       {loading ? <div className="text-center py-12 text-muted-foreground"><Loader2 className="w-6 h-6 mx-auto animate-spin" /></div> :
         filtered.length === 0 ? <Card className="p-8 text-center text-muted-foreground">No profiles yet. Add a LinkedIn URL to start tracking.</Card> :
-        <div className="border border-border rounded-lg overflow-x-auto">
-          <table className="w-full text-sm min-w-[1200px] table-fixed">
+        <div className="border border-border rounded-lg overflow-hidden">
+          <table className="w-full text-xs table-fixed">
             <colgroup>
-              <col className="w-10" />
-              <col className="w-[180px]" />
-              <col className="w-[260px]" />
-              <col className="w-[160px]" />
-              <col className="w-[80px]" />
-              <col className="w-[90px]" />
-              <col className="w-[80px]" />
-              <col className="w-[110px]" />
-              <col className="w-[140px]" />
-              <col className="w-[70px]" />
-              <col className="w-[160px]" />
+              <col className="w-8" />
+              <col className="w-[14%]" />
+              <col className="w-[18%]" />
+              <col className="w-[14%]" />
+              <col className="w-[6%]" />
+              <col className="w-[7%]" />
+              <col className="w-[6%]" />
+              <col className="w-[10%]" />
+              <col className="w-[9%]" />
+              <col className="w-[5%]" />
+              <col className="w-[11%]" />
             </colgroup>
             <thead className="bg-muted/40 text-xs uppercase tracking-wide">
               <tr>
@@ -334,7 +334,7 @@ function ProfilesTab() {
                 <SortHeader k="scrape_cadence" label="Cadence" />
                 <SortHeader k="last_scraped_at" label="Last Scrape" />
                 <SortHeader k="active" label="Active" />
-                <th className="text-right px-3 py-2 font-medium">Actions</th>
+                <th className="text-right px-2 py-2 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -343,7 +343,7 @@ function ProfilesTab() {
                   <td className="px-2 py-2 w-8" onClick={(e) => e.stopPropagation()}>
                     <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleRowSelection(p.id)} className="cursor-pointer" />
                   </td>
-                  <td className="px-3 py-2 font-medium truncate">
+                  <td className="px-2 py-2 font-medium truncate">
                     <div className="flex items-center gap-1 min-w-0">
                       <span className="truncate">{p.full_name || p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}</span>
                       <a href={p.profile_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-primary shrink-0" title={p.profile_url}>
@@ -351,14 +351,14 @@ function ProfilesTab() {
                       </a>
                     </div>
                   </td>
-                  <td className="px-3 py-2 truncate" title={p.job_title || p.title || ""}>{p.job_title || p.title || "—"}</td>
-                  <td className="px-3 py-2 truncate" title={p.company || ""}>{p.company || "—"}{p.company_domain && <span className="block text-[10px] text-muted-foreground truncate">{p.company_domain}</span>}</td>
-                  <td className="px-3 py-2">{p.gtm_relevance ? <Badge variant="secondary" className="text-[10px]">{p.gtm_relevance}</Badge> : "—"}</td>
-                  <td className="px-3 py-2 text-xs tabular-nums">{typeof p.num_followers === "number" ? p.num_followers.toLocaleString() : "—"}</td>
-                  <td className="px-3 py-2 text-xs">{p.decision_maker_score ?? "—"}</td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 py-2 truncate" title={p.job_title || p.title || ""}>{p.job_title || p.title || "—"}</td>
+                  <td className="px-2 py-2 truncate" title={p.company || ""}>{p.company || "—"}{p.company_domain && <span className="block text-[10px] text-muted-foreground truncate">{p.company_domain}</span>}</td>
+                  <td className="px-2 py-2">{p.gtm_relevance ? <Badge variant="secondary" className="text-[10px]">{p.gtm_relevance}</Badge> : "—"}</td>
+                  <td className="px-2 py-2 tabular-nums truncate">{typeof p.num_followers === "number" ? p.num_followers.toLocaleString() : "—"}</td>
+                  <td className="px-2 py-2">{p.decision_maker_score ?? "—"}</td>
+                  <td className="px-2 py-2">
                     <Select value={p.scrape_cadence ?? "daily"} onValueChange={async (v) => { await updateSocialProfile(p.id, { scrape_cadence: v }); load(); }}>
-                      <SelectTrigger className="h-7 w-[100px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-7 w-full text-xs px-2"><SelectValue /></SelectTrigger>
                       <SelectContent onClick={(e) => e.stopPropagation()}>
                         <SelectItem value="off">Never</SelectItem>
                         <SelectItem value="daily">Daily</SelectItem>
@@ -367,21 +367,21 @@ function ProfilesTab() {
                       </SelectContent>
                     </Select>
                   </td>
-                  <td className="px-3 py-2 text-xs">
-                    {p.last_scraped_at ? new Date(p.last_scraped_at).toLocaleString() : "—"}
+                  <td className="px-2 py-2 truncate" title={p.last_scraped_at ? new Date(p.last_scraped_at).toLocaleString() : ""}>
+                    {p.last_scraped_at ? new Date(p.last_scraped_at).toLocaleDateString() : "—"}
                     {p.last_scrape_status === "error" && <Badge variant="destructive" className="ml-1 text-[10px]">err</Badge>}
                   </td>
-                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}><Switch checked={p.active} onCheckedChange={async (v) => { await updateSocialProfile(p.id, { active: v }); load(); }} /></td>
-                  <td className="px-2 py-2 text-right whitespace-nowrap sticky right-0 bg-background border-l border-border" onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" variant="ghost" onClick={() => runOne(p.id)} disabled={scrapingId === p.id}>
-                      {scrapingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}><Switch checked={p.active} onCheckedChange={async (v) => { await updateSocialProfile(p.id, { active: v }); load(); }} /></td>
+                  <td className="px-1 py-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => runOne(p.id)} disabled={scrapingId === p.id} title="Run scrape">
+                      {scrapingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => rotateOne(p.id)} disabled={rotatingId === p.id} title="Rotate to next eligible Apify account">
-                      {rotatingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => rotateOne(p.id)} disabled={rotatingId === p.id} title="Rotate to next eligible Apify account">
+                      {rotatingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5" />}
                     </Button>
                     <ProfileHistoryButton profile={p} />
-                    <Button size="sm" variant="ghost" onClick={async () => { if (confirm("Delete profile?")) { await deleteSocialProfile(p.id); load(); } }}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={async () => { if (confirm("Delete profile?")) { await deleteSocialProfile(p.id); load(); } }} title="Delete">
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     </Button>
                   </td>
                 </tr>
