@@ -158,6 +158,36 @@ export type Database = {
         }
         Relationships: []
       }
+      canva_oauth_tokens: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          refresh_token: string
+          refreshed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          refresh_token: string
+          refreshed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          refresh_token?: string
+          refreshed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       carousels: {
         Row: {
           canva_design_id: string | null
