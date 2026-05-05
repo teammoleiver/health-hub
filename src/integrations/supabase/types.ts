@@ -1830,6 +1830,7 @@ export type Database = {
           framework_prompts: Json
           goals: string | null
           id: string
+          image_style_prompt: string | null
           last_self_analyzed_at: string | null
           last_voice_enriched_at: string | null
           last_websites_enriched_at: string | null
@@ -1858,6 +1859,7 @@ export type Database = {
           framework_prompts?: Json
           goals?: string | null
           id?: string
+          image_style_prompt?: string | null
           last_self_analyzed_at?: string | null
           last_voice_enriched_at?: string | null
           last_websites_enriched_at?: string | null
@@ -1886,6 +1888,7 @@ export type Database = {
           framework_prompts?: Json
           goals?: string | null
           id?: string
+          image_style_prompt?: string | null
           last_self_analyzed_at?: string | null
           last_voice_enriched_at?: string | null
           last_websites_enriched_at?: string | null

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, List } from "lucide-react";
+import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, List, Sparkles, Figma, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, pushSinglePost, PLANNER_PLATFORMS } from "@/lib/social-queries";
+import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, pushSinglePost, PLANNER_PLATFORMS, generatePostImage } from "@/lib/social-queries";
 
 const STATUSES = ["planned", "drafting", "ready", "scheduled", "posted", "failed"];
 const PLATFORM_ICONS: Record<string, any> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, twitter: Twitter, youtube: Youtube };
@@ -217,6 +217,8 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
     platforms: entry?.platforms ?? [],
   });
   const [busy, setBusy] = useState(false);
+  const [genBusy, setGenBusy] = useState(false);
+  const [figmaBrief, setFigmaBrief] = useState<string | null>(null);
 
   function togglePlatform(p: string) {
     const cur: string[] = form.platforms ?? [];
@@ -257,6 +259,64 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
     await deletePlanEntry(entry.id); toast.success("Deleted"); onSaved();
   }
 
+  async function generateImage() {
+    if (!form.hook?.trim()) { toast.error("Add a hook first"); return; }
+    setGenBusy(true);
+    try {
+      const { data, error } = await generatePostImage({
+        hook: form.hook,
+        post_body: form.body ?? "",
+        entry_id: entry?.id ?? null,
+      });
+      if (error) throw error;
+      const d = data as any;
+      if (d?.error) throw new Error(d.error);
+      if (!d?.image_url) throw new Error("No image returned");
+      setForm({ ...form, image_url: d.image_url });
+      toast.success("Image generated with your style");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Image generation failed");
+    } finally { setGenBusy(false); }
+  }
+
+  function buildFigmaBrief() {
+    const brief = [
+      `# Figma Design Brief`,
+      ``,
+      `## Headline`,
+      form.hook || "(no hook)",
+      ``,
+      `## Body / Context`,
+      (form.body || "").slice(0, 1200) || "(no body)",
+      ``,
+      `## Format`,
+      `- 1080 x 1080 square (LinkedIn / Instagram)`,
+      `- Safe margin: 80 px`,
+      ``,
+      `## Layout suggestion`,
+      `- Top 60%: bold headline (1–2 lines), max 8–10 words distilled from the hook`,
+      `- Bottom 40%: supporting visual (icon, illustration, or photo)`,
+      `- Footer: small author handle + accent shape`,
+      ``,
+      `## Style`,
+      `- Modern, editorial, social-friendly`,
+      `- High contrast typography (display sans-serif)`,
+      `- Plenty of negative space`,
+      ``,
+      `## How to use`,
+      `1. Open Figma Desktop → Dev Mode (Shift+D) → Enable desktop MCP server.`,
+      `2. Connect Figma in Lovable Desktop (Settings → Connectors → Local MCP servers).`,
+      `3. Paste this brief into Figma AI / Make to generate the frame, or use it manually as a spec.`,
+    ].join("\n");
+    setFigmaBrief(brief);
+  }
+
+  async function copyBrief() {
+    if (!figmaBrief) return;
+    try { await navigator.clipboard.writeText(figmaBrief); toast.success("Brief copied"); }
+    catch { toast.error("Copy failed"); }
+  }
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -264,8 +324,36 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
         <div className="space-y-3">
           <div><Label>Hook / headline</Label><Input value={form.hook ?? ""} onChange={(e) => setForm({ ...form, hook: e.target.value })} /></div>
           <div><Label>Body</Label><Textarea rows={6} value={form.body ?? ""} onChange={(e) => setForm({ ...form, body: e.target.value })} /></div>
-          <div><Label>Image URL (optional)</Label><Input placeholder="https://…" value={form.image_url ?? ""} onChange={(e) => setForm({ ...form, image_url: e.target.value })} /></div>
-          {form.image_url && <img src={form.image_url} alt="" className="max-h-40 rounded-md border border-border" />}
+          <div className="space-y-2">
+            <Label>Visual</Label>
+            <Input placeholder="Image URL — paste, or use the buttons below" value={form.image_url ?? ""} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="default" onClick={generateImage} disabled={genBusy}>
+                {genBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+                Generate with AI
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={buildFigmaBrief}>
+                <Figma className="w-4 h-4 mr-1" /> Design in Figma
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              "Generate with AI" uses OpenAI <code>gpt-image-1</code> with the style prompt from{" "}
+              <span className="font-medium">Social Studio → Settings → Image style prompt</span>.
+              "Design in Figma" produces a copy-paste design brief for Figma (live MCP requires the Lovable Desktop app).
+            </p>
+            {form.image_url && <img src={form.image_url} alt="" className="max-h-48 rounded-md border border-border" />}
+            {figmaBrief && (
+              <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium">Figma design brief</span>
+                  <Button type="button" size="sm" variant="ghost" onClick={copyBrief}>
+                    <Copy className="w-3.5 h-3.5 mr-1" /> Copy
+                  </Button>
+                </div>
+                <pre className="text-[11px] whitespace-pre-wrap font-mono leading-relaxed">{figmaBrief}</pre>
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <div><Label>Date</Label><Input type="date" value={form.scheduled_date ?? ""} onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })} /></div>
             <div><Label>Time</Label><Input type="time" value={(form.scheduled_time ?? "").slice(0,5)} onChange={(e) => setForm({ ...form, scheduled_time: e.target.value })} /></div>
