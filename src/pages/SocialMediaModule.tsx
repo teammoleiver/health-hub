@@ -1496,6 +1496,19 @@ function SettingsTab() {
       </Card>
 
       <Card className="p-5 space-y-4">
+        <div className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" /><h2 className="font-medium">Image style prompt</h2></div>
+        <p className="text-xs text-muted-foreground">
+          Describe the visual style you want for AI-generated post images. This is auto-prepended to every image prompt when you click <strong>Generate image</strong> on a planned post (OpenAI <code>gpt-image-1</code>).
+        </p>
+        <Textarea
+          rows={6}
+          value={s.image_style_prompt ?? ""}
+          onChange={(e) => setS({ ...s, image_style_prompt: e.target.value })}
+          placeholder={"e.g. Editorial flat illustration. Muted palette of deep green (#0F6E56), cream and charcoal. Soft geometric shapes, subtle grain, generous negative space. No text, no logos. Confident, modern, B2B-friendly."}
+        />
+      </Card>
+
+      <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" /><h2 className="font-medium">AI provider</h2></div>
         <p className="text-xs text-muted-foreground">Falls back automatically if the preferred provider fails. Anthropic & OpenAI keys are stored as Supabase secrets.</p>
         <Select value={s.preferred_provider} onValueChange={(v) => setS({ ...s, preferred_provider: v })}>
