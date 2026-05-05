@@ -296,6 +296,7 @@ ${sourceText || idea}`;
     if (settings?.target_audience) personaParts.push(`TARGET AUDIENCE: ${settings.target_audience}`);
     if (settings?.goals) personaParts.push(`MY GOALS: ${settings.goals}`);
     if (settings?.writing_samples) personaParts.push(`WRITING SAMPLES (mimic this style):\n${String(settings.writing_samples).slice(0, 2000)}`);
+    if ((settings as any)?.reference_web_context) personaParts.push(`COMPETITIVE / TOPICAL WEB CONTEXT (from author's reference websites — use to ground claims, borrow or counter angles, mention recurring topics. Do NOT copy verbatim):\n${String((settings as any).reference_web_context).slice(0, 3500)}`);
     const personaBlock = personaParts.length ? `\n\n--- AUTHOR CONTEXT ---\n${personaParts.join("\n\n")}\n--- END CONTEXT ---` : "";
 
     const baseSys = (settings?.custom_system_prompt
