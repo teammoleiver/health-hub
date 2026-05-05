@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   listSocialProfiles, createSocialProfile, updateSocialProfile, deleteSocialProfile,
   bulkCreateSocialProfiles, listExistingProfileUrls, bulkUpdateSocialProfiles, bulkDeleteSocialProfiles, bulkMergeBlankSocialProfiles,
