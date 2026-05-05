@@ -30,6 +30,8 @@ import NewsPage from "./pages/social/NewsPage";
 import ContentPlannerPage from "./pages/social/ContentPlannerPage";
 import SearchPage from "./pages/social/SearchPage";
 import ContentStudioPage from "./pages/social/ContentStudioPage";
+import CarouselGenerator from "./pages/CarouselGenerator";
+import CarouselHistory from "./pages/CarouselHistory";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
@@ -111,6 +113,8 @@ function AppRoutes() {
       </Route>
       <Route path="/content-studio" element={<ProtectedRoute><AppLayout><ContentStudioPage /></AppLayout></ProtectedRoute>} />
       <Route path="/content-planner" element={<ProtectedRoute><AppLayout><ContentPlannerPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/carousel-generator" element={<ProtectedRoute><AppLayout><CarouselGenerator /></AppLayout></ProtectedRoute>} />
+      <Route path="/carousel-history" element={<ProtectedRoute><AppLayout><CarouselHistory /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsModule /></AppLayout></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AppLayout><AdminPanel /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
