@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CANVA_API = "https://api.canva.com/rest/v1";
 const TOKEN_REFRESH_SKEW_MS = 2 * 60 * 1000;
+const TOKEN_REFRESH_LOCK_MS = 30 * 1000;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -112,27 +113,37 @@ Deno.serve(async (req) => {
 });
 
 async function getCanvaAccessToken(supabase: any) {
-  const { data: row, error } = await supabase
-    .from("canva_oauth_tokens")
-    .select("access_token_ciphertext,access_token_iv,refresh_token_ciphertext,refresh_token_iv,expires_at")
-    .eq("id", "default")
-    .maybeSingle();
-  if (error) throw new Error(`Canva token cache read failed: ${error.message}`);
+  const cached = await readCachedAccessToken(supabase);
+  if (cached) return cached;
 
-  const now = Date.now();
-  if (row?.access_token_ciphertext && row?.access_token_iv && row?.expires_at) {
-    const expiresAt = new Date(row.expires_at).getTime();
-    if (Number.isFinite(expiresAt) && expiresAt - TOKEN_REFRESH_SKEW_MS > now) {
-      return decryptToken(row.access_token_ciphertext, row.access_token_iv);
-    }
+  const lockOwner = crypto.randomUUID();
+  const locked = await acquireRefreshLock(supabase, lockOwner);
+  if (!locked) {
+    const refreshed = await waitForCachedAccessToken(supabase);
+    if (refreshed) return refreshed;
+    throw new Error("Canva token refresh is already in progress. Please retry in a few seconds.");
   }
 
-  const refreshToken = row?.refresh_token_ciphertext && row?.refresh_token_iv
-    ? await decryptToken(row.refresh_token_ciphertext, row.refresh_token_iv)
-    : Deno.env.get("CANVA_REFRESH_TOKEN");
-  if (!refreshToken) throw new Error("Canva refresh token is not configured");
+  try {
+    const refreshedByOther = await readCachedAccessToken(supabase);
+    if (refreshedByOther) return refreshedByOther;
 
-  return await refreshCanvaToken(supabase, refreshToken);
+    const { data: row, error } = await supabase
+      .from("canva_oauth_tokens")
+      .select("refresh_token_ciphertext,refresh_token_iv")
+      .eq("id", "default")
+      .maybeSingle();
+    if (error) throw new Error(`Canva token cache read failed: ${error.message}`);
+
+    const refreshToken = row?.refresh_token_ciphertext && row?.refresh_token_iv
+      ? await decryptToken(row.refresh_token_ciphertext, row.refresh_token_iv)
+      : Deno.env.get("CANVA_REFRESH_TOKEN");
+    if (!refreshToken) throw new Error("Canva refresh token is not configured");
+
+    return await refreshCanvaToken(supabase, refreshToken);
+  } finally {
+    await releaseRefreshLock(supabase, lockOwner);
+  }
 }
 
 async function refreshCanvaToken(supabase: any, refreshToken: string) {
