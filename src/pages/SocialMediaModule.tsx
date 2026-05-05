@@ -1410,6 +1410,36 @@ function SettingsTab() {
       </Card>
 
       <Card className="p-5 space-y-4">
+        <div className="flex items-center gap-2"><LinkIcon className="w-5 h-5 text-primary" /><h2 className="font-medium">Reference websites (competitors & topics)</h2></div>
+        <p className="text-xs text-muted-foreground">
+          Add websites of competitors, thought leaders, or publications relevant to your space. We use <strong>Linkup</strong> to deep-scrape each site, then AI-distill a competitive context block that gets appended to your Writer system prompt — so every post you generate is informed by what others in your space are saying. The more websites you add, the smarter your prompts get.
+        </p>
+        <div>
+          <label className="text-xs font-medium">Website URLs (one per line, or comma-separated)</label>
+          <Textarea rows={5} value={websitesInput} onChange={(e) => setWebsitesInput(e.target.value)}
+            placeholder={"https://competitor.com\nhttps://blog.thoughtleader.io\nhttps://industry-publication.com"} />
+          <p className="text-[11px] text-muted-foreground mt-1">Up to 25 sites. Each enrichment runs a deep web search per URL.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={enrichWebsites} disabled={enrichingSites} variant="default">
+            {enrichingSites ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+            Enrich from websites
+          </Button>
+          {s.last_websites_enriched_at && (
+            <span className="text-[11px] text-muted-foreground self-center">Last enriched: {new Date(s.last_websites_enriched_at).toLocaleString()}</span>
+          )}
+        </div>
+        {s.reference_web_context && (
+          <div>
+            <label className="text-xs font-medium">Distilled web context (appended to every prompt)</label>
+            <Textarea rows={8} value={s.reference_web_context ?? ""} onChange={(e) => setS({ ...s, reference_web_context: e.target.value })}
+              placeholder="Auto-generated after you click 'Enrich from websites'." />
+            <p className="text-[11px] text-muted-foreground mt-1">You can edit this manually. It is injected into the Writer system prompt and used when rewriting framework prompts.</p>
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2"><Wand2 className="w-5 h-5 text-primary" /><h2 className="font-medium">Writer system prompt</h2></div>
         <p className="text-xs text-muted-foreground">Sets the voice for ALL 7 framework writers. The frameworks define structure; this defines persona. Leave blank for the default B2B operator voice.</p>
         <Textarea rows={8} value={s.custom_system_prompt ?? ""} onChange={(e) => setS({ ...s, custom_system_prompt: e.target.value })}
