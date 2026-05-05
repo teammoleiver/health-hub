@@ -72,18 +72,26 @@ Deno.serve(async (req: Request) => {
       settings?.about_me, settings?.expertise, settings?.target_audience, settings?.goals,
     ].filter(Boolean).join(" | ").slice(0, 600);
 
-    // Per-site Linkup deep search
-    const perSite: { url: string; answer: string; sources: any[] }[] = [];
-    for (const site of list) {
+    // Per-site Linkup search — run in parallel with a per-call timeout to stay
+    // within the 150s edge-function idle limit. Use "standard" depth (deep can
+    // take 30-60s+ per site and serially blows the budget).
+    const PER_CALL_MS = 35_000;
+    const withTimeout = <T,>(p: Promise<T>, ms: number) =>
+      Promise.race<T>([
+        p,
+        new Promise<T>((_, rej) => setTimeout(() => rej(new Error(`timeout after ${ms}ms`)), ms)),
+      ]);
+
+    const perSite = await Promise.all(list.map(async (site) => {
       try {
         const host = new URL(site).host;
         const q = `From the website ${site} (site:${host}) — summarize what this brand/competitor publishes that is most relevant to: ${persona || "B2B operator audience"}. Include positioning, recurring topics, hooks, frameworks, and any notable post excerpts. Quote short verbatim snippets when helpful.`;
-        const r = await linkupSearch(linkupKey, q, "deep");
-        perSite.push({ url: site, answer: r.answer, sources: r.sources });
+        const r = await withTimeout(linkupSearch(linkupKey, q, "standard"), PER_CALL_MS);
+        return { url: site, answer: r.answer, sources: r.sources };
       } catch (e: any) {
-        perSite.push({ url: site, answer: `(failed: ${e?.message ?? e})`, sources: [] });
+        return { url: site, answer: `(failed: ${e?.message ?? e})`, sources: [] as any[] };
       }
-    }
+    }));
 
     const usable = perSite.filter((s) => s.answer && s.answer.length > 60 && !s.answer.startsWith("(failed"));
     if (!usable.length) return jr({ error: "Linkup returned no usable data for those websites." }, 422);
