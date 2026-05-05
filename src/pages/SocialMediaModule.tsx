@@ -29,6 +29,18 @@ import {
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
 
+// Build a clean LinkedIn post URL. Stored URLs sometimes contain raw `urn:li:activity:...`
+// which Chrome can mangle (the colons are reserved). Rebuild from the activity id and
+// route through LinkedIn's canonical `/posts/` permalink which works without auth-context.
+function normalizeLinkedInUrl(raw?: string | null): string {
+  if (!raw) return "";
+  const url = String(raw).trim();
+  if (!url) return "";
+  const m = url.match(/(?:activity|share|ugcPost)[:%-](\d{15,})/i);
+  if (m) return `https://www.linkedin.com/feed/update/urn%3Ali%3Aactivity%3A${m[1]}/`;
+  return /^https?:\/\//i.test(url) ? url : `https://${url.replace(/^\/+/, "")}`;
+}
+
 const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { id: "profiles", label: "Profiles to Track", icon: Users },
   { id: "posts", label: "Scraped Posts", icon: FileText },
@@ -755,7 +767,7 @@ function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | nul
                       <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
                     </div>
                     <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
-                    {p.post_url && <a href={p.post_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+                    {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
                   </Card>
                 ))}
               </div>
@@ -889,7 +901,7 @@ function PostsTab() {
                   <td className="px-3 py-2">{p.comments}</td>
                   <td className="px-3 py-2 text-xs">{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</td>
                   <td className="px-3 py-2 text-right">
-                    {p.post_url && <a href={p.post_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-primary inline-flex"><ArrowUpRight className="w-4 h-4" /></a>}
+                    {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-primary inline-flex"><ArrowUpRight className="w-4 h-4" /></a>}
                   </td>
                 </tr>
               ))}
@@ -962,7 +974,7 @@ function PostInspectorDialog({ post, onClose }: { post: any; onClose: () => void
           <Card className="p-4 bg-muted/30 whitespace-pre-wrap text-sm">{post.post_text}</Card>
           <div className="text-xs text-muted-foreground flex gap-3">
             <span>👍 {post.likes}</span><span>💬 {post.comments}</span><span>🔁 {post.shares}</span>
-            {post.post_url && <a href={post.post_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+            {post.post_url && <a href={normalizeLinkedInUrl(post.post_url)} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
           </div>
 
           <div className="border-t border-border pt-4">
@@ -1993,7 +2005,7 @@ function ProfileHistoryButton({ profile }: { profile: any }) {
                   <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
-                {p.post_url && <a href={p.post_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+                {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
               </Card>
             ))}
           </div>
