@@ -363,6 +363,17 @@ export async function enrichFromWebsites(websites?: string[]) {
   return supabase.functions.invoke("enrich-from-websites", { body: websites ? { websites } : {} });
 }
 
+export async function listWebsiteEnrichments() {
+  const u = await uid(); if (!u) return [];
+  const { data } = await supabase
+    .from("social_website_enrichments" as any)
+    .select("*")
+    .eq("user_id", u)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  return (data as any[]) ?? [];
+}
+
 // ── RSS feeds ──
 export async function listRssFeeds() {
   const u = await uid(); if (!u) return [];

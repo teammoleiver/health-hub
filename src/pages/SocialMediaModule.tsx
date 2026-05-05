@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   listSocialProfiles, createSocialProfile, updateSocialProfile, deleteSocialProfile,
   bulkCreateSocialProfiles, listExistingProfileUrls, bulkUpdateSocialProfiles, bulkDeleteSocialProfiles, bulkMergeBlankSocialProfiles,
@@ -23,7 +24,7 @@ import {
   listScrapeRuns, rotateNowScrape, retryWithAccount,
   listPostsForProfile,
   listFrameworkPrompts, saveFrameworkPrompt, suggestFrameworkPromptImprovement,
-  analyzeSelfProfile, scrapeMyLastPosts, enrichVoiceFromPosts, enrichFromWebsites,
+  analyzeSelfProfile, scrapeMyLastPosts, enrichVoiceFromPosts, enrichFromWebsites, listWebsiteEnrichments,
 } from "@/lib/social-queries";
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
@@ -1414,29 +1415,40 @@ function SettingsTab() {
         <p className="text-xs text-muted-foreground">
           Add websites of competitors, thought leaders, or publications relevant to your space. We use <strong>Linkup</strong> to deep-scrape each site, then AI-distill a competitive context block that gets appended to your Writer system prompt — so every post you generate is informed by what others in your space are saying. The more websites you add, the smarter your prompts get.
         </p>
-        <div>
-          <label className="text-xs font-medium">Website URLs (one per line, or comma-separated)</label>
-          <Textarea rows={5} value={websitesInput} onChange={(e) => setWebsitesInput(e.target.value)}
-            placeholder={"https://competitor.com\nhttps://blog.thoughtleader.io\nhttps://industry-publication.com"} />
-          <p className="text-[11px] text-muted-foreground mt-1">Up to 25 sites. Each enrichment runs a deep web search per URL.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={enrichWebsites} disabled={enrichingSites} variant="default">
-            {enrichingSites ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-            Enrich from websites
-          </Button>
-          {s.last_websites_enriched_at && (
-            <span className="text-[11px] text-muted-foreground self-center">Last enriched: {new Date(s.last_websites_enriched_at).toLocaleString()}</span>
-          )}
-        </div>
-        {s.reference_web_context && (
-          <div>
-            <label className="text-xs font-medium">Distilled web context (appended to every prompt)</label>
-            <Textarea rows={8} value={s.reference_web_context ?? ""} onChange={(e) => setS({ ...s, reference_web_context: e.target.value })}
-              placeholder="Auto-generated after you click 'Enrich from websites'." />
-            <p className="text-[11px] text-muted-foreground mt-1">You can edit this manually. It is injected into the Writer system prompt and used when rewriting framework prompts.</p>
-          </div>
-        )}
+        <Tabs defaultValue="sites" className="w-full">
+          <TabsList>
+            <TabsTrigger value="sites">Sites & Context</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
+          <TabsContent value="sites" className="space-y-4 pt-3">
+            <div>
+              <label className="text-xs font-medium">Website URLs (one per line, or comma-separated)</label>
+              <Textarea rows={5} value={websitesInput} onChange={(e) => setWebsitesInput(e.target.value)}
+                placeholder={"https://competitor.com\nhttps://blog.thoughtleader.io\nhttps://industry-publication.com"} />
+              <p className="text-[11px] text-muted-foreground mt-1">Up to 100 sites. Each enrichment runs a web search per URL.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={enrichWebsites} disabled={enrichingSites} variant="default">
+                {enrichingSites ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Enrich from websites
+              </Button>
+              {s.last_websites_enriched_at && (
+                <span className="text-[11px] text-muted-foreground self-center">Last enriched: {new Date(s.last_websites_enriched_at).toLocaleString()}</span>
+              )}
+            </div>
+            {s.reference_web_context && (
+              <div>
+                <label className="text-xs font-medium">Distilled web context (appended to every prompt)</label>
+                <Textarea rows={8} value={s.reference_web_context ?? ""} onChange={(e) => setS({ ...s, reference_web_context: e.target.value })}
+                  placeholder="Auto-generated after you click 'Enrich from websites'." />
+                <p className="text-[11px] text-muted-foreground mt-1">You can edit this manually. It is injected into the Writer system prompt and used when rewriting framework prompts.</p>
+              </div>
+            )}
+          </TabsContent>
+          <TabsContent value="history" className="pt-3">
+            <WebsiteEnrichmentHistory refreshKey={enrichingSites ? "loading" : (s.last_websites_enriched_at || "init")} />
+          </TabsContent>
+        </Tabs>
       </Card>
 
       <Card className="p-5 space-y-4">
@@ -1850,6 +1862,78 @@ function ScrapeHistoryPanel() {
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+function WebsiteEnrichmentHistory({ refreshKey }: { refreshKey: string }) {
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    listWebsiteEnrichments().then((r) => { setRows(r); setLoading(false); });
+  }, [refreshKey]);
+
+  if (loading) return <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Loading history…</div>;
+  if (!rows.length) return <p className="text-xs text-muted-foreground">No enrichments yet. Run "Enrich from websites" to build your first history entry.</p>;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-muted-foreground">Each run captures what Linkup pulled from your sites and the distilled context that was appended to your Writer system prompt and framework prompts.</p>
+      {rows.map((r) => {
+        const isOpen = open === r.id;
+        return (
+          <div key={r.id} className="border rounded-md">
+            <button onClick={() => setOpen(isOpen ? null : r.id)} className="w-full flex items-center justify-between p-3 text-left hover:bg-muted/40">
+              <div>
+                <div className="text-sm font-medium">{new Date(r.created_at).toLocaleString()}</div>
+                <div className="text-[11px] text-muted-foreground">{r.sites_used}/{r.sites_processed} sites used · context {r.reference_web_context?.length ?? 0} chars</div>
+              </div>
+              <ChevronRight className={`w-4 h-4 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+            </button>
+            {isOpen && (
+              <div className="p-3 border-t space-y-3 bg-muted/20">
+                <div>
+                  <div className="text-xs font-medium mb-1">Sites scraped</div>
+                  <div className="flex flex-wrap gap-1">
+                    {(r.websites || []).map((u: string) => (
+                      <Badge key={u} variant="secondary" className="text-[10px]">{u.replace(/^https?:\/\//, "").replace(/\/$/, "")}</Badge>
+                    ))}
+                  </div>
+                </div>
+                {r.reference_web_context && (
+                  <div>
+                    <div className="text-xs font-medium mb-1">Distilled context (appended to your Writer prompt)</div>
+                    <pre className="text-[11px] whitespace-pre-wrap p-2 bg-background rounded border max-h-60 overflow-auto">{r.reference_web_context}</pre>
+                  </div>
+                )}
+                {Array.isArray(r.per_site) && r.per_site.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium mb-1">Per-site Linkup answers</div>
+                    <div className="space-y-2 max-h-80 overflow-auto">
+                      {r.per_site.map((p: any, i: number) => (
+                        <details key={i} className="border rounded p-2 bg-background">
+                          <summary className="text-xs cursor-pointer font-medium">{p.url}</summary>
+                          <pre className="text-[11px] whitespace-pre-wrap mt-2 text-muted-foreground">{p.answer || "(no answer)"}</pre>
+                          {Array.isArray(p.sources) && p.sources.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {p.sources.map((src: any, j: number) => (
+                                <a key={j} href={src.url} target="_blank" rel="noreferrer" className="block text-[11px] text-primary truncate">↳ {src.name || src.url}</a>
+                              ))}
+                            </div>
+                          )}
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
