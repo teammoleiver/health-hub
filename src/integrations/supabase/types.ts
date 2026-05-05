@@ -165,6 +165,8 @@ export type Database = {
           created_at: string
           expires_at: string | null
           id: string
+          refresh_lock_owner: string | null
+          refresh_lock_until: string | null
           refresh_token_ciphertext: string
           refresh_token_iv: string
           refreshed_at: string | null
@@ -176,6 +178,8 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          refresh_lock_owner?: string | null
+          refresh_lock_until?: string | null
           refresh_token_ciphertext: string
           refresh_token_iv: string
           refreshed_at?: string | null
@@ -187,6 +191,8 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          refresh_lock_owner?: string | null
+          refresh_lock_until?: string | null
           refresh_token_ciphertext?: string
           refresh_token_iv?: string
           refreshed_at?: string | null
