@@ -1784,6 +1784,39 @@ export type Database = {
         }
         Relationships: []
       }
+      social_website_enrichments: {
+        Row: {
+          created_at: string
+          id: string
+          per_site: Json
+          reference_web_context: string | null
+          sites_processed: number
+          sites_used: number
+          user_id: string
+          websites: string[]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          per_site?: Json
+          reference_web_context?: string | null
+          sites_processed?: number
+          sites_used?: number
+          user_id: string
+          websites?: string[]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          per_site?: Json
+          reference_web_context?: string | null
+          sites_processed?: number
+          sites_used?: number
+          user_id?: string
+          websites?: string[]
+        }
+        Relationships: []
+      }
       social_writer_settings: {
         Row: {
           about_me: string | null
