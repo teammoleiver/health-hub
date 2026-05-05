@@ -1,0 +1,1 @@
+ALTER FUNCTION public.update_projects_updated_at() SET search_path = public;
