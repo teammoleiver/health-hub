@@ -1865,6 +1865,78 @@ function ScrapeHistoryPanel() {
   );
 }
 
+function WebsiteEnrichmentHistory({ refreshKey }: { refreshKey: string }) {
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    listWebsiteEnrichments().then((r) => { setRows(r); setLoading(false); });
+  }, [refreshKey]);
+
+  if (loading) return <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Loading history…</div>;
+  if (!rows.length) return <p className="text-xs text-muted-foreground">No enrichments yet. Run "Enrich from websites" to build your first history entry.</p>;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-muted-foreground">Each run captures what Linkup pulled from your sites and the distilled context that was appended to your Writer system prompt and framework prompts.</p>
+      {rows.map((r) => {
+        const isOpen = open === r.id;
+        return (
+          <div key={r.id} className="border rounded-md">
+            <button onClick={() => setOpen(isOpen ? null : r.id)} className="w-full flex items-center justify-between p-3 text-left hover:bg-muted/40">
+              <div>
+                <div className="text-sm font-medium">{new Date(r.created_at).toLocaleString()}</div>
+                <div className="text-[11px] text-muted-foreground">{r.sites_used}/{r.sites_processed} sites used · context {r.reference_web_context?.length ?? 0} chars</div>
+              </div>
+              <ChevronRight className={`w-4 h-4 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+            </button>
+            {isOpen && (
+              <div className="p-3 border-t space-y-3 bg-muted/20">
+                <div>
+                  <div className="text-xs font-medium mb-1">Sites scraped</div>
+                  <div className="flex flex-wrap gap-1">
+                    {(r.websites || []).map((u: string) => (
+                      <Badge key={u} variant="secondary" className="text-[10px]">{u.replace(/^https?:\/\//, "").replace(/\/$/, "")}</Badge>
+                    ))}
+                  </div>
+                </div>
+                {r.reference_web_context && (
+                  <div>
+                    <div className="text-xs font-medium mb-1">Distilled context (appended to your Writer prompt)</div>
+                    <pre className="text-[11px] whitespace-pre-wrap p-2 bg-background rounded border max-h-60 overflow-auto">{r.reference_web_context}</pre>
+                  </div>
+                )}
+                {Array.isArray(r.per_site) && r.per_site.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium mb-1">Per-site Linkup answers</div>
+                    <div className="space-y-2 max-h-80 overflow-auto">
+                      {r.per_site.map((p: any, i: number) => (
+                        <details key={i} className="border rounded p-2 bg-background">
+                          <summary className="text-xs cursor-pointer font-medium">{p.url}</summary>
+                          <pre className="text-[11px] whitespace-pre-wrap mt-2 text-muted-foreground">{p.answer || "(no answer)"}</pre>
+                          {Array.isArray(p.sources) && p.sources.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {p.sources.map((src: any, j: number) => (
+                                <a key={j} href={src.url} target="_blank" rel="noreferrer" className="block text-[11px] text-primary truncate">↳ {src.name || src.url}</a>
+                              ))}
+                            </div>
+                          )}
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
