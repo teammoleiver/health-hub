@@ -119,6 +119,7 @@ Rules: no generic filler ("versatile skill set", "passionate professional", "exp
     // ── STEP 2: Rewrite ALL 7 framework prompts in this author's voice ──
     const personaForFrameworks = updates.custom_system_prompt ?? settings?.custom_system_prompt ?? "";
     const voiceTraits = updates.voice_notes ?? settings?.voice_notes ?? "";
+    const webCtx = (settings as any)?.reference_web_context ?? "";
     let framework_prompts: Record<string, string> = { ...(settings?.framework_prompts ?? {}) };
     let frameworksRewritten = 0;
 
@@ -130,6 +131,9 @@ ${personaForFrameworks}
 
 VOICE TRAITS (must shape style rules in every template):
 ${voiceTraits || "(none)"}
+
+COMPETITIVE / TOPICAL WEB CONTEXT (use to ground topics & angles; do not copy verbatim):
+${(webCtx || "(none)").slice(0, 3000)}
 
 TOP-PERFORMING POSTS (style reference — mimic rhythm/openers/cadence, do NOT copy words):
 ${sample.slice(0, 10000)}
