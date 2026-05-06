@@ -1,0 +1,1 @@
+DELETE FROM public.canva_oauth_tokens WHERE id = 'default';
