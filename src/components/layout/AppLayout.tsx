@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
   Droplets, FolderKanban, CheckSquare, CalendarDays,
-  PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList,
+  PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList, Palette,
   Shield, User as UserIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
