@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon } from "lucide-react";
+import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,7 @@ import { generateDesignFromPrompt } from "@/lib/designer-queries";
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/supabase-queries";
 import LinkedInReview from "./LinkedInReview";
+import PlatformReview from "./PlatformReview";
 
 const STATUSES = ["planned", "drafting", "ready", "scheduled", "posted", "failed"];
 const PLATFORM_ICONS: Record<string, any> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, twitter: Twitter, youtube: Youtube };
@@ -33,16 +34,35 @@ function statusColor(s: string) {
     : "bg-muted text-muted-foreground border-border";
 }
 
-// Distinct color for posts accepted from LinkedIn Review
-const KEPT_CHIP = "bg-violet-500/20 text-violet-200 border-violet-400/60 ring-1 ring-violet-400/40";
-const KEPT_CELL = "bg-violet-500/10 ring-1 ring-inset ring-violet-400/40";
-function isKept(e: any) { return e?.source_kind === "linkedin_review"; }
+// Brand colors for posts on the calendar
+const PLATFORM_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  linkedin:  { bg: "#1877F2", text: "#ffffff", border: "#1877F2" },
+  facebook:  { bg: "#90D5FF", text: "#0a2540", border: "#5cb8ec" },
+  instagram: { bg: "#d62976", text: "#ffffff", border: "#d62976" },
+  twitter:   { bg: "#000000", text: "#ffffff", border: "#000000" },
+};
+function primaryPlatform(e: any): string | null {
+  const list: string[] = e?.platforms ?? [];
+  for (const p of list) if (PLATFORM_COLORS[p]) return p;
+  return null;
+}
+function isReviewSourced(e: any): boolean {
+  const s = e?.source_kind ?? "";
+  return s === "linkedin_review" || s === "facebook_review" || s === "instagram_review" || s === "twitter_review";
+}
+
+type PlannerMode = "calendar" | "linkedin-review" | "facebook-review" | "instagram-review" | "twitter-review";
 
 export default function ContentPlannerPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawMode = (searchParams.get("mode") as string | null) ?? (typeof window !== "undefined" ? localStorage.getItem("planner_mode") : null);
-  const mode: "calendar" | "linkedin-review" = rawMode === "linkedin-review" ? "linkedin-review" : "calendar";
-  function setMode(m: "calendar" | "linkedin-review") {
+  const mode: PlannerMode =
+    rawMode === "linkedin-review" ? "linkedin-review"
+    : rawMode === "facebook-review" ? "facebook-review"
+    : rawMode === "instagram-review" ? "instagram-review"
+    : rawMode === "twitter-review" ? "twitter-review"
+    : "calendar";
+  function setMode(m: PlannerMode) {
     const sp = new URLSearchParams(searchParams); sp.set("mode", m); setSearchParams(sp, { replace: true });
     try { localStorage.setItem("planner_mode", m); } catch { /* ignore */ }
   }
@@ -55,7 +75,7 @@ export default function ContentPlannerPage() {
   const [creatingFor, setCreatingFor] = useState<string | null>(null);
 
   async function load() { setLoading(true); setEntries(await listContentPlan()); setLoading(false); }
-  useEffect(() => { if (mode !== "linkedin-review") load(); }, [mode]);
+  useEffect(() => { if (mode === "calendar") load(); }, [mode]);
 
   const grouped = useMemo(() => {
     const m: Record<string, any[]> = {};
@@ -77,19 +97,25 @@ export default function ContentPlannerPage() {
   return (
     <section className="space-y-4">
       {/* Mode switcher */}
-      <div className="flex items-center gap-1 bg-muted rounded-md p-0.5 w-fit">
+      <div className="flex items-center gap-1 bg-muted rounded-md p-0.5 w-fit flex-wrap">
         {([
-          { v: "calendar", l: "Calendar", icon: CalendarIcon },
-          { v: "linkedin-review", l: "LinkedIn Review", icon: LinkedinIcon },
-        ] as const).map(({ v, l, icon: Ic }) => (
+          { v: "calendar", l: "Calendar", icon: CalendarIcon, color: undefined },
+          { v: "linkedin-review", l: "LinkedIn Review", icon: LinkedinIcon, color: PLATFORM_COLORS.linkedin.bg },
+          { v: "facebook-review", l: "Facebook Review", icon: Facebook, color: PLATFORM_COLORS.facebook.bg },
+          { v: "instagram-review", l: "Instagram Review", icon: Instagram, color: PLATFORM_COLORS.instagram.bg },
+          { v: "twitter-review", l: "Twitter X Review", icon: Twitter, color: PLATFORM_COLORS.twitter.bg },
+        ] as const).map(({ v, l, icon: Ic, color }) => (
           <button key={v} onClick={() => setMode(v)}
             className={`text-xs px-3 py-1.5 rounded inline-flex items-center gap-1.5 ${mode === v ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
-            <Ic className="w-3.5 h-3.5" /> {l}
+            <Ic className="w-3.5 h-3.5" style={color ? { color } : undefined} /> {l}
           </button>
         ))}
       </div>
 
-      {mode === "linkedin-review" ? <LinkedInReview /> : (
+      {mode === "linkedin-review" ? <LinkedInReview />
+        : mode === "facebook-review" ? <PlatformReview platform="facebook" />
+        : mode === "instagram-review" ? <PlatformReview platform="instagram" />
+        : mode === "twitter-review" ? <PlatformReview platform="twitter" /> : (
       <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -129,11 +155,23 @@ export default function ContentPlannerPage() {
 }
 
 function EntryChip({ e, onClick }: { e: any; onClick: () => void }) {
-  const kept = isKept(e);
+  const platform = primaryPlatform(e);
+  const reviewSourced = isReviewSourced(e);
+  if (platform) {
+    const c = PLATFORM_COLORS[platform];
+    return (
+      <button onClick={onClick}
+        className="w-full text-left px-1.5 py-1 rounded text-[11px] border truncate hover:opacity-90"
+        style={{ background: c.bg, color: c.text, borderColor: c.border }}
+        title={`${platform}${reviewSourced ? " · from review" : ""}`}>
+        {reviewSourced && <span className="mr-1">✓</span>}
+        <span className="font-medium">{e.scheduled_time?.slice(0, 5) ?? ""}</span> {e.hook}
+      </button>
+    );
+  }
   return (
-    <button onClick={onClick} className={`w-full text-left px-1.5 py-1 rounded text-[11px] border truncate hover:opacity-90 ${kept ? KEPT_CHIP : statusColor(e.status)}`}>
-      {kept && <span className="mr-1">✓</span>}
-      <span className="font-medium">{e.scheduled_time?.slice(0,5) ?? ""}</span> {e.hook}
+    <button onClick={onClick} className={`w-full text-left px-1.5 py-1 rounded text-[11px] border truncate hover:opacity-90 ${statusColor(e.status)}`}>
+      <span className="font-medium">{e.scheduled_time?.slice(0, 5) ?? ""}</span> {e.hook}
     </button>
   );
 }
@@ -153,11 +191,11 @@ function MonthView({ cursor, grouped, onPick, onOpen }: { cursor: Date; grouped:
           const k = ymd(d);
           const inMonth = d.getMonth() === cursor.getMonth();
           const items = grouped[k] ?? [];
-          const hasKept = items.some(isKept);
+          const hasReview = items.some(isReviewSourced);
           return (
-            <div key={k} className={`border-t border-r border-border p-1.5 flex flex-col gap-1 ${inMonth ? "" : "bg-muted/20 text-muted-foreground"} ${hasKept ? KEPT_CELL : ""}`}>
+            <div key={k} className={`border-t border-r border-border p-1.5 flex flex-col gap-1 ${inMonth ? "" : "bg-muted/20 text-muted-foreground"} ${hasReview ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}>
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] ${k === today ? "bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center font-bold" : hasKept ? "text-violet-300 font-semibold" : ""}`}>{d.getDate()}</span>
+                <span className={`text-[11px] ${k === today ? "bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center font-bold" : hasReview ? "text-primary font-semibold" : ""}`}>{d.getDate()}</span>
                 <button onClick={() => onPick(k)} className="opacity-0 hover:opacity-100 group-hover:opacity-100 text-muted-foreground hover:text-primary"><Plus className="w-3 h-3" /></button>
               </div>
               <div className="space-y-1 overflow-hidden">
