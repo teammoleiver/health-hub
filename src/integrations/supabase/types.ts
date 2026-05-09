@@ -636,6 +636,54 @@ export type Database = {
           },
         ]
       }
+      design_templates: {
+        Row: {
+          category: string | null
+          created_at: string
+          height: number
+          id: string
+          is_public: boolean
+          platform: string
+          slides: Json
+          thumbnail_url: string | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+          width: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          height?: number
+          id?: string
+          is_public?: boolean
+          platform?: string
+          slides?: Json
+          thumbnail_url?: string | null
+          title?: string
+          type: string
+          updated_at?: string
+          user_id: string
+          width?: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          height?: number
+          id?: string
+          is_public?: boolean
+          platform?: string
+          slides?: Json
+          thumbnail_url?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+          width?: number
+        }
+        Relationships: []
+      }
       designs: {
         Row: {
           created_at: string
@@ -948,6 +996,36 @@ export type Database = {
           title?: string
           user_id?: string
           wip_limit?: number | null
+        }
+        Relationships: []
+      }
+      linkedin_post_states: {
+        Row: {
+          created_at: string
+          edited_body: string | null
+          notes: string | null
+          post_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          edited_body?: string | null
+          notes?: string | null
+          post_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          edited_body?: string | null
+          notes?: string | null
+          post_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
