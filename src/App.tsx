@@ -38,6 +38,7 @@ import AssetLibraryPage from "./pages/designer/AssetLibraryPage";
 import DesignEditor from "./pages/designer/DesignEditor";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import LinkedInCallback from "./pages/oauth/LinkedInCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -96,6 +97,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/oauth/linkedin/callback" element={<ProtectedRoute><LinkedInCallback /></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
       <Route path="/health" element={<ProtectedRoute><AppLayout><HealthRecords /></AppLayout></ProtectedRoute>} />
       <Route path="/fasting" element={<ProtectedRoute><AppLayout><FastingModule /></AppLayout></ProtectedRoute>} />

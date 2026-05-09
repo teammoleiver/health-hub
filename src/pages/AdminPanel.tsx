@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, Heart, FolderKanban, User as UserIcon, Webhook, Linkedin, Facebook, Instagram, Twitter, Youtube, Save } from "lucide-react";
+import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, Heart, FolderKanban, User as UserIcon, Webhook, Linkedin, Facebook, Instagram, Twitter, Youtube, Save, History, Plug } from "lucide-react";
+import WebhookHistory from "@/components/WebhookHistory";
+import SocialConnections from "@/components/SocialConnections";
 import { Link } from "react-router-dom";
 import {
   listContentCategories, createContentCategory,
@@ -32,9 +34,10 @@ export default function AdminPanel() {
         </div>
       </header>
 
-      <Tabs defaultValue="content" className="space-y-4">
+      <Tabs defaultValue={new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("tab") || "content"} className="space-y-4">
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="content"><Library className="w-4 h-4 mr-1.5" />Content</TabsTrigger>
+          <TabsTrigger value="connections"><Plug className="w-4 h-4 mr-1.5" />Connections</TabsTrigger>
           <TabsTrigger value="webhooks"><Webhook className="w-4 h-4 mr-1.5" />Webhooks</TabsTrigger>
           <TabsTrigger value="social"><Megaphone className="w-4 h-4 mr-1.5" />Social Studio</TabsTrigger>
           <TabsTrigger value="planner"><ClipboardList className="w-4 h-4 mr-1.5" />Content Planner</TabsTrigger>
@@ -42,6 +45,20 @@ export default function AdminPanel() {
           <TabsTrigger value="productivity"><FolderKanban className="w-4 h-4 mr-1.5" />Productivity</TabsTrigger>
           <TabsTrigger value="general"><UserIcon className="w-4 h-4 mr-1.5" />General</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="connections" className="space-y-4">
+          <Card className="p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Plug className="w-4 h-4 text-primary" />
+              <h2 className="font-display font-semibold">Direct platform connections</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Connect a platform to post directly from Syncvida — no Zapier, no n8n. Tokens are stored
+              server-side and never exposed to the browser.
+            </p>
+            <SocialConnections />
+          </Card>
+        </TabsContent>
 
         <TabsContent value="content" className="space-y-4">
           <Card className="p-5">
@@ -60,12 +77,37 @@ export default function AdminPanel() {
               <Webhook className="w-4 h-4 text-primary" />
               <h2 className="font-display font-semibold">Posting webhooks</h2>
             </div>
-            <p className="text-xs text-muted-foreground mb-4">
+            <p className="text-xs text-muted-foreground mb-3">
               Configure one webhook URL per platform. When a Content Planner post is scheduled and its time arrives,
-              we POST the JSON template (rendered with <code>{`{{hook}}`}</code>, <code>{`{{body}}`}</code>, <code>{`{{image_url}}`}</code>,
-              <code>{`{{scheduled_at}}`}</code>, <code>{`{{plan_id}}`}</code>, <code>{`{{platform}}`}</code>) to that URL — works with Zapier, n8n, Make, or any HTTP endpoint.
+              we POST the JSON template to that URL — works with Zapier, n8n, Make, or any HTTP endpoint.
             </p>
+            <div className="text-xs text-muted-foreground mb-4 space-y-1.5 bg-muted/30 rounded p-3 border border-border">
+              <div className="font-medium text-foreground">Available template variables</div>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-0.5">
+                <li><code>{`{{hook}}`}</code> — headline / first line</li>
+                <li><code>{`{{body}}`}</code> — full post body</li>
+                <li><code>{`{{platform}}`}</code> — linkedin / facebook / etc.</li>
+                <li><code>{`{{plan_id}}`}</code> — UUID of this planner entry</li>
+                <li><code>{`{{scheduled_at}}`}</code> — ISO date/time</li>
+                <li><code>{`{{image_url}}`}</code> — main image (auto-set by AI / Studio)</li>
+                <li><code>{`{{figma_brief}}`}</code> — last Figma brief (when generated)</li>
+                <li><code>{`{{design_id}}`}</code> — linked Studio design id</li>
+                <li><code>{`{{design_url}}`}</code> — link to the Studio editor</li>
+                <li><code>{`{{design_thumbnail_url}}`}</code> — rendered Studio thumbnail (sharable URL)</li>
+              </ul>
+            </div>
             <WebhooksAdmin />
+          </Card>
+          <Card className="p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <History className="w-4 h-4 text-primary" />
+              <h2 className="font-display font-semibold">Webhook history</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Every webhook attempt is logged here — both manual "Send now" pushes and scheduled cron deliveries.
+              Use this to verify what was sent to Zapier / n8n / Make and diagnose failures.
+            </p>
+            <WebhookHistory />
           </Card>
         </TabsContent>
 
@@ -212,11 +254,15 @@ function CategoriesAdmin() {
 const PLATFORM_ICONS: Record<string, any> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, twitter: Twitter, youtube: Youtube };
 const DEFAULT_TEMPLATE = {
   platform: "{{platform}}",
+  plan_id: "{{plan_id}}",
   hook: "{{hook}}",
   body: "{{body}}",
   image_url: "{{image_url}}",
   scheduled_at: "{{scheduled_at}}",
-  plan_id: "{{plan_id}}",
+  figma_brief: "{{figma_brief}}",
+  design_id: "{{design_id}}",
+  design_url: "{{design_url}}",
+  design_thumbnail_url: "{{design_thumbnail_url}}",
 };
 
 function WebhooksAdmin() {

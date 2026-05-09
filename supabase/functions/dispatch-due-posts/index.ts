@@ -23,7 +23,62 @@ function renderTemplate(tpl: any, ctx: Record<string, any>): any {
 }
 
 function defaultPayload(platform: string, ctx: Record<string, any>) {
-  return { platform, hook: ctx.hook, body: ctx.body, image_url: ctx.image_url, scheduled_at: ctx.scheduled_at, plan_id: ctx.plan_id };
+  return {
+    platform, plan_id: ctx.plan_id,
+    hook: ctx.hook, body: ctx.body,
+    image_url: ctx.image_url, scheduled_at: ctx.scheduled_at,
+    figma_brief: ctx.figma_brief,
+    design_id: ctx.design_id, design_url: ctx.design_url, design_thumbnail_url: ctx.design_thumbnail_url,
+  };
+}
+
+function appBaseUrl(): string {
+  return Deno.env.get("APP_BASE_URL") || "https://app.syncvida.com";
+}
+
+/**
+ * Make sure a public-image URL is suitable for LinkedIn / Zapier:
+ * - rewrite signed URLs in newly-public buckets to the clean public form
+ * - migrate legacy health-records/<user>/post-images/* objects to the public
+ *   post-images bucket and update the row's image_url
+ */
+async function normalizeImageUrl(admin: any, post: any): Promise<string | null> {
+  const url: string | null = post.image_url;
+  if (!url) return null;
+
+  // 1. design-assets / design-exports signed → public
+  const m1 = url.match(/\/storage\/v1\/object\/sign\/(design-assets|design-exports)\/([^?]+)/);
+  if (m1) {
+    const fixed = url.replace(/\/storage\/v1\/object\/sign\/(design-assets|design-exports)\/([^?]+)\?[^"]*/, "/storage/v1/object/public/$1/$2");
+    if (fixed !== url) {
+      try { await admin.from("social_content_plan").update({ image_url: fixed }).eq("id", post.id); } catch { /* ignore */ }
+      return fixed;
+    }
+  }
+
+  // 2. legacy health-records/<uid>/post-images/* → migrate to public post-images bucket
+  const m2 = url.match(/\/storage\/v1\/object\/(?:sign|public)\/health-records\/([^/]+)\/post-images\/([^?]+)/);
+  if (m2) {
+    const oldPath = `${m2[1]}/post-images/${m2[2]}`;
+    const newPath = `${m2[1]}/${m2[2]}`;
+    try {
+      const { data: blob, error: dlErr } = await admin.storage.from("health-records").download(oldPath);
+      if (dlErr || !blob) return url; // can't fix, send as-is
+      const { error: upErr } = await admin.storage.from("post-images").upload(newPath, blob, { contentType: "image/png", upsert: true });
+      if (upErr) return url;
+      const { data: pub } = admin.storage.from("post-images").getPublicUrl(newPath);
+      const newUrl = pub?.publicUrl ?? url;
+      if (newUrl !== url) {
+        try { await admin.from("social_content_plan").update({ image_url: newUrl }).eq("id", post.id); } catch { /* ignore */ }
+        // clean up the old object best-effort
+        admin.storage.from("health-records").remove([oldPath]).catch(() => {});
+      }
+      return newUrl;
+    } catch {
+      return url;
+    }
+  }
+  return url;
 }
 
 Deno.serve(async (req) => {
@@ -78,25 +133,104 @@ Deno.serve(async (req) => {
       continue;
     }
 
+    // Look up linked design (if user used "Design in Studio") so its
+    // thumbnail and editor URL flow into the webhook payload.
+    let designCtx: Record<string, any> = { design_id: null, design_url: null, design_thumbnail_url: null };
+    try {
+      const { data: design } = await admin.from("designs").select("id,thumbnail_url")
+        .eq("planner_entry_id", post.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (design) {
+        designCtx = {
+          design_id: (design as any).id,
+          design_url: `${appBaseUrl()}/designer/${(design as any).id}`,
+          design_thumbnail_url: (design as any).thumbnail_url ?? null,
+        };
+      }
+    } catch { /* best effort */ }
+
+    const cleanImageUrl = await normalizeImageUrl(admin, post);
     const ctx = {
-      hook: post.hook, body: post.body, image_url: post.image_url,
+      hook: post.hook, body: post.body, image_url: cleanImageUrl,
       scheduled_at: post.scheduled_date && post.scheduled_time ? `${post.scheduled_date}T${post.scheduled_time}` : post.scheduled_date,
       plan_id: post.id,
+      figma_brief: post.figma_brief ?? null,
+      ...designCtx,
     };
+
+    // Direct platform connections (used in preference to webhooks when present)
+    const { data: connRows } = await admin.from("social_oauth_connections")
+      .select("provider").eq("user_id", post.user_id);
+    const directProviders = new Set<string>((connRows ?? []).map((r: any) => r.provider));
 
     const perPlatform: any[] = [];
     let anyError = false;
     for (const platform of platforms) {
+      // ── Direct LinkedIn posting (preferred when connection exists) ──
+      if (platform === "linkedin" && directProviders.has("linkedin")) {
+        const startedAt = Date.now();
+        let logRow: any = {
+          user_id: post.user_id, plan_id: post.id, platform,
+          webhook_url: "internal://post-to-linkedin",
+          request_payload: { plan_id: post.id, text: [post.hook, post.body].filter(Boolean).join("\n\n"), image_url: cleanImageUrl },
+          trigger_kind: single_plan_id ? "manual" : "cron",
+        };
+        try {
+          const directRes = await fetch(`${supabaseUrl}/functions/v1/post-to-linkedin`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, "x-impersonate-user": post.user_id },
+            body: JSON.stringify({ plan_id: post.id }),
+          });
+          const txt = await directRes.text();
+          logRow = {
+            ...logRow,
+            status_code: directRes.status,
+            ok: directRes.ok,
+            response_body: txt.slice(0, 4000),
+            duration_ms: Date.now() - startedAt,
+          };
+          perPlatform.push({ platform, status: directRes.status, ok: directRes.ok, body: txt.slice(0, 500), via: "direct" });
+          if (!directRes.ok) anyError = true;
+        } catch (e: any) {
+          const msg = String(e?.message ?? e);
+          logRow = { ...logRow, ok: false, error: msg, duration_ms: Date.now() - startedAt };
+          perPlatform.push({ platform, error: msg, via: "direct" });
+          anyError = true;
+        }
+        try { await admin.from("webhook_logs").insert(logRow); } catch { /* ignore */ }
+        continue;
+      }
+      // ── Fallback: webhook delivery ──
       const { data: cfg } = await admin.from("social_webhook_settings").select("*")
         .eq("user_id", post.user_id).eq("platform", platform).maybeSingle();
       if (!cfg?.webhook_url || !cfg.active) {
-        perPlatform.push({ platform, error: "no_webhook_configured" });
+        const reason = !cfg?.webhook_url ? "no_webhook_configured" : "webhook_inactive";
+        try {
+          await admin.from("webhook_logs").insert({
+            user_id: post.user_id, plan_id: post.id, platform,
+            webhook_url: cfg?.webhook_url ?? "",
+            request_payload: null, ok: false, error: reason,
+            trigger_kind: single_plan_id ? "manual" : "cron",
+          });
+        } catch { /* ignore */ }
+        perPlatform.push({ platform, error: reason });
         anyError = true;
         continue;
       }
       const payload = cfg.json_template && Object.keys(cfg.json_template).length
         ? renderTemplate(cfg.json_template, { ...ctx, platform })
         : defaultPayload(platform, ctx);
+      const startedAt = Date.now();
+      let logRow: any = {
+        user_id: post.user_id,
+        plan_id: post.id,
+        platform,
+        webhook_url: cfg.webhook_url,
+        request_payload: payload,
+        trigger_kind: single_plan_id ? "manual" : "cron",
+      };
       try {
         const resp = await fetch(cfg.webhook_url, {
           method: "POST",
@@ -104,12 +238,26 @@ Deno.serve(async (req) => {
           body: JSON.stringify(payload),
         });
         const text = await resp.text();
+        const headersOut: Record<string, string> = {};
+        resp.headers.forEach((v, k) => { headersOut[k] = v; });
+        logRow = {
+          ...logRow,
+          status_code: resp.status,
+          ok: resp.ok,
+          response_body: text.slice(0, 4000),
+          response_headers: headersOut,
+          duration_ms: Date.now() - startedAt,
+        };
         perPlatform.push({ platform, status: resp.status, ok: resp.ok, body: text.slice(0, 500) });
         if (!resp.ok) anyError = true;
       } catch (e: any) {
-        perPlatform.push({ platform, error: String(e?.message ?? e) });
+        const msg = String(e?.message ?? e);
+        logRow = { ...logRow, ok: false, error: msg, duration_ms: Date.now() - startedAt };
+        perPlatform.push({ platform, error: msg });
         anyError = true;
       }
+      // Append to webhook_logs (best-effort, never block the dispatch)
+      try { await admin.from("webhook_logs").insert(logRow); } catch { /* ignore */ }
     }
 
     const newStatus = anyError ? "failed" : "posted";

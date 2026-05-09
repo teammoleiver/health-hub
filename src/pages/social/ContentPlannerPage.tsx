@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, pushSinglePost, PLANNER_PLATFORMS, generatePostImage, getWriterSettings } from "@/lib/social-queries";
 import { generateDesignFromPrompt } from "@/lib/designer-queries";
+import { getMyLinkedInConnection, postToLinkedIn, type SocialConnectionMeta } from "@/lib/social-connections";
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/supabase-queries";
 import LinkedInReview from "./LinkedInReview";
@@ -289,15 +290,53 @@ function ListView({ entries, onOpen }: { entries: any[]; onOpen: (e: any) => voi
 function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: boolean; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<any>({
     hook: "", body: "", image_url: "", scheduled_date: "", scheduled_time: "",
-    status: "planned", ...entry,
+    status: "planned", figma_brief: "", ...entry,
     platforms: entry?.platforms ?? [],
   });
   const [busy, setBusy] = useState(false);
   const [genBusy, setGenBusy] = useState(false);
   const [designBusy, setDesignBusy] = useState(false);
+  const [linkedDesign, setLinkedDesign] = useState<{ id: string; thumbnail_url: string | null } | null>(null);
+  const [linkedinConn, setLinkedinConn] = useState<SocialConnectionMeta | null>(null);
+  const [postingToLinkedIn, setPostingToLinkedIn] = useState(false);
   const navigate = useNavigate();
-  const [figmaBrief, setFigmaBrief] = useState<string | null>(null);
+  const [figmaBrief, setFigmaBrief] = useState<string | null>(entry?.figma_brief ?? null);
   const [me, setMe] = useState<{ name?: string; linkedin_url?: string; style?: string } | null>(null);
+
+  // Look up the linked Studio design (if any) so we can offer "Use design as image"
+  useEffect(() => {
+    if (!entry?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("designs" as any)
+        .select("id,thumbnail_url")
+        .eq("planner_entry_id", entry.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) setLinkedDesign(data as any);
+    })();
+  }, [entry?.id]);
+
+  // LinkedIn connection (drives the "Post directly" button)
+  useEffect(() => {
+    getMyLinkedInConnection().then(setLinkedinConn).catch(() => setLinkedinConn(null));
+  }, []);
+
+  async function postToLinkedInNow() {
+    if (!entry?.id) { toast.error("Save the post first"); return; }
+    if (!form.hook?.trim()) { toast.error("Hook is required"); return; }
+    setPostingToLinkedIn(true);
+    try {
+      const r = await postToLinkedIn({ plan_id: entry.id });
+      toast.success(`Posted to LinkedIn (${r.post_urn ?? "ok"})`);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.message ?? "LinkedIn post failed");
+    } finally {
+      setPostingToLinkedIn(false);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -325,11 +364,18 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
         hook: form.hook, body: form.body || null, image_url: form.image_url || null,
         scheduled_date: form.scheduled_date || null, scheduled_time: form.scheduled_time || null,
         platforms: form.platforms ?? [], status: form.status,
+        figma_brief: figmaBrief ?? form.figma_brief ?? null,
       };
       if (isNew) await createPlannerPost(payload);
       else await updatePlanEntry(entry.id, payload);
       toast.success("Saved"); onSaved();
     } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
+  }
+
+  function useDesignAsImage() {
+    if (!linkedDesign?.thumbnail_url) { toast.error("Save the design in Studio first"); return; }
+    setForm({ ...form, image_url: linkedDesign.thumbnail_url });
+    toast.success("Design thumbnail set as image");
   }
 
   async function sendNow() {
@@ -471,11 +517,30 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                 {designBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Palette className="w-4 h-4 mr-1" />}
                 Design in Studio
               </Button>
+              {linkedDesign?.thumbnail_url && (
+                <Button type="button" size="sm" variant="outline" onClick={useDesignAsImage}
+                  className="border-emerald-500/40 text-emerald-300">
+                  <Palette className="w-4 h-4 mr-1" /> Use Studio design as image
+                </Button>
+              )}
             </div>
             <p className="text-[11px] text-muted-foreground">
               "Generate with AI" → OpenAI <code>gpt-image-1</code> with your style prompt (Social Studio → Settings).
               "Design in Figma" → full prompt with your name + LinkedIn, ready to paste into Figma AI.
+              "Design in Studio" → opens the in-app editor; saving there auto-updates this image.
             </p>
+            {linkedDesign && (
+              <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                <Palette className="w-3 h-3" />
+                Linked Studio design:
+                <a href={`/designer/${linkedDesign.id}`} className="underline text-primary truncate max-w-[280px]">
+                  {linkedDesign.id.slice(0, 8)}…
+                </a>
+                {linkedDesign.thumbnail_url && (
+                  <a href={linkedDesign.thumbnail_url} target="_blank" rel="noreferrer" className="underline text-primary">open thumbnail</a>
+                )}
+              </div>
+            )}
             {form.image_url && <img src={form.image_url} alt="" className="max-h-48 rounded-md border border-border" />}
             {figmaBrief && (
               <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
@@ -527,7 +592,21 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
           {!isNew && <Button variant="ghost" onClick={remove} className="text-destructive"><Trash2 className="w-4 h-4 mr-1" /> Delete</Button>}
           <div className="flex-1" />
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          {!isNew && <Button variant="outline" onClick={sendNow} disabled={busy}><Send className="w-4 h-4 mr-1" /> Send now</Button>}
+          {!isNew && <Button variant="outline" onClick={sendNow} disabled={busy}>
+            <Send className="w-4 h-4 mr-1" /> Webhook send
+          </Button>}
+          {!isNew && linkedinConn && (form.platforms ?? []).includes("linkedin") && (
+            <Button
+              onClick={postToLinkedInNow}
+              disabled={postingToLinkedIn || busy}
+              style={{ background: "#1877F2", color: "#fff" }}
+              title={`Post directly to LinkedIn as ${linkedinConn.display_name ?? "you"}`}>
+              {postingToLinkedIn
+                ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                : <Linkedin className="w-4 h-4 mr-1" />}
+              Post to LinkedIn
+            </Button>
+          )}
           <Button onClick={save} disabled={busy}>{busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Save</Button>
         </DialogFooter>
       </DialogContent>

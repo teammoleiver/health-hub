@@ -32,6 +32,8 @@ import { AiChatPanel } from "@/components/designer/AiChatPanel";
 import { AlignToolbar } from "@/components/designer/AlignToolbar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
+import { uploadDesignThumbnail } from "@/lib/designer-queries";
 import * as LucideIcons from "lucide-react";
 
 export default function DesignEditor() {
@@ -296,15 +298,32 @@ export default function DesignEditor() {
     if (!design) return;
     setSaving(true);
     try {
-      // Quick thumbnail
+      // Render the first slide and upload it as a sharable PNG so the URL
+      // can be sent through webhooks (instead of a giant base64 data URL).
       let thumb: string | null = design.thumbnail_url;
       try {
         const node = document.getElementById("design-canvas-export");
         if (node) {
-          thumb = await toPng(node, { cacheBust: true, pixelRatio: 0.4, skipAutoScale: true });
+          const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 1, skipAutoScale: true });
+          thumb = await uploadDesignThumbnail(design.id, dataUrl);
         }
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.warn("thumbnail upload failed; falling back to inline data URL", err);
+      }
       await updateDesign(design.id, { title: design.title, slides: design.slides, thumbnail_url: thumb });
+      // If this design is linked to a planner entry, mirror the latest thumbnail
+      // into entry.image_url so the webhook can post it without manual copy.
+      try {
+        const { data: linked } = await supabase
+          .from("designs" as any)
+          .select("planner_entry_id")
+          .eq("id", design.id)
+          .maybeSingle();
+        const plannerId = (linked as any)?.planner_entry_id;
+        if (plannerId && thumb) {
+          await supabase.from("social_content_plan" as any).update({ image_url: thumb } as any).eq("id", plannerId);
+        }
+      } catch { /* best effort */ }
       toast.success("Saved");
     } catch (e: any) { toast.error(e?.message ?? "Save failed"); }
     finally { setSaving(false); }

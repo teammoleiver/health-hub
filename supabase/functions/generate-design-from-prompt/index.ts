@@ -69,9 +69,9 @@ Deno.serve(async (req) => {
         const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
         const path = `${user.id}/ai-${crypto.randomUUID()}.${mime.split("/")[1] ?? "png"}`;
         await supabase.storage.from("design-assets").upload(path, bytes, { contentType: mime });
-        const { data: signed } = await supabase.storage.from("design-assets").createSignedUrl(path, 60 * 60 * 24 * 365);
+        const { data: signed } = supabase.storage.from("design-assets").getPublicUrl(path);
         const { data: row } = await supabase.from("design_assets").insert({
-          user_id: user.id, kind: "ai_generated", storage_path: path, public_url: signed?.signedUrl ?? "", prompt: s.image_prompt, mime,
+          user_id: user.id, kind: "ai_generated", storage_path: path, public_url: signed?.publicUrl ?? "", prompt: s.image_prompt, mime,
         }).select().single();
         return row;
       } catch { return null; }

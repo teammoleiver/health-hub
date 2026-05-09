@@ -1,7 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "mcp__claude_ai_Supabase__execute_sql"
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(python -c \"import sys, json; print\\(json.dumps\\(sys.stdin.read\\(\\)\\)\\)\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/dispatch-due-posts/index.ts','utf8'\\);process.stdout.write\\(JSON.stringify\\(s\\)\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/dispatch-due-posts/index.ts','utf8'\\);process.stdout.write\\(s\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);process.stdout.write\\(fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/dispatch-due-posts/index.ts','utf8'\\)\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);process.stdout.write\\(fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/dispatch-due-posts/index.ts','utf8'\\).length.toString\\(\\)\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/dispatch-due-posts/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/dispatch.json',JSON.stringify\\({content:s}\\)\\);console.log\\('wrote',s.length\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const j=JSON.parse\\(fs.readFileSync\\('e:/tmp/dispatch.json','utf8'\\)\\);process.stdout.write\\(j.content\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);for \\(const f of ['generate-design-image','generate-design-from-prompt','edit-design-image','generate-post-image']\\) {const p='e:/GitHub/Syncvida/syncvida/supabase/functions/'+f+'/index.ts';const s=fs.readFileSync\\(p,'utf8'\\);fs.writeFileSync\\('e:/tmp/'+f+'.json',JSON.stringify\\({content:s}\\)\\);console.log\\(f,s.length\\);}\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);for \\(const f of ['linkedin-oauth-start','linkedin-oauth-exchange','linkedin-disconnect','post-to-linkedin']\\) {const p='e:/GitHub/Syncvida/syncvida/supabase/functions/'+f+'/index.ts';const s=fs.readFileSync\\(p,'utf8'\\);fs.writeFileSync\\('e:/tmp/fn-'+f+'.json',JSON.stringify\\({content:s}\\)\\);console.log\\(f,s.length\\);}\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);for \\(const f of ['post-to-linkedin','dispatch-due-posts']\\) {const p='e:/GitHub/Syncvida/syncvida/supabase/functions/'+f+'/index.ts';const s=fs.readFileSync\\(p,'utf8'\\);fs.writeFileSync\\('e:/tmp/fn2-'+f+'.json',JSON.stringify\\({content:s}\\)\\);console.log\\(f,s.length\\);}\")",
+      "mcp__claude_ai_Supabase__get_logs",
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/post-to-linkedin/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/fn3-post-to-linkedin.json',JSON.stringify\\({content:s}\\)\\);console.log\\(s.length\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/post-to-linkedin/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/fn4-post-to-linkedin.json',JSON.stringify\\({content:s}\\)\\);console.log\\(s.length\\);\")"
     ]
   }
 }

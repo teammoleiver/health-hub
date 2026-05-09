@@ -77,18 +77,16 @@ Deno.serve(async (req) => {
 
     let imageUrl: string;
     if (b64) {
-      // Upload to storage so it persists and is small to store
+      // Upload to the public post-images bucket so the URL is shareable to
+      // LinkedIn / Zapier / n8n without auth tokens.
       const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-      const path = `${user.id}/post-images/${Date.now()}.png`;
-      // Try existing health-records bucket; otherwise fall back to data URL
+      const path = `${user.id}/${Date.now()}-${crypto.randomUUID()}.png`;
       const { error: upErr } = await admin.storage
-        .from("health-records")
+        .from("post-images")
         .upload(path, bytes, { contentType: "image/png", upsert: false });
       if (!upErr) {
-        const { data: signed } = await admin.storage
-          .from("health-records")
-          .createSignedUrl(path, 60 * 60 * 24 * 365);
-        imageUrl = signed?.signedUrl ?? `data:image/png;base64,${b64}`;
+        const { data: pub } = admin.storage.from("post-images").getPublicUrl(path);
+        imageUrl = pub?.publicUrl ?? `data:image/png;base64,${b64}`;
       } else {
         console.warn("storage upload failed, returning data url", upErr.message);
         imageUrl = `data:image/png;base64,${b64}`;

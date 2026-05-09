@@ -1,5 +1,64 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// ── Webhook history ──
+export type WebhookLog = {
+  id: string;
+  user_id: string;
+  plan_id: string | null;
+  platform: string;
+  webhook_url: string;
+  request_payload: any | null;
+  status_code: number | null;
+  ok: boolean;
+  response_body: string | null;
+  response_headers: any | null;
+  error: string | null;
+  duration_ms: number | null;
+  trigger_kind: "manual" | "cron" | "retry";
+  attempted_at: string;
+};
+
+export async function listWebhookLogs(filter?: {
+  platform?: string;
+  status?: "all" | "ok" | "error";
+  plan_id?: string;
+  limit?: number;
+}): Promise<WebhookLog[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  let q = supabase.from("webhook_logs" as any)
+    .select("*")
+    .eq("user_id", user.id)
+    .order("attempted_at", { ascending: false })
+    .limit(filter?.limit ?? 200);
+  if (filter?.platform && filter.platform !== "all") q = q.eq("platform", filter.platform);
+  if (filter?.status === "ok") q = q.eq("ok", true);
+  else if (filter?.status === "error") q = q.eq("ok", false);
+  if (filter?.plan_id) q = q.eq("plan_id", filter.plan_id);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as any) ?? [];
+}
+
+export async function deleteWebhookLog(id: string): Promise<void> {
+  const { error } = await supabase.from("webhook_logs" as any).delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function clearWebhookLogs(filter?: { platform?: string; olderThanDays?: number }): Promise<number> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+  let q = supabase.from("webhook_logs" as any).delete({ count: "exact" }).eq("user_id", user.id);
+  if (filter?.platform && filter.platform !== "all") q = q.eq("platform", filter.platform);
+  if (filter?.olderThanDays && filter.olderThanDays > 0) {
+    const cutoff = new Date(Date.now() - filter.olderThanDays * 86400_000).toISOString();
+    q = q.lt("attempted_at", cutoff);
+  }
+  const { count, error } = await q;
+  if (error) throw error;
+  return count ?? 0;
+}
+
 async function uid(): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser();
   return user?.id ?? null;

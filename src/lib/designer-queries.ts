@@ -147,15 +147,37 @@ export async function listAssets(): Promise<DesignAsset[]> {
   const { data } = await supabase.from("design_assets" as any).select("*").eq("user_id", u).order("created_at", { ascending: false });
   return (data as any) ?? [];
 }
+/**
+ * Upload a design's rendered PNG thumbnail to the (public) design-exports bucket
+ * and return a clean public URL — safe to send to LinkedIn / Zapier / n8n without
+ * auth tokens. Falls back to the original data URL if upload fails.
+ */
+export async function uploadDesignThumbnail(designId: string, dataUrl: string): Promise<string> {
+  try {
+    const u = await uid();
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const path = `${u}/${designId}-${Date.now()}.png`;
+    const { error: upErr } = await supabase.storage
+      .from("design-exports")
+      .upload(path, blob, { contentType: "image/png", upsert: true });
+    if (upErr) throw upErr;
+    const { data } = supabase.storage.from("design-exports").getPublicUrl(path);
+    return data?.publicUrl ?? dataUrl;
+  } catch {
+    return dataUrl;
+  }
+}
+
 export async function uploadAsset(file: File): Promise<DesignAsset> {
   const u = await uid();
   const ext = file.name.split(".").pop() || "png";
   const path = `${u}/upload-${crypto.randomUUID()}.${ext}`;
   const { error: upErr } = await supabase.storage.from("design-assets").upload(path, file, { contentType: file.type });
   if (upErr) throw upErr;
-  const { data: signed } = await supabase.storage.from("design-assets").createSignedUrl(path, 60 * 60 * 24 * 365);
+  const { data: pub } = supabase.storage.from("design-assets").getPublicUrl(path);
   const { data, error } = await supabase.from("design_assets" as any).insert({
-    user_id: u, kind: "upload", storage_path: path, public_url: signed?.signedUrl ?? "",
+    user_id: u, kind: "upload", storage_path: path, public_url: pub?.publicUrl ?? "",
     mime: file.type,
   } as any).select().single();
   if (error) throw error;

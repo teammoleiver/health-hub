@@ -45,9 +45,9 @@ Deno.serve(async (req) => {
     const path = `${user.id}/ai-${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage.from("design-assets").upload(path, bytes, { contentType: mime, upsert: false });
     if (upErr) return json({ error: upErr.message }, 500);
-    const { data: signed } = await supabase.storage.from("design-assets").createSignedUrl(path, 60 * 60 * 24 * 365);
+    const { data: signed } = supabase.storage.from("design-assets").getPublicUrl(path);
     const { data: row, error: insErr } = await supabase.from("design_assets").insert({
-      user_id: user.id, kind: "ai_generated", storage_path: path, public_url: signed?.signedUrl ?? "", prompt, mime,
+      user_id: user.id, kind: "ai_generated", storage_path: path, public_url: signed?.publicUrl ?? "", prompt, mime,
     }).select().single();
     if (insErr) return json({ error: insErr.message }, 500);
     return json({ asset: row });
