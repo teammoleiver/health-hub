@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Check, X, Sparkles, Loader2, Eye, EyeOff, Zap, Target, Trash2,
   Save, Wand2, MessageSquare, Minimize2, Maximize2, Feather, Languages,
-  Hash, BarChart3, Calendar, Tag, FileText, Download, RotateCcw, Copy,
+  Hash, BarChart3, Calendar, Tag, FileText, Download, RotateCcw, Copy, CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,28 @@ function parsePostDate(s: string): string | null {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: string | null) {
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function isIsoDate(s: string | null | undefined): s is string {
+  return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+/** Effective date = user override (stored in state.notes) ?? parsed from post.date */
+function effectiveDate(post: LinkedInPost, state?: PostState): string | null {
+  if (isIsoDate(state?.notes)) return state!.notes!;
+  return parsePostDate(post.date);
+}
+
+function formatLongDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return iso;
+  const wd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+  return `${wd}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}`;
+}
+
+async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: string | null, overrideDate?: string | null) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
   const marker = `[linkedin_review:${post.id}]`;
@@ -39,7 +60,7 @@ async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: s
     .maybeSingle();
   const existing = existingRaw as unknown as { id: string } | null;
   if (status === "kept") {
-    const date = parsePostDate(post.date);
+    const date = overrideDate ?? parsePostDate(post.date);
     const lines = (edited ?? post.body).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const hook = lines[0]?.slice(0, 200) || post.topic;
     const body = edited ?? post.body;
@@ -66,7 +87,10 @@ async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: s
 }
 
 type Filter = {
-  search: string; status: "all" | PostStatus; pillar: string; month: string; hideRejected: boolean;
+  search: string; status: "all" | PostStatus; pillar: string;
+  year: number | null;            // selected year (null = all years)
+  monthIdx: number | null;        // 0..11, null = all months in year
+  hideRejected: boolean;
 };
 
 export default function LinkedInReview() {
@@ -75,8 +99,11 @@ export default function LinkedInReview() {
   const [loading, setLoading] = useState(true);
   const [seedUser, setSeedUser] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const nowYear = new Date().getFullYear();
+  const nowMonth = new Date().getMonth();
   const [filter, setFilter] = useState<Filter>({
-    search: "", status: "all", pillar: "all", month: "all", hideRejected: false,
+    search: "", status: "all", pillar: "all",
+    year: nowYear, monthIdx: null, hideRejected: false,
   });
 
   async function reload() {
@@ -88,8 +115,53 @@ export default function LinkedInReview() {
   }
   useEffect(() => { reload(); }, []);
 
-  const months = useMemo(() => Array.from(new Set(posts.map((p) => p.month))), [posts]);
   const pillars = useMemo(() => Array.from(new Set(posts.map((p) => p.pillar))), [posts]);
+
+  // All years that have at least one post (by effective date), plus current year + 1
+  const years = useMemo(() => {
+    const ys = new Set<number>();
+    for (const p of posts) {
+      const d = effectiveDate(p, states[p.id]);
+      if (d) ys.add(parseInt(d.slice(0, 4), 10));
+    }
+    ys.add(nowYear);
+    ys.add(nowYear + 1);
+    return Array.from(ys).sort((a, b) => a - b);
+  }, [posts, states, nowYear]);
+
+  // Auto-pick a year that has posts on first load if current year is empty
+  useEffect(() => {
+    if (!posts.length) return;
+    const hasInYear = posts.some((p) => {
+      const d = effectiveDate(p, states[p.id]);
+      return d && parseInt(d.slice(0, 4), 10) === filter.year;
+    });
+    if (!hasInYear) {
+      const firstWith = years.find((y) => posts.some((p) => {
+        const d = effectiveDate(p, states[p.id]);
+        return d && parseInt(d.slice(0, 4), 10) === y;
+      }));
+      if (firstWith && firstWith !== filter.year) setFilter((f) => ({ ...f, year: firstWith }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts.length]);
+
+  // Counts per month for the active year
+  const monthCounts = useMemo(() => {
+    const counts = Array.from({ length: 12 }, () => ({ total: 0, kept: 0, rejected: 0 }));
+    for (const p of posts) {
+      const d = effectiveDate(p, states[p.id]);
+      if (!d) continue;
+      const y = parseInt(d.slice(0, 4), 10);
+      if (filter.year !== null && y !== filter.year) continue;
+      const m = parseInt(d.slice(5, 7), 10) - 1;
+      counts[m].total++;
+      const st = states[p.id]?.status;
+      if (st === "kept") counts[m].kept++;
+      else if (st === "rejected") counts[m].rejected++;
+    }
+    return counts;
+  }, [posts, states, filter.year]);
 
   const stats = useMemo(() => {
     let kept = 0, rejected = 0, edited = 0, pending = 0;
@@ -106,7 +178,13 @@ export default function LinkedInReview() {
   const filtered = useMemo(() => {
     const q = filter.search.trim().toLowerCase();
     return posts.filter((p) => {
-      if (filter.month !== "all" && p.month !== filter.month) return false;
+      const d = effectiveDate(p, states[p.id]);
+      if (filter.year !== null) {
+        if (!d || parseInt(d.slice(0, 4), 10) !== filter.year) return false;
+      }
+      if (filter.monthIdx !== null) {
+        if (!d || parseInt(d.slice(5, 7), 10) - 1 !== filter.monthIdx) return false;
+      }
       if (filter.pillar !== "all" && p.pillar !== filter.pillar) return false;
       const status = states[p.id]?.status ?? "pending";
       if (filter.status !== "all" && status !== filter.status) return false;
@@ -123,7 +201,7 @@ export default function LinkedInReview() {
       await upsertState(post_id, { status });
       const post = posts.find((p) => p.id === post_id);
       if (post) {
-        await syncToCalendar(post, status, prev?.edited_body ?? null);
+        await syncToCalendar(post, status, prev?.edited_body ?? null, isIsoDate(prev?.notes) ? prev!.notes : null);
         if (status === "kept") toast.success("Added to Calendar");
       }
     } catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
@@ -135,7 +213,27 @@ export default function LinkedInReview() {
       await upsertState(post_id, { edited_body });
       const post = posts.find((p) => p.id === post_id);
       const cur = states[post_id];
-      if (post && cur?.status === "kept") await syncToCalendar(post, "kept", edited_body);
+      if (post && cur?.status === "kept") await syncToCalendar(post, "kept", edited_body, isIsoDate(cur?.notes) ? cur!.notes : null);
+    } catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
+  }
+
+  async function changeDate(post_id: string, newDate: string | null) {
+    const prev = states[post_id];
+    const next: PostState = {
+      post_id,
+      status: prev?.status ?? "pending",
+      edited_body: prev?.edited_body ?? null,
+      notes: newDate, // store ISO date in notes (or null to clear override)
+      updated_at: new Date().toISOString(),
+    };
+    setStates((s) => ({ ...s, [post_id]: next }));
+    try {
+      await upsertState(post_id, { notes: newDate });
+      const post = posts.find((p) => p.id === post_id);
+      if (post && next.status === "kept") {
+        await syncToCalendar(post, "kept", next.edited_body, newDate);
+      }
+      toast.success(newDate ? `Moved to ${formatLongDate(newDate)}` : "Date reset");
     } catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
   }
 
@@ -198,16 +296,62 @@ export default function LinkedInReview() {
         </div>
       </div>
 
-      {/* Month tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 sticky top-[58px] z-[9] bg-background/95 backdrop-blur">
-        <MonthTab label="All" active={filter.month === "all"} onClick={() => setFilter({ ...filter, month: "all" })} count={posts.length} />
-        {months.map((m) => {
-          const monthPosts = posts.filter((p) => p.month === m);
-          const k = monthPosts.filter((p) => states[p.id]?.status === "kept").length;
-          const r = monthPosts.filter((p) => states[p.id]?.status === "rejected").length;
-          const short = m.split(" — ")[0];
-          return <MonthTab key={m} label={short} active={filter.month === m} onClick={() => setFilter({ ...filter, month: m })} count={monthPosts.length} kept={k} rejected={r} />;
-        })}
+      {/* Year + Month grid */}
+      <div className="space-y-2 sticky top-[58px] z-[9] bg-background/95 backdrop-blur pb-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground">Year</span>
+          <div className="inline-flex rounded-md border border-border overflow-hidden">
+            {years.map((y) => (
+              <button key={y}
+                onClick={() => setFilter({ ...filter, year: y, monthIdx: null })}
+                className={`px-2.5 py-1 text-xs ${filter.year === y ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"}`}>
+                {y}
+              </button>
+            ))}
+          </div>
+          <Button size="sm" variant="ghost" className="h-7 text-xs"
+            onClick={() => setFilter({ ...filter, monthIdx: null })}>
+            All months · {monthCounts.reduce((a, c) => a + c.total, 0)}
+          </Button>
+          {filter.year === nowYear && (
+            <Button size="sm" variant="outline" className="h-7 text-xs border-primary/40 text-primary"
+              onClick={() => setFilter({ ...filter, year: nowYear, monthIdx: nowMonth })}>
+              Jump to current month
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5">
+          {MONTH_NAMES.map((name, i) => {
+            const c = monthCounts[i];
+            const isCurrent = filter.year === nowYear && i === nowMonth;
+            const isActive = filter.monthIdx === i;
+            const isPast = filter.year !== null && (filter.year < nowYear || (filter.year === nowYear && i < nowMonth));
+            const empty = c.total === 0;
+            return (
+              <button key={name}
+                onClick={() => setFilter({ ...filter, monthIdx: isActive ? null : i })}
+                className={[
+                  "relative px-2 py-2 rounded-md border text-xs flex flex-col items-center gap-0.5 transition-colors",
+                  isActive ? "bg-primary text-primary-foreground border-primary"
+                    : isCurrent ? "border-primary/60 bg-primary/10 text-foreground ring-1 ring-primary/40"
+                    : empty ? "border-dashed border-border/60 text-muted-foreground/60"
+                    : "border-border hover:border-primary/40 text-foreground",
+                  isPast && empty && !isActive ? "opacity-50" : "",
+                ].join(" ")}
+                title={`${MONTH_FULL[i]} ${filter.year ?? ""}${isCurrent ? " · current month" : ""}`}>
+                <span className="font-medium tracking-wide uppercase text-[11px]">{name}</span>
+                <span className="flex items-center gap-1 text-[10px] opacity-80">
+                  <span>{c.total}</span>
+                  {c.kept > 0 && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
+                  {c.rejected > 0 && <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />}
+                </span>
+                {isCurrent && !isActive && (
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -262,6 +406,7 @@ export default function LinkedInReview() {
           onSetStatus={(s) => setStatus(editingPost.id, s)}
           onSaveEdit={(b) => saveEdit(editingPost.id, b)}
           onReset={() => { reset(editingPost.id); setEditingId(null); }}
+          onChangeDate={(d) => changeDate(editingPost.id, d)}
         />
       )}
     </div>
@@ -305,6 +450,9 @@ function PostCard({ post, state, onOpen, onKeep, onReject }: {
   const status = state?.status ?? "pending";
   const pc = pillarColor(post.pillar);
   const body = state?.edited_body ?? post.body;
+  const eff = effectiveDate(post, state);
+  const orig = parsePostDate(post.date);
+  const moved = eff && orig && eff !== orig;
   const borderClass = status === "kept" ? "border-emerald-500/50" : status === "rejected" ? "border-red-500/50 opacity-60" : "border-border";
   return (
     <Card className={`p-3 flex flex-col gap-2 border ${borderClass}`}>
@@ -317,7 +465,8 @@ function PostCard({ post, state, onOpen, onKeep, onReject }: {
         <StatusDot status={status} />
       </div>
       <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <Calendar className="w-3 h-3" /> {post.date}
+        <Calendar className="w-3 h-3" /> {eff ? formatLongDate(eff) : post.date}
+        {moved && <span className="text-amber-300">· moved</span>}
       </div>
       <button onClick={onOpen} className="text-left">
         <h3 className="text-sm font-semibold leading-snug">{post.topic}</h3>
@@ -366,12 +515,13 @@ const STYLE_CHIPS: { key: string; label: string }[] = [
   { key: "casual", label: "More casual" },
 ];
 
-function PostEditorModal({ post, state, onClose, onSetStatus, onSaveEdit, onReset }: {
+function PostEditorModal({ post, state, onClose, onSetStatus, onSaveEdit, onReset, onChangeDate }: {
   post: LinkedInPost; state?: PostState;
   onClose: () => void;
   onSetStatus: (s: PostStatus) => void;
   onSaveEdit: (body: string | null) => void;
   onReset: () => void;
+  onChangeDate: (date: string | null) => void;
 }) {
   const [body, setBody] = useState<string>(state?.edited_body ?? post.body);
   const [customText, setCustomText] = useState("");
@@ -420,6 +570,11 @@ function PostEditorModal({ post, state, onClose, onSetStatus, onSaveEdit, onRese
   }
 
   const pc = pillarColor(post.pillar);
+  const originalIso = parsePostDate(post.date);
+  const currentIso = effectiveDate(post, state);
+  const [dateDraft, setDateDraft] = useState<string>(currentIso ?? "");
+  useEffect(() => { setDateDraft(currentIso ?? ""); }, [currentIso]);
+  const dateChanged = dateDraft && dateDraft !== currentIso;
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -429,10 +584,37 @@ function PostEditorModal({ post, state, onClose, onSetStatus, onSaveEdit, onRese
           <div className="flex flex-wrap items-center gap-2">
             <span className={`text-[11px] px-1.5 py-0.5 rounded border ${pc.chip} ${pc.border} ${pc.text}`}>{post.pillar}</span>
             <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{post.post_type} · {POST_TYPE_LABELS[post.post_type] ?? "Post"}</span>
-            <span className="text-[11px] text-muted-foreground"><Calendar className="w-3 h-3 inline mr-1" />{post.date}</span>
+            <span className="text-[11px] text-muted-foreground">
+              <Calendar className="w-3 h-3 inline mr-1" />
+              {currentIso ? formatLongDate(currentIso) : post.date}
+              {currentIso && originalIso && currentIso !== originalIso && (
+                <span className="ml-1 text-amber-300">(moved from {formatLongDate(originalIso)})</span>
+              )}
+            </span>
           </div>
           <h2 className="text-lg font-semibold leading-tight">{post.topic}</h2>
           <p className="text-xs text-muted-foreground">{post.month}</p>
+          {/* Reschedule control */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Schedule on</span>
+            <input
+              type="date"
+              value={dateDraft}
+              onChange={(e) => setDateDraft(e.target.value)}
+              className="text-xs h-8 px-2 rounded-md border border-border bg-background"
+            />
+            <Button size="sm" variant="outline" disabled={!dateChanged}
+              onClick={() => onChangeDate(dateDraft)} className="h-8">
+              <Save className="w-3.5 h-3.5 mr-1" /> Update date
+            </Button>
+            {currentIso && originalIso && currentIso !== originalIso && (
+              <Button size="sm" variant="ghost" className="h-8 text-muted-foreground"
+                onClick={() => onChangeDate(null)}>
+                <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset date
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Body editor */}
