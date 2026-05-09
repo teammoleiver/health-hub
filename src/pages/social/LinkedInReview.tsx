@@ -36,7 +36,7 @@ async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: s
     .eq("source_kind", "linkedin_review")
     .eq("source_content_item_id", post.id)
     .maybeSingle();
-  const existing = existingRaw as { id: string } | null;
+  const existing = existingRaw as unknown as { id: string } | null;
   if (status === "kept") {
     const date = parsePostDate(post.date);
     const lines = (edited ?? post.body).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
