@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, pushSinglePost, PLANNER_PLATFORMS, generatePostImage, getWriterSettings } from "@/lib/social-queries";
 import { generateDesignFromPrompt } from "@/lib/designer-queries";
-import { getMyLinkedInConnection, postToLinkedIn, getMyCanvaConnection, exportCanvaDesign, type SocialConnectionMeta } from "@/lib/social-connections";
+import { getMyLinkedInConnection, postToLinkedIn, getMyCanvaConnection, exportCanvaDesign, getMyMetaConnection, postToFacebook, postToInstagram, type SocialConnectionMeta } from "@/lib/social-connections";
 import { CanvaDesignPicker } from "@/components/CanvaDesignPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/supabase-queries";
@@ -355,6 +355,9 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   const [canvaConn, setCanvaConn] = useState<SocialConnectionMeta | null>(null);
   const [canvaPickerOpen, setCanvaPickerOpen] = useState(false);
   const [pullingFromCanva, setPullingFromCanva] = useState(false);
+  const [metaConn, setMetaConn] = useState<SocialConnectionMeta | null>(null);
+  const [postingToFacebook, setPostingToFacebook] = useState(false);
+  const [postingToInstagram, setPostingToInstagram] = useState(false);
   const navigate = useNavigate();
   const [figmaBrief, setFigmaBrief] = useState<string | null>(entry?.figma_brief ?? null);
   const [me, setMe] = useState<{ name?: string; linkedin_url?: string; style?: string } | null>(null);
@@ -382,6 +385,32 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   useEffect(() => {
     getMyCanvaConnection().then(setCanvaConn).catch(() => setCanvaConn(null));
   }, []);
+  // Meta connection (drives the "Post to Facebook" + "Post to Instagram" buttons)
+  useEffect(() => {
+    getMyMetaConnection().then(setMetaConn).catch(() => setMetaConn(null));
+  }, []);
+
+  async function postToFacebookNow() {
+    if (!entry?.id) { toast.error("Save the post first"); return; }
+    setPostingToFacebook(true);
+    try {
+      const r = await postToFacebook({ plan_id: entry.id });
+      toast.success(`Posted to Facebook (${r.post_id ?? "ok"})`);
+      onSaved();
+    } catch (e: any) { toast.error(e?.message ?? "Facebook post failed"); }
+    finally { setPostingToFacebook(false); }
+  }
+  async function postToInstagramNow() {
+    if (!entry?.id) { toast.error("Save the post first"); return; }
+    if (!form.image_url) { toast.error("Instagram requires an image — add one first"); return; }
+    setPostingToInstagram(true);
+    try {
+      const r = await postToInstagram({ plan_id: entry.id });
+      toast.success(`Posted to Instagram (${r.media_id ?? "ok"})`);
+      onSaved();
+    } catch (e: any) { toast.error(e?.message ?? "Instagram post failed"); }
+    finally { setPostingToInstagram(false); }
+  }
 
   async function pullFromCanva() {
     if (!entry?.canva_design_id) { toast.error("No Canva design linked yet"); return; }
@@ -750,6 +779,30 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                 ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                 : <Linkedin className="w-4 h-4 mr-1" />}
               Post to LinkedIn
+            </Button>
+          )}
+          {!isNew && metaConn && (form.platforms ?? []).includes("facebook") && (
+            <Button
+              onClick={postToFacebookNow}
+              disabled={postingToFacebook || busy}
+              style={{ background: "#1877F2", color: "#fff" }}
+              title="Post directly to your Facebook Page">
+              {postingToFacebook
+                ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                : <Facebook className="w-4 h-4 mr-1" />}
+              Post to Facebook
+            </Button>
+          )}
+          {!isNew && metaConn && (form.platforms ?? []).includes("instagram") && (
+            <Button
+              onClick={postToInstagramNow}
+              disabled={postingToInstagram || busy || !form.image_url}
+              style={{ background: "#d62976", color: "#fff" }}
+              title={form.image_url ? "Post directly to your Instagram Business account" : "Add an image first — Instagram requires it"}>
+              {postingToInstagram
+                ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                : <Instagram className="w-4 h-4 mr-1" />}
+              Post to Instagram
             </Button>
           )}
           <Button variant="outline" onClick={scheduleNow} disabled={busy}

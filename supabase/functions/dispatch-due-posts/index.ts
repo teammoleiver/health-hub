@@ -176,10 +176,51 @@ Deno.serve(async (req) => {
       .select("provider").eq("user_id", post.user_id);
     const directProviders = new Set<string>((connRows ?? []).map((r: any) => r.provider));
 
+    const directFunctionForPlatform: Record<string, string | null> = {
+      linkedin: directProviders.has("linkedin") ? "post-to-linkedin" : null,
+      facebook: directProviders.has("meta") ? "post-to-facebook" : null,
+      instagram: directProviders.has("meta") ? "post-to-instagram" : null,
+    };
+
     const perPlatform: any[] = [];
     let anyError = false;
     for (const platform of platforms) {
-      // ── Direct LinkedIn posting (preferred when connection exists) ──
+      // ── Direct posting via dedicated edge function when a connection exists ──
+      const directFn = directFunctionForPlatform[platform];
+      if (directFn) {
+        const startedAt = Date.now();
+        let logRow: any = {
+          user_id: post.user_id, plan_id: post.id, platform,
+          webhook_url: `internal://${directFn}`,
+          request_payload: { plan_id: post.id, text: [post.hook, post.body].filter(Boolean).join("\n\n"), image_url: cleanImageUrl },
+          trigger_kind: single_plan_id ? "manual" : "cron",
+        };
+        try {
+          const directRes = await fetch(`${supabaseUrl}/functions/v1/${directFn}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, "x-impersonate-user": post.user_id },
+            body: JSON.stringify({ plan_id: post.id }),
+          });
+          const txt = await directRes.text();
+          logRow = {
+            ...logRow,
+            status_code: directRes.status,
+            ok: directRes.ok,
+            response_body: txt.slice(0, 4000),
+            duration_ms: Date.now() - startedAt,
+          };
+          perPlatform.push({ platform, status: directRes.status, ok: directRes.ok, body: txt.slice(0, 500), via: "direct" });
+          if (!directRes.ok) anyError = true;
+        } catch (e: any) {
+          const msg = String(e?.message ?? e);
+          logRow = { ...logRow, ok: false, error: msg, duration_ms: Date.now() - startedAt };
+          perPlatform.push({ platform, error: msg, via: "direct" });
+          anyError = true;
+        }
+        try { await admin.from("webhook_logs").insert(logRow); } catch { /* ignore */ }
+        continue;
+      }
+      // ── Legacy LinkedIn-specific direct path (kept for safety; the table above already covers it) ──
       if (platform === "linkedin" && directProviders.has("linkedin")) {
         const startedAt = Date.now();
         let logRow: any = {

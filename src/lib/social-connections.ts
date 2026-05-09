@@ -125,3 +125,47 @@ export async function exportCanvaDesign(args: { design_id: string; plan_id?: str
     "canva-export-design", args,
   );
 }
+
+/* ─── Meta (Facebook + Instagram, single OAuth) ─── */
+
+export type MetaConnectionMeta = SocialConnectionMeta & {
+  raw_profile?: {
+    primary_page?: { id: string; name: string; instagram_business_account?: { id: string } };
+    primary_ig?: { id: string; username: string; name?: string; profile_picture_url?: string };
+  };
+};
+
+export async function getMyMetaConnection(): Promise<SocialConnectionMeta | null> {
+  const all = await listMyConnections();
+  return all.find((c) => c.provider === "meta" as any) ?? null;
+}
+
+export async function startMetaAuth(redirectTo?: string): Promise<{ authorize_url: string; state: string }> {
+  return callEdge("meta-oauth-start", { redirect_to: redirectTo ?? null });
+}
+
+export async function exchangeMetaCode(code: string, state: string) {
+  return callEdge<{
+    ok: true; provider: "meta";
+    provider_user_id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+    page_name: string | null;
+    ig_username: string | null;
+    redirect_to: string | null;
+  }>("meta-oauth-exchange", { code, state });
+}
+
+export async function disconnectMeta(): Promise<void> {
+  await callEdge<{ ok: true }>("meta-disconnect", {});
+}
+
+export async function postToFacebook(args: { plan_id?: string; text?: string; image_url?: string }) {
+  return callEdge<{ ok: true; post_id: string | null; status: number }>("post-to-facebook", args);
+}
+
+export async function postToInstagram(args: { plan_id?: string; text?: string; image_url?: string }) {
+  return callEdge<{ ok: true; media_id: string | null; container_id: string; status: number }>(
+    "post-to-instagram", args,
+  );
+}
