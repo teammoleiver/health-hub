@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, List, Sparkles, Figma, Copy, Palette } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, List, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,7 @@ import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, p
 import { generateDesignFromPrompt } from "@/lib/designer-queries";
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/supabase-queries";
+import LinkedInReview from "./LinkedInReview";
 
 const STATUSES = ["planned", "drafting", "ready", "scheduled", "posted", "failed"];
 const PLATFORM_ICONS: Record<string, any> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, twitter: Twitter, youtube: Youtube };
@@ -33,6 +34,13 @@ function statusColor(s: string) {
 }
 
 export default function ContentPlannerPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mode = (searchParams.get("mode") as "calendar" | "list" | "linkedin-review" | null) ?? (typeof window !== "undefined" ? (localStorage.getItem("planner_mode") as any) : null) ?? "calendar";
+  function setMode(m: "calendar" | "list" | "linkedin-review") {
+    const sp = new URLSearchParams(searchParams); sp.set("mode", m); setSearchParams(sp, { replace: true });
+    try { localStorage.setItem("planner_mode", m); } catch { /* ignore */ }
+  }
+
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>("month");
@@ -41,7 +49,7 @@ export default function ContentPlannerPage() {
   const [creatingFor, setCreatingFor] = useState<string | null>(null);
 
   async function load() { setLoading(true); setEntries(await listContentPlan()); setLoading(false); }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (mode !== "linkedin-review") load(); }, [mode]);
 
   const grouped = useMemo(() => {
     const m: Record<string, any[]> = {};
@@ -62,6 +70,22 @@ export default function ContentPlannerPage() {
 
   return (
     <section className="space-y-4">
+      {/* Mode switcher */}
+      <div className="flex items-center gap-1 bg-muted rounded-md p-0.5 w-fit">
+        {([
+          { v: "calendar", l: "Calendar", icon: CalendarIcon },
+          { v: "list", l: "List", icon: List },
+          { v: "linkedin-review", l: "LinkedIn Review", icon: LinkedinIcon },
+        ] as const).map(({ v, l, icon: Ic }) => (
+          <button key={v} onClick={() => setMode(v)}
+            className={`text-xs px-3 py-1.5 rounded inline-flex items-center gap-1.5 ${mode === v ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+            <Ic className="w-3.5 h-3.5" /> {l}
+          </button>
+        ))}
+      </div>
+
+      {mode === "linkedin-review" ? <LinkedInReview /> : (
+      <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => shift(-1)}><ChevronLeft className="w-4 h-4" /></Button>
@@ -93,6 +117,8 @@ export default function ContentPlannerPage() {
 
       {editing && <PostEditor entry={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
       {creatingFor && <PostEditor entry={{ scheduled_date: creatingFor, status: "planned", platforms: [] }} isNew onClose={() => setCreatingFor(null)} onSaved={() => { setCreatingFor(null); load(); }} />}
+      </>
+      )}
     </section>
   );
 }
