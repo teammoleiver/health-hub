@@ -70,16 +70,9 @@ export default function AssetLibraryPage() {
   );
 }
 
-function AssetCard({ asset, onEdit, onChanged }: { asset: DesignAsset; onEdit: () => void; onChanged: () => void }) {
-  const [renaming, setRenaming] = useState(false);
-  const [name, setName] = useState(asset.name ?? "");
+function AssetCard({ asset, onEdit, onRename, onChanged }: { asset: DesignAsset; onEdit: () => void; onRename: () => void; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
 
-  async function saveName() {
-    setBusy(true);
-    try { await renameAsset(asset.id, name.trim()); toast.success("Renamed"); setRenaming(false); onChanged(); }
-    catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
-  }
   async function aiName() {
     setBusy(true);
     try {
@@ -100,30 +93,71 @@ function AssetCard({ asset, onEdit, onChanged }: { asset: DesignAsset; onEdit: (
         </Button>
       </div>
       <div className="absolute top-1 left-1 text-[10px] uppercase bg-background/80 px-1.5 py-0.5 rounded">{asset.kind.replace("_", " ")}</div>
-      <div className="p-2 border-t border-border">
-        {renaming ? (
-          <div className="flex items-center gap-1">
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="h-7 text-xs" autoFocus
-              onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setRenaming(false); }} />
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={saveName} disabled={busy}><Check className="w-3.5 h-3.5" /></Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setRenaming(false); setName(asset.name ?? ""); }}><X className="w-3.5 h-3.5" /></Button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-1">
-            <button className="text-xs truncate text-left flex-1 hover:underline" title={asset.name ?? "Untitled"}
-              onClick={() => { setName(asset.name ?? ""); setRenaming(true); }}>
-              {asset.name || <span className="text-muted-foreground italic">Untitled</span>}
-            </button>
-            <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => { setName(asset.name ?? ""); setRenaming(true); }}>
-              <Pencil className="w-3 h-3" />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" title="AI name" onClick={aiName} disabled={busy}>
-              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-            </Button>
-          </div>
-        )}
+      <div className="p-2 border-t border-border flex items-center gap-1">
+        <button className="text-xs truncate text-left flex-1 hover:underline flex items-center gap-1"
+          title={`${asset.name ?? "Untitled"} — click to rename`} onClick={onRename}>
+          <span className="truncate">{asset.name || <span className="text-muted-foreground italic">Untitled</span>}</span>
+        </button>
+        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" title="Rename" onClick={onRename}>
+          <Pencil className="w-3 h-3" />
+        </Button>
+        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" title="Suggest name with AI" onClick={aiName} disabled={busy}>
+          {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+        </Button>
       </div>
     </Card>
+  );
+}
+
+function RenameDialog({ asset, onClose, onSaved }: { asset: DesignAsset | null; onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+
+  useEffect(() => { setName(asset?.name ?? ""); }, [asset?.id]);
+
+  async function save() {
+    if (!asset) return;
+    setBusy(true);
+    try { await renameAsset(asset.id, name.trim()); toast.success("Renamed"); onSaved(); onClose(); }
+    catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
+  }
+  async function ai() {
+    if (!asset) return;
+    setAiBusy(true);
+    try {
+      const { data, error } = await suggestAssetName(asset.id);
+      if (error) throw error;
+      const d = data as any; if (d?.error) throw new Error(d.error);
+      setName(d.name); toast.success("AI suggested a name");
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setAiBusy(false); }
+  }
+
+  return (
+    <Dialog open={!!asset} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Rename asset</DialogTitle></DialogHeader>
+        {asset && (
+          <div className="space-y-3">
+            <img src={asset.public_url} alt="" className="w-full max-h-48 object-contain rounded border border-border bg-muted" />
+            <div>
+              <label className="text-xs font-medium mb-1 block">Asset name</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Clay logo" autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") save(); }} />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={save} disabled={busy || aiBusy} className="flex-1">
+                {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}Save name
+              </Button>
+              <Button variant="outline" onClick={ai} disabled={busy || aiBusy} title="Let AI suggest a name based on the image">
+                {aiBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}Suggest with AI
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Tip: a clear name helps AI pick the right reference when generating new images.</p>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
