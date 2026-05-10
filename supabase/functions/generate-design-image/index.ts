@@ -14,19 +14,37 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(auth.replace("Bearer ", ""));
     if (!user) return json({ error: "Unauthorized" }, 401);
 
-    const { prompt, aspect } = await req.json();
+    const { prompt, aspect, reference_asset_ids } = await req.json();
     if (typeof prompt !== "string" || prompt.trim().length < 3) return json({ error: "Prompt required" }, 400);
     const aspectStr = ["1:1", "4:5", "9:16"].includes(aspect) ? aspect : "1:1";
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) return json({ error: "LOVABLE_API_KEY missing" }, 500);
 
+    // Optional: include reference images so the model can incorporate logos / personal photos.
+    let refUrls: string[] = [];
+    if (Array.isArray(reference_asset_ids) && reference_asset_ids.length > 0) {
+      const ids = reference_asset_ids.filter((x: unknown): x is string => typeof x === "string").slice(0, 6);
+      if (ids.length > 0) {
+        const { data: refs } = await supabase.from("design_assets")
+          .select("public_url").in("id", ids).eq("user_id", user.id);
+        refUrls = (refs ?? []).map((r: any) => r.public_url).filter(Boolean);
+      }
+    }
+
+    const userContent: any = refUrls.length === 0
+      ? `Aspect ratio ${aspectStr}. ${prompt}`
+      : [
+          { type: "text", text: `Aspect ratio ${aspectStr}. Use the attached image(s) as references — incorporate their logos, brand marks, products or the person shown faithfully. ${prompt}` },
+          ...refUrls.map((url) => ({ type: "image_url", image_url: { url } })),
+        ];
+
     const ai = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: `Aspect ratio ${aspectStr}. ${prompt}` }],
+        messages: [{ role: "user", content: userContent }],
         modalities: ["image", "text"],
       }),
     });
@@ -48,6 +66,7 @@ Deno.serve(async (req) => {
     const { data: signed } = supabase.storage.from("design-assets").getPublicUrl(path);
     const { data: row, error: insErr } = await supabase.from("design_assets").insert({
       user_id: user.id, kind: "ai_generated", storage_path: path, public_url: signed?.publicUrl ?? "", prompt, mime,
+      parent_asset_id: refUrls.length > 0 && Array.isArray(reference_asset_ids) ? reference_asset_ids[0] : null,
     }).select().single();
     if (insErr) return json({ error: insErr.message }, 500);
     return json({ asset: row });
