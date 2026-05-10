@@ -14,6 +14,7 @@ import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, p
 import { generateDesignFromPrompt } from "@/lib/designer-queries";
 import { getMyLinkedInConnection, postToLinkedIn, getMyCanvaConnection, exportCanvaDesign, getMyMetaConnection, postToFacebook, postToInstagram, type SocialConnectionMeta } from "@/lib/social-connections";
 import { CanvaDesignPicker } from "@/components/CanvaDesignPicker";
+import GenerateWithAIDialog from "@/components/GenerateWithAIDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/supabase-queries";
 import LinkedInReview from "./LinkedInReview";
@@ -358,6 +359,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   const [metaConn, setMetaConn] = useState<SocialConnectionMeta | null>(null);
   const [postingToFacebook, setPostingToFacebook] = useState(false);
   const [postingToInstagram, setPostingToInstagram] = useState(false);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const navigate = useNavigate();
   const [figmaBrief, setFigmaBrief] = useState<string | null>(entry?.figma_brief ?? null);
   const [me, setMe] = useState<{ name?: string; linkedin_url?: string; style?: string } | null>(null);
@@ -634,7 +636,11 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
             <Label>Visual</Label>
             <Input placeholder="Image URL — paste, or use the buttons below" value={form.image_url ?? ""} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
             <div className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" variant="default" onClick={generateImage} disabled={genBusy}>
+              <Button type="button" size="sm" variant="default"
+                onClick={() => {
+                  if (!form.hook?.trim()) { toast.error("Add a hook first"); return; }
+                  setAiDialogOpen(true);
+                }} disabled={genBusy}>
                 {genBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
                 Generate with AI
               </Button>
@@ -826,6 +832,15 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
             }}
           />
         )}
+
+        <GenerateWithAIDialog
+          open={aiDialogOpen}
+          onClose={() => setAiDialogOpen(false)}
+          hook={form.hook ?? ""}
+          body={form.body ?? ""}
+          planId={entry?.id ?? null}
+          onGenerated={(image_url) => setForm({ ...form, image_url })}
+        />
       </DialogContent>
     </Dialog>
   );

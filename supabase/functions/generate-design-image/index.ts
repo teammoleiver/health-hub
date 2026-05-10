@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(auth.replace("Bearer ", ""));
     if (!user) return json({ error: "Unauthorized" }, 401);
 
-    const { prompt, aspect, reference_asset_ids } = await req.json();
+    const { prompt, aspect, reference_asset_ids, reference_urls } = await req.json();
     if (typeof prompt !== "string" || prompt.trim().length < 3) return json({ error: "Prompt required" }, 400);
     const aspectStr = ["1:1", "4:5", "9:16"].includes(aspect) ? aspect : "1:1";
 
@@ -31,6 +31,11 @@ Deno.serve(async (req) => {
         refUrls = (refs ?? []).map((r: any) => r.public_url).filter(Boolean);
       }
     }
+    if (Array.isArray(reference_urls)) {
+      const extra = reference_urls.filter((u: unknown): u is string => typeof u === "string");
+      refUrls = [...refUrls, ...extra];
+    }
+    refUrls = refUrls.slice(0, 6);
 
     const userContent: any = refUrls.length === 0
       ? `Aspect ratio ${aspectStr}. ${prompt}`

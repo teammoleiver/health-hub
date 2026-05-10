@@ -187,8 +187,13 @@ export async function uploadAsset(file: File): Promise<DesignAsset> {
 export async function generateAssetImage(prompt: string, aspect: "1:1" | "4:5" | "9:16" = "1:1") {
   return generateAssetImageWithRefs(prompt, aspect, []);
 }
-export async function generateAssetImageWithRefs(prompt: string, aspect: "1:1" | "4:5" | "9:16", reference_asset_ids: string[]) {
-  return supabase.functions.invoke("generate-design-image", { body: { prompt, aspect, reference_asset_ids } });
+export async function generateAssetImageWithRefs(
+  prompt: string,
+  aspect: "1:1" | "4:5" | "9:16",
+  reference_asset_ids: string[],
+  reference_urls: string[] = [],
+) {
+  return supabase.functions.invoke("generate-design-image", { body: { prompt, aspect, reference_asset_ids, reference_urls } });
 }
 export async function importAssetFromUrl(url: string, name?: string) {
   return supabase.functions.invoke("import-asset-from-url", { body: { url, name } });
