@@ -19,6 +19,7 @@ export default function AssetLibraryPage() {
   const [genOpen, setGenOpen] = useState(false);
   const [urlOpen, setUrlOpen] = useState(false);
   const [editing, setEditing] = useState<DesignAsset | null>(null);
+  const [renamingAsset, setRenamingAsset] = useState<DesignAsset | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function reload() { setLoading(true); setAssets(await listAssets()); setLoading(false); }
@@ -56,14 +57,15 @@ export default function AssetLibraryPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {assets.map((a) => (
-              <AssetCard key={a.id} asset={a} onEdit={() => setEditing(a)} onChanged={reload} />
+              <AssetCard key={a.id} asset={a} onEdit={() => setEditing(a)} onRename={() => setRenamingAsset(a)} onChanged={reload} />
             ))}
           </div>
         )}
 
       <GenerateDialog open={genOpen} onClose={() => setGenOpen(false)} onCreated={reload} assets={assets} />
       <UrlImportDialog open={urlOpen} onClose={() => setUrlOpen(false)} onCreated={reload} />
-      <EditDialog asset={editing} onClose={() => setEditing(null)} onSaved={reload} />
+      <EditDialog asset={editing} onClose={() => setEditing(null)} onSaved={reload} onRename={(a) => { setEditing(null); setRenamingAsset(a); }} />
+      <RenameDialog asset={renamingAsset} onClose={() => setRenamingAsset(null)} onSaved={reload} />
     </section>
   );
 }
