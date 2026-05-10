@@ -270,7 +270,7 @@ function GenerateDialog({ open, onClose, onCreated, assets }: { open: boolean; o
   );
 }
 
-function EditDialog({ asset, onClose, onSaved }: { asset: DesignAsset | null; onClose: () => void; onSaved: () => void }) {
+function EditDialog({ asset, onClose, onSaved, onRename }: { asset: DesignAsset | null; onClose: () => void; onSaved: () => void; onRename: (a: DesignAsset) => void }) {
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [bgBusy, setBgBusy] = useState(false);
@@ -314,7 +314,12 @@ function EditDialog({ asset, onClose, onSaved }: { asset: DesignAsset | null; on
         {asset && (
           <div className="space-y-3">
             <img src={asset.public_url} alt={asset.name ?? ""} className="w-full max-h-72 object-contain rounded border border-border bg-muted" />
-            {asset.name && <p className="text-xs text-muted-foreground text-center">{asset.name}</p>}
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xs text-muted-foreground">{asset.name || <span className="italic">Untitled</span>}</span>
+              <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onRename(asset)}>
+                <Pencil className="w-3 h-3 mr-1" /> Rename
+              </Button>
+            </div>
             <Input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. make the background dark green and add subtle grain" />
             <div className="flex flex-wrap gap-1">
               {presets.map((p) => (
