@@ -82,7 +82,7 @@ export type Design = {
 };
 
 export type DesignAsset = {
-  id: string; user_id: string; kind: "upload" | "ai_generated" | "ai_edited";
+  id: string; user_id: string; kind: "upload" | "ai_generated" | "ai_edited" | "url_import" | "bg_removed";
   storage_path: string; public_url: string; prompt: string | null;
   parent_asset_id: string | null; width: number | null; height: number | null;
   mime: string | null; created_at: string;
