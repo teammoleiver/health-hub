@@ -4,7 +4,7 @@ import {
   ArrowLeft, Save, Plus, Type, Image as ImageIcon, Square as SquareIcon, Circle as CircleIcon,
   Triangle as TriangleIcon, Trash2, Copy, ArrowUp, ArrowDown, Wand2, Download, Loader2, Sparkles,
   Undo2, Redo2, ZoomIn, ZoomOut, Maximize, Minus as LineIcon, Smile, BookmarkPlus, Layers as LayersIcon,
-  MessageSquare, Upload as UploadIcon, ChevronDown, Hash, Move,
+  MessageSquare, Upload as UploadIcon, ChevronDown, Hash, Move, Link2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -392,18 +392,30 @@ export default function DesignEditor() {
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setAutoFit(false); setZoom((z) => Math.min(4, z * 1.15)); }}><ZoomIn className="w-4 h-4" /></Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setAutoFit(true)} title="Fit"><Maximize className="w-4 h-4" /></Button>
         </div>
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap items-center">
           {design.type === "carousel" && (
             <Button variant={design.showPageNumbers ? "default" : "outline"} size="sm" onClick={togglePageNumbers} title="Auto page numbers">
               <Hash className="w-4 h-4 mr-1" /> Page #
             </Button>
+          )}
+          {(design as any).planner_entry_id && (
+            <a
+              href="/content-planner"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+              title="This design is linked to a planner post — saving auto-syncs to its image_url"
+            >
+              <Link2 className="w-3 h-3" /> Linked to post
+            </a>
           )}
           <Button variant="outline" size="sm" onClick={() => setResizeOpen(true)}><Move className="w-4 h-4 mr-1" /> Magic Resize</Button>
           <Button variant="outline" size="sm" onClick={() => setTplOpen(true)}><BookmarkPlus className="w-4 h-4 mr-1" /> Save as template</Button>
           <Button variant="outline" size="sm" onClick={exportPng} disabled={exporting}><Download className="w-4 h-4 mr-1" /> PNG</Button>
           {design.type === "carousel" && <Button variant="outline" size="sm" onClick={exportPdf} disabled={exporting}><Download className="w-4 h-4 mr-1" /> PDF</Button>}
           <Button size="sm" onClick={save} disabled={saving}>
-            {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Save
+            {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+            {(design as any).planner_entry_id ? "Save & sync" : "Save"}
           </Button>
         </div>
       </header>

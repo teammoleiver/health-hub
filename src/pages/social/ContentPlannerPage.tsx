@@ -392,6 +392,31 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
     getMyMetaConnection().then(setMetaConn).catch(() => setMetaConn(null));
   }, []);
 
+  // Re-fetch this entry when the window regains focus — covers the case where
+  // the user attached a PDF carousel via LinkedIn Templates (opened in another
+  // tab) and comes back here. Visual fields (image_url, document_url) update
+  // live without forcing them to close + reopen the post.
+  useEffect(() => {
+    if (!entry?.id) return;
+    const refresh = async () => {
+      const { data } = await supabase
+        .from("social_content_plan" as any)
+        .select("image_url, document_url, document_filename")
+        .eq("id", entry.id)
+        .maybeSingle();
+      if (!data) return;
+      setForm((cur: any) => ({
+        ...cur,
+        image_url: (data as any).image_url ?? cur.image_url,
+        document_url: (data as any).document_url ?? cur.document_url,
+        document_filename: (data as any).document_filename ?? cur.document_filename,
+      }));
+    };
+    const onFocus = () => { void refresh(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [entry?.id]);
+
   async function postToFacebookNow() {
     if (!entry?.id) { toast.error("Save the post first"); return; }
     setPostingToFacebook(true);
@@ -478,6 +503,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
         : null;
       const payload: any = {
         hook: form.hook, body: form.body || null, image_url: form.image_url || null,
+        document_url: form.document_url || null, document_filename: form.document_filename || null,
         scheduled_date: form.scheduled_date || null, scheduled_time: form.scheduled_time || null,
         scheduled_at,
         platforms: form.platforms ?? [], status,
@@ -651,6 +677,21 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                 {designBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Palette className="w-4 h-4 mr-1" />}
                 Design in Studio
               </Button>
+              {entry?.id && (
+                <Button type="button" size="sm" variant="outline"
+                  className="border-emerald-500/40 text-emerald-300"
+                  onClick={() => {
+                    const params = new URLSearchParams({
+                      planId: entry.id,
+                      preset: "cheatsheet",
+                    });
+                    if (form.hook) params.set("hook", form.hook);
+                    if (form.body) params.set("body", form.body);
+                    window.open(`/designer/linkedin-templates?${params.toString()}`, "_blank");
+                  }}>
+                  <Sparkles className="w-4 h-4 mr-1" /> LinkedIn Template
+                </Button>
+              )}
               {linkedDesign?.thumbnail_url && (
                 <Button type="button" size="sm" variant="outline" onClick={useDesignAsImage}
                   className="border-emerald-500/40 text-emerald-300">
@@ -702,7 +743,34 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                 )}
               </div>
             )}
-            {form.image_url && <img src={form.image_url} alt="" className="max-h-48 rounded-md border border-border" />}
+            {form.document_url ? (
+              <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <div className="w-9 h-9 rounded-md bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0 font-display font-bold text-xs">PDF</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground/70 font-medium">PDF carousel attached</div>
+                    <div className="text-sm font-medium truncate">{form.document_filename ?? "Document"}</div>
+                    <p className="text-[11px] text-muted-foreground">Will publish to LinkedIn as a native swipeable carousel — not a single image.</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button type="button" size="sm" variant="ghost" asChild>
+                      <a href={form.document_url} target="_blank" rel="noreferrer">View PDF</a>
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setForm({ ...form, document_url: "", document_filename: "" })}>
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+                {form.image_url && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Cover preview</span>
+                    <img src={form.image_url} alt="" className="h-16 rounded-md border border-border" />
+                  </div>
+                )}
+              </div>
+            ) : (
+              form.image_url && <img src={form.image_url} alt="" className="max-h-48 rounded-md border border-border" />
+            )}
             {figmaBrief && (
               <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center justify-between">

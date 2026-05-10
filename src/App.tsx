@@ -37,6 +37,7 @@ import DesignerHome from "./pages/designer/DesignerHome";
 import BrandKitPage from "./pages/designer/BrandKitPage";
 import AssetLibraryPage from "./pages/designer/AssetLibraryPage";
 import DesignEditor from "./pages/designer/DesignEditor";
+import LinkedInTemplatesPage from "./pages/designer/LinkedInTemplatesPage";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import LinkedInCallback from "./pages/oauth/LinkedInCallback";
@@ -130,6 +131,7 @@ function AppRoutes() {
       <Route path="/designer" element={<ProtectedRoute><AppLayout><DesignerHome /></AppLayout></ProtectedRoute>} />
       <Route path="/designer/brand" element={<ProtectedRoute><AppLayout><BrandKitPage /></AppLayout></ProtectedRoute>} />
       <Route path="/designer/assets" element={<ProtectedRoute><AppLayout><AssetLibraryPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/designer/linkedin-templates" element={<ProtectedRoute><AppLayout><LinkedInTemplatesPage /></AppLayout></ProtectedRoute>} />
       <Route path="/designer/:id" element={<ProtectedRoute><AppLayout><DesignEditor /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsModule /></AppLayout></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AppLayout><AdminPanel /></AppLayout></ProtectedRoute>} />

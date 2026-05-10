@@ -50,6 +50,8 @@ Deno.serve(async (req) => {
     const planId: string | undefined = body?.plan_id;
     const overrideText: string | undefined = body?.text;
     const overrideImageUrl: string | undefined = body?.image_url;
+    const overrideDocumentUrl: string | undefined = body?.document_url;
+    const overrideDocumentFilename: string | undefined = body?.document_filename;
     if (!planId && !overrideText) return json({ error: "plan_id or text required" }, 400);
 
     // 1. Connection + entry
@@ -74,6 +76,8 @@ Deno.serve(async (req) => {
     const text: string = (overrideText ?? composePostText(entry?.hook, entry?.body)).trim();
     if (!text) return json({ error: "Post text is empty" }, 400);
     const imageUrl: string | null = overrideImageUrl ?? entry?.image_url ?? null;
+    const documentUrl: string | null = overrideDocumentUrl ?? entry?.document_url ?? null;
+    const documentFilename: string | null = overrideDocumentFilename ?? entry?.document_filename ?? null;
 
     // ── Safety guardrails ───────────────────────────────────────────────
     // These match (or undercut) LinkedIn's documented Marketing Developer
@@ -141,10 +145,47 @@ Deno.serve(async (req) => {
 
     const author = conn.provider_user_id; // urn:li:person:xxx
 
-    // 3. Optional image upload
+    // 3. Optional document upload (PDF carousel — takes priority over image).
+    //    LinkedIn's /rest/documents endpoint converts the PDF into the native
+    //    swipeable carousel UI in the feed.
+    let documentUrn: string | null = null;
     let imageUrn: string | null = null;
     let uploadDetail: any = null;
-    if (imageUrl) {
+    if (documentUrl) {
+      const init = await fetch("https://api.linkedin.com/rest/documents?action=initializeUpload", {
+        method: "POST",
+        headers: liHeaders(accessToken),
+        body: JSON.stringify({ initializeUploadRequest: { owner: author } }),
+      });
+      const initText = await init.text();
+      let initJson: any;
+      try { initJson = initText ? JSON.parse(initText) : null; } catch { initJson = null; }
+      if (!init.ok || !initJson?.value?.uploadUrl) {
+        await logAttempt(admin, user.id, planId ?? null, "linkedin", "init_document_upload_failed",
+          { entry_id: planId, request: { action: "initializeUpload-document", owner: author }, response: initText, status: init.status });
+        return json({ error: `Document initializeUpload failed: ${initText.slice(0, 500)}`, status: init.status }, 500);
+      }
+      documentUrn = initJson.value.document as string;
+      const uploadUrl = initJson.value.uploadUrl as string;
+
+      const docRes = await fetch(documentUrl);
+      if (!docRes.ok) {
+        return json({ error: `Failed to download PDF from document_url: ${docRes.status}` }, 500);
+      }
+      const docBytes = new Uint8Array(await docRes.arrayBuffer());
+      const put = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/pdf" },
+        body: docBytes,
+      });
+      uploadDetail = { document: { status: put.status } };
+      if (!put.ok) {
+        const t = await put.text().catch(() => "");
+        await logAttempt(admin, user.id, planId ?? null, "linkedin", "document_upload_failed",
+          { entry_id: planId, response: t, status: put.status, document_urn: documentUrn });
+        return json({ error: `Document PUT failed: ${t.slice(0, 500)}`, status: put.status }, 500);
+      }
+    } else if (imageUrl) {
       const init = await fetch("https://api.linkedin.com/rest/images?action=initializeUpload", {
         method: "POST",
         headers: liHeaders(accessToken),
@@ -194,7 +235,12 @@ Deno.serve(async (req) => {
       lifecycleState: "PUBLISHED",
       isReshareDisabledByAuthor: false,
     };
-    if (imageUrn) {
+    if (documentUrn) {
+      // LinkedIn requires a title on document posts; the title shows above the
+      // PDF carousel. Use the post hook (or a sensible fallback).
+      const title = (entry?.hook ?? "").slice(0, 100) || (documentFilename ?? "Carousel");
+      postBody.content = { media: { id: documentUrn, title } };
+    } else if (imageUrn) {
       postBody.content = { media: { id: imageUrn, title: (entry?.hook ?? "").slice(0, 80) || "" } };
     }
 
@@ -214,7 +260,7 @@ Deno.serve(async (req) => {
     await admin.from("webhook_logs").insert({
       user_id: user.id, plan_id: planId ?? null, platform: "linkedin",
       webhook_url: "https://api.linkedin.com/rest/posts",
-      request_payload: { ...postBody, _image_url: imageUrl, _image_urn: imageUrn, _upload: uploadDetail },
+      request_payload: { ...postBody, _image_url: imageUrl, _image_urn: imageUrn, _document_url: documentUrl, _document_urn: documentUrn, _upload: uploadDetail },
       status_code: postRes.status,
       ok,
       response_body: postText.slice(0, 4000),

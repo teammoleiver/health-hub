@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Plus, Palette as PaletteIcon, Image as ImageIcon, Sparkles, Trash2, FileText, LayoutGrid,
-  Loader2, BookOpen, Search,
+  Loader2, BookOpen, Search, Linkedin,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
 } from "@/lib/designer-queries";
 import { PLATFORM_SIZES } from "@/lib/designer-utils";
 import { seedCoverTemplates } from "@/lib/designer-seed-templates";
+import DesignThumb from "@/components/designer/DesignThumb";
 
 export default function DesignerHome() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function DesignerHome() {
           <p className="text-sm text-muted-foreground">Generate, edit and export branded social posts and carousels.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button asChild><Link to="/designer/linkedin-templates"><Sparkles className="w-4 h-4 mr-1" /> LinkedIn Templates</Link></Button>
           <Button asChild variant="outline"><Link to="/designer/brand"><PaletteIcon className="w-4 h-4 mr-1" /> Brand kit</Link></Button>
           <Button asChild variant="outline"><Link to="/designer/assets"><ImageIcon className="w-4 h-4 mr-1" /> Assets</Link></Button>
         </div>
@@ -41,7 +43,7 @@ export default function DesignerHome() {
           <TabsTrigger value="new"><Plus className="w-3.5 h-3.5 mr-1" /> Create new</TabsTrigger>
         </TabsList>
         <TabsContent value="designs" className="pt-4">
-          <DesignsList onCreate={(id) => navigate(`/designer/${id}`)} />
+          <DesignsList />
         </TabsContent>
         <TabsContent value="templates" className="pt-4">
           <TemplatesList onUse={(id) => navigate(`/designer/${id}`)} />
@@ -54,7 +56,8 @@ export default function DesignerHome() {
   );
 }
 
-function DesignsList({ onCreate }: { onCreate: (id: string) => void }) {
+function DesignsList() {
+  const navigate = useNavigate();
   const [designs, setDesigns] = useState<Design[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -79,16 +82,25 @@ function DesignsList({ onCreate }: { onCreate: (id: string) => void }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {filtered.map((d) => (
               <Card key={d.id} className="overflow-hidden group relative">
-                <button onClick={() => onCreate(d.id)} className="block w-full text-left">
-                  <div className="aspect-[4/5] bg-muted flex items-center justify-center">
+                <button onClick={() => routeToDesign(d, navigate)} className="block w-full text-left">
+                  <div className="bg-muted relative">
                     {d.thumbnail_url
-                      ? <img src={d.thumbnail_url} className="w-full h-full object-cover" alt={d.title} />
-                      : (d.type === "carousel" ? <LayoutGrid className="w-8 h-8 text-muted-foreground" /> : <FileText className="w-8 h-8 text-muted-foreground" />)}
+                      ? <img src={d.thumbnail_url} className="w-full aspect-[4/5] object-cover" alt={d.title} />
+                      : d.kind && d.kind !== "canvas" && (d as any).template_data
+                        ? <DesignThumb design={d} />
+                        : d.slides?.[0]?.elements?.length
+                          ? <DesignThumb design={d} />
+                          : (
+                            <div className="aspect-[4/5] flex items-center justify-center">
+                              {d.type === "carousel" ? <LayoutGrid className="w-8 h-8 text-muted-foreground" /> : <FileText className="w-8 h-8 text-muted-foreground" />}
+                            </div>
+                          )}
+                    <KindBadge kind={d.kind} />
                   </div>
                   <div className="p-3 space-y-1">
                     <div className="text-sm font-medium truncate">{d.title}</div>
                     <div className="text-xs text-muted-foreground">
-                      {d.type === "carousel" ? `${d.slides.length} slides` : "Single"} · {d.platform}
+                      {kindLabel(d)} · {d.platform}
                     </div>
                   </div>
                 </button>
@@ -171,10 +183,16 @@ function TemplatesList({ onUse }: { onUse: (id: string) => void }) {
                     onUse(d.id);
                   } catch (e: any) { toast.error(e?.message ?? "Failed"); }
                 }} className="block w-full text-left">
-                  <div className="aspect-[4/5] bg-muted flex items-center justify-center">
+                  <div className="bg-muted">
                     {t.thumbnail_url
-                      ? <img src={t.thumbnail_url} className="w-full h-full object-cover" alt={t.title} />
-                      : (t.type === "carousel" ? <LayoutGrid className="w-8 h-8 text-muted-foreground" /> : <FileText className="w-8 h-8 text-muted-foreground" />)}
+                      ? <img src={t.thumbnail_url} className="w-full aspect-[4/5] object-cover" alt={t.title} />
+                      : (t.slides as any[])?.[0]?.elements?.length
+                        ? <DesignThumb design={t as any} />
+                        : (
+                          <div className="aspect-[4/5] flex items-center justify-center">
+                            {t.type === "carousel" ? <LayoutGrid className="w-8 h-8 text-muted-foreground" /> : <FileText className="w-8 h-8 text-muted-foreground" />}
+                          </div>
+                        )}
                   </div>
                   <div className="p-3 space-y-0.5">
                     <div className="text-sm font-medium truncate">{t.title}</div>
@@ -200,11 +218,18 @@ function NewDesignSection({ onCreated }: { onCreated: (id: string) => void }) {
   const [openManual, setOpenManual] = useState(false);
   const [openAi, setOpenAi] = useState(false);
   return (
-    <div className="grid md:grid-cols-2 gap-4">
+    <div className="grid md:grid-cols-3 gap-4">
       <Card className="p-6 space-y-3">
-        <div className="flex items-center gap-2 text-lg font-semibold"><Plus className="w-5 h-5" /> Blank design</div>
-        <p className="text-sm text-muted-foreground">Pick a platform and size and start from scratch.</p>
+        <div className="flex items-center gap-2 text-lg font-semibold"><Plus className="w-5 h-5" /> Blank canvas</div>
+        <p className="text-sm text-muted-foreground">Pick a platform and size and start from scratch in the canvas editor.</p>
         <Button onClick={() => setOpenManual(true)}>Create blank</Button>
+      </Card>
+      <Card className="p-6 space-y-3 border-emerald-500/40">
+        <div className="flex items-center gap-2 text-lg font-semibold"><Linkedin className="w-5 h-5 text-emerald-400" /> LinkedIn template</div>
+        <p className="text-sm text-muted-foreground">Cheat sheet, carousel, or hot-take in your branded style. Autosaves to designs.</p>
+        <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Link to="/designer/linkedin-templates">Open template editor</Link>
+        </Button>
       </Card>
       <Card className="p-6 space-y-3">
         <div className="flex items-center gap-2 text-lg font-semibold"><Sparkles className="w-5 h-5 text-primary" /> Generate with AI</div>
@@ -347,3 +372,35 @@ function AiGenerateDialog({ open, onClose, onCreated }: { open: boolean; onClose
     </Dialog>
   );
 }
+
+
+function routeToDesign(d: Design, navigate: (path: string) => void) {
+  if (d.kind && d.kind !== "canvas") {
+    navigate(`/designer/linkedin-templates?id=${d.id}`);
+  } else {
+    navigate(`/designer/${d.id}`);
+  }
+}
+
+function kindLabel(d: Design): string {
+  switch (d.kind) {
+    case "linkedin_cheatsheet": return "Cheat Sheet";
+    case "linkedin_carousel": return "LinkedIn Carousel";
+    case "linkedin_square": return "Hot Take";
+    default: return d.type === "carousel" ? `${d.slides.length} slides` : "Single";
+  }
+}
+
+function KindBadge({ kind }: { kind?: string | null }) {
+  if (!kind || kind === "canvas") return null;
+  const label = kind === "linkedin_cheatsheet" ? "Cheat Sheet"
+    : kind === "linkedin_carousel" ? "Carousel"
+    : kind === "linkedin_square" ? "Hot Take"
+    : kind;
+  return (
+    <span className="absolute top-2 left-2 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/90 text-white shadow">
+      <Linkedin className="w-3 h-3" /> {label}
+    </span>
+  );
+}
+

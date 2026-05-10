@@ -25,7 +25,12 @@
       "Bash(node -e \"const fs=require\\('fs'\\);const p='e:/GitHub/Syncvida/syncvida/src/pages/ProjectsModule.tsx';let s=fs.readFileSync\\(p,'utf8'\\);s=s.replace\\(/<Section id=\\\\\"planning\\\\\" icon=\\\\{Compass\\\\} title=\\\\\"Planning\\\\\" defaultOpen>/,'<CollapsibleSection isOpen={activeSection === \\\\\"planning\\\\\" || \\(activeSection !== \\\\\"criteria\\\\\" && activeSection !== \\\\\"milestones\\\\\" && activeSection !== \\\\\"tasks\\\\\" && activeSection !== \\\\\"brainstorm\\\\\" && activeSection !== \\\\\"notes\\\\\"\\)} onToggle={\\(\\) => setActiveSection\\(activeSection === \\\\\"planning\\\\\" ? null : \\\\\"planning\\\\\"\\)} icon={Compass} title=\\\\\"Planning\\\\\">'\\);fs.writeFileSync\\(p,s\\);console.log\\('done planning'\\);\")",
       "Bash(node -e \"const fs=require\\('fs'\\);const p='e:/GitHub/Syncvida/syncvida/src/pages/ProjectsModule.tsx';let s=fs.readFileSync\\(p,'utf8'\\);const ids=['criteria','milestones','tasks','brainstorm','notes'];for \\(const id of ids\\) {const re=new RegExp\\('<Section id=\\\\\"'+id+'\\\\\" \\([^>]*\\)>','g'\\);s=s.replace\\(re,'<CollapsibleSection isOpen={activeSection === \\\\\"'+id+'\\\\\"} onToggle={\\(\\) => setActiveSection\\(activeSection === \\\\\"'+id+'\\\\\" ? null : \\\\\"'+id+'\\\\\"\\)} \\\\$1>'\\);}s=s.replace\\(/<\\\\/Section>/g,'</CollapsibleSection>'\\);fs.writeFileSync\\(p,s\\);console.log\\('Section refs left:',\\(s.match\\(/<Section /g\\)||[]\\).length,'CollapsibleSection refs:',\\(s.match\\(/<CollapsibleSection /g\\)||[]\\).length,'closing left:',\\(s.match\\(/<\\\\/Section>/g\\)||[]\\).length\\);\")",
       "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/generate-design-image/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/gdi-v5.json',JSON.stringify\\({content:s}\\)\\);console.log\\(s.length\\);\")",
-      "mcp__claude_ai_Supabase__list_tables"
+      "mcp__claude_ai_Supabase__list_tables",
+      "Bash(mkdir -p \"e:/GitHub/Syncvida/syncvida/public/linkedin-templates/photos\" && cp \"C:/Users/saleh/Downloads/Linkedin/photos/\"*.png \"e:/GitHub/Syncvida/syncvida/public/linkedin-templates/photos/\" && ls \"e:/GitHub/Syncvida/syncvida/public/linkedin-templates/photos/\")",
+      "Bash(node -e ' *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\saleh\\Downloads\\Linkedin\\photos"
     ]
   }
 }

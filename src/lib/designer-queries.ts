@@ -71,6 +71,8 @@ export type DesignElement =
 
 export type Slide = { id: string; bg: Fill; elements: DesignElement[] };
 
+export type DesignKind = "canvas" | "linkedin_cheatsheet" | "linkedin_carousel" | "linkedin_square";
+
 export type Design = {
   id: string; user_id: string; type: "single" | "carousel";
   platform: "linkedin" | "instagram" | "facebook" | "x" | "multi";
@@ -79,6 +81,13 @@ export type Design = {
   created_at: string; updated_at: string;
   showPageNumbers?: boolean;
   pageNumberStyle?: { color: string; position: "br" | "bl" | "tr" | "tl" };
+  /**
+   * Discriminator: 'canvas' is the original DOM-based editor; the linkedin_*
+   * kinds are form-based templates whose state lives in `template_data` and
+   * which render via the LinkedInCanvas components.
+   */
+  kind?: DesignKind;
+  template_data?: any;
 };
 
 export type DesignAsset = {
@@ -248,6 +257,50 @@ export async function deleteDesign(id: string) {
 }
 export async function generateDesignFromPrompt(args: { prompt: string; type: "single" | "carousel"; platform: Design["platform"]; slideCount?: number }) {
   return supabase.functions.invoke("generate-design-from-prompt", { body: args });
+}
+
+// ── LinkedIn templates persisted as designs (kind = linkedin_cheatsheet | _carousel | _square)
+//    These store the form state in `template_data`; the actual canvas is rendered
+//    on the fly by the LinkedInCanvas components.
+
+export async function createLinkedInTemplate(args: {
+  kind: "linkedin_cheatsheet" | "linkedin_carousel" | "linkedin_square";
+  title: string;
+  template_data: any;
+  width: number;
+  height: number;
+  type?: "single" | "carousel";
+  thumbnail_url?: string | null;
+  planner_entry_id?: string | null;
+}): Promise<Design> {
+  const u = await uid();
+  const slidesPlaceholder = [{ id: crypto.randomUUID(), bg: "#0B0F1A", elements: [] }];
+  const { data, error } = await supabase.from("designs" as any).insert({
+    user_id: u,
+    type: args.type ?? (args.kind === "linkedin_carousel" ? "carousel" : "single"),
+    platform: "linkedin",
+    title: args.title,
+    width: args.width,
+    height: args.height,
+    slides: slidesPlaceholder,
+    thumbnail_url: args.thumbnail_url ?? null,
+    planner_entry_id: args.planner_entry_id ?? null,
+    kind: args.kind,
+    template_data: args.template_data,
+  } as any).select().single();
+  if (error) throw error;
+  return data as any;
+}
+
+export async function updateLinkedInTemplate(id: string, patch: {
+  title?: string;
+  template_data?: any;
+  thumbnail_url?: string | null;
+  planner_entry_id?: string | null;
+}): Promise<void> {
+  const updates: any = { ...patch, updated_at: new Date().toISOString() };
+  const { error } = await supabase.from("designs" as any).update(updates).eq("id", id);
+  if (error) throw error;
 }
 
 // ── Templates ──
