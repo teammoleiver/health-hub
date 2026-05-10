@@ -54,7 +54,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Content",
     items: [
-      { path: "/social", icon: Megaphone, label: "Social Studio" },
+      { path: "/social", icon: Megaphone, label: "Social Hub" },
       { path: "/content-studio", icon: Library, label: "Content Studio" },
       { path: "/content-planner", icon: ClipboardList, label: "Content Planner" },
       { path: "/designer", icon: Palette, label: "Designer" },

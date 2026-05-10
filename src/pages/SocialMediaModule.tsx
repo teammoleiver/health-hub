@@ -26,6 +26,7 @@ import {
   listFrameworkPrompts, saveFrameworkPrompt, suggestFrameworkPromptImprovement,
   analyzeSelfProfile, scrapeMyLastPosts, enrichVoiceFromPosts, enrichFromWebsites, listWebsiteEnrichments,
 } from "@/lib/social-queries";
+import ApifyActorsPanel from "@/components/social/ApifyActorsPanel";
 
 type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
 
@@ -57,7 +58,7 @@ export default function SocialMediaModule({ defaultTab, hideHeader }: { defaultT
       {!hideHeader && <header className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-display font-bold">S</div>
         <div>
-          <h1 className="font-display text-2xl md:text-3xl font-bold">Social Media Studio</h1>
+          <h1 className="font-display text-2xl md:text-3xl font-bold">Social Hub</h1>
           <p className="text-sm text-muted-foreground">Track LinkedIn voices · scrape posts · turn signal into your own content.</p>
         </div>
       </header>}
@@ -1533,6 +1534,8 @@ function SettingsTab() {
       </Card>
 
       <ApifyAccountsPanel />
+
+      <ApifyActorsPanel />
 
       <FrameworkPromptsEditor />
 

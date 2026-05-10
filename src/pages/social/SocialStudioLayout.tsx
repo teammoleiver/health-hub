@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Linkedin, Newspaper, Settings as SettingsIcon, LayoutDashboard, Search } from "lucide-react";
+import { Linkedin, Newspaper, Settings as SettingsIcon, LayoutDashboard, Search, Youtube } from "lucide-react";
 
 const tabs = [
   { to: "/social", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/social/search", label: "Search", icon: Search },
   { to: "/social/linkedin", label: "LinkedIn", icon: Linkedin },
+  { to: "/social/youtube", label: "YouTube", icon: Youtube },
   { to: "/social/news", label: "News & RSS", icon: Newspaper },
   { to: "/social/settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -15,8 +16,8 @@ export default function SocialStudioLayout() {
       <header className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-display font-bold">S</div>
         <div>
-          <h1 className="font-display text-2xl md:text-3xl font-bold">Social Media Studio</h1>
-          <p className="text-sm text-muted-foreground">LinkedIn intelligence · news radar · content planning.</p>
+          <h1 className="font-display text-2xl md:text-3xl font-bold">Social Hub</h1>
+          <p className="text-sm text-muted-foreground">LinkedIn intelligence · YouTube creators · news radar · content planning.</p>
         </div>
       </header>
 

@@ -363,6 +363,86 @@ export async function testApifyAccount(id: string, mode: "health" | "run" = "run
   return supabase.functions.invoke("test-apify-account", { body: { account_id: id, mode } });
 }
 
+// ── Apify actor presets (per-platform actor IDs) ──
+export type ApifyActorKind =
+  | "youtube_channel"
+  | "youtube_video_transcript"
+  | "linkedin_profile"
+  | "linkedin_company"
+  | "twitter"
+  | "instagram"
+  | "tiktok"
+  | "other";
+
+export type ApifyActor = {
+  id: string;
+  user_id: string;
+  kind: ApifyActorKind;
+  label: string;
+  actor_id: string;
+  is_default: boolean;
+  notes: string | null;
+  input_template: any | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function listApifyActors(kind?: ApifyActorKind): Promise<ApifyActor[]> {
+  const u = await uid(); if (!u) return [];
+  let q = supabase.from("apify_actors" as any).select("*").eq("user_id", u).order("kind").order("is_default", { ascending: false }).order("created_at");
+  if (kind) q = q.eq("kind", kind);
+  const { data } = await q;
+  return ((data ?? []) as unknown) as ApifyActor[];
+}
+
+export async function createApifyActor(p: {
+  kind: ApifyActorKind; label: string; actor_id: string; is_default?: boolean; notes?: string; input_template?: any;
+}): Promise<ApifyActor> {
+  const u = await uid();
+  if (!u) throw new Error("Not authenticated");
+  const actorId = parseApifyActorId(p.actor_id) || p.actor_id.trim();
+  if (!actorId) throw new Error("Actor ID required");
+  if (p.is_default) {
+    // Clear any existing default for this kind first.
+    await supabase.from("apify_actors" as any).update({ is_default: false } as any)
+      .eq("user_id", u).eq("kind", p.kind).eq("is_default", true);
+  }
+  const { data, error } = await supabase.from("apify_actors" as any).insert({
+    user_id: u, kind: p.kind, label: p.label.trim() || "Actor",
+    actor_id: actorId, is_default: !!p.is_default, notes: p.notes ?? null,
+    input_template: p.input_template ?? null,
+  } as any).select().single();
+  if (error) throw error;
+  return data as unknown as ApifyActor;
+}
+
+export async function updateApifyActor(id: string, updates: Partial<Pick<ApifyActor, "label" | "actor_id" | "notes" | "is_default" | "kind" | "input_template">>): Promise<void> {
+  const u = await uid();
+  if (!u) throw new Error("Not authenticated");
+  const patch: any = { ...updates };
+  if (patch.actor_id) patch.actor_id = parseApifyActorId(patch.actor_id) || patch.actor_id;
+  if (patch.is_default && updates.kind) {
+    await supabase.from("apify_actors" as any).update({ is_default: false } as any)
+      .eq("user_id", u).eq("kind", updates.kind).eq("is_default", true).neq("id", id);
+  }
+  const { error } = await supabase.from("apify_actors" as any).update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteApifyActor(id: string): Promise<void> {
+  const { error } = await supabase.from("apify_actors" as any).delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function setDefaultApifyActor(id: string, kind: ApifyActorKind): Promise<void> {
+  const u = await uid();
+  if (!u) throw new Error("Not authenticated");
+  await supabase.from("apify_actors" as any).update({ is_default: false } as any)
+    .eq("user_id", u).eq("kind", kind);
+  const { error } = await supabase.from("apify_actors" as any).update({ is_default: true } as any).eq("id", id);
+  if (error) throw error;
+}
+
 // ── Scrape run history ──
 export async function listScrapeRuns(filters?: { account_id?: string; profile_id?: string; limit?: number }) {
   const u = await uid(); if (!u) return [];

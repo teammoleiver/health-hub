@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { Linkedin, Newspaper, Settings as SettingsIcon, ArrowUpRight, Search } from "lucide-react";
+import { Linkedin, Newspaper, Settings as SettingsIcon, ArrowUpRight, Search, Youtube } from "lucide-react";
 
 const items = [
   { to: "/social/search", title: "Search", desc: "Ask anything. AI prompt optimizer + Linkup web search (or any HTTP provider).", icon: Search },
   { to: "/social/linkedin", title: "LinkedIn Studio", desc: "Track profiles, scrape posts, cluster hot topics, generate drafts.", icon: Linkedin },
+  { to: "/social/youtube", title: "YouTube Creators", desc: "Track creators, fetch videos by date, search across them, ask AI for ideas.", icon: Youtube },
   { to: "/social/news", title: "News & RSS", desc: "Add RSS feeds, fetch articles on schedule, surface Hot News topics.", icon: Newspaper },
   { to: "/social/settings", title: "Voice & Settings", desc: "About me, tone, frameworks, Apify accounts, AI provider.", icon: SettingsIcon },
 ];

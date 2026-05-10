@@ -29,6 +29,7 @@ import SocialOverview from "./pages/social/SocialOverview";
 import NewsPage from "./pages/social/NewsPage";
 import ContentPlannerPage from "./pages/social/ContentPlannerPage";
 import SearchPage from "./pages/social/SearchPage";
+import YouTubePage from "./pages/social/YouTubePage";
 import ContentStudioPage from "./pages/social/ContentStudioPage";
 import CarouselGenerator from "./pages/CarouselGenerator";
 import CarouselHistory from "./pages/CarouselHistory";
@@ -118,6 +119,7 @@ function AppRoutes() {
         <Route index element={<SocialOverview />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="linkedin" element={<SocialMediaModule defaultTab="profiles" hideHeader />} />
+        <Route path="youtube" element={<YouTubePage />} />
         <Route path="news" element={<NewsPage />} />
         <Route path="settings" element={<SocialMediaModule defaultTab="settings" hideHeader />} />
       </Route>
