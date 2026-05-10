@@ -593,6 +593,7 @@ export type Database = {
           id: string
           kind: string
           mime: string | null
+          name: string | null
           parent_asset_id: string | null
           prompt: string | null
           public_url: string
@@ -606,6 +607,7 @@ export type Database = {
           id?: string
           kind: string
           mime?: string | null
+          name?: string | null
           parent_asset_id?: string | null
           prompt?: string | null
           public_url: string
@@ -619,6 +621,7 @@ export type Database = {
           id?: string
           kind?: string
           mime?: string | null
+          name?: string | null
           parent_asset_id?: string | null
           prompt?: string | null
           public_url?: string
