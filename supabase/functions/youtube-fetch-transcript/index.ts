@@ -43,7 +43,12 @@ Deno.serve(async (req) => {
 
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const transcript = await runTranscriptActor(token, actorId, videoUrl);
-    if (!transcript) return json({ error: "Actor returned no transcript. Check the actor's expected input format." }, 500);
+    if (!transcript) {
+      return json({
+        error: "No transcript available for this video (captions may be disabled, or the actor returned an unexpected shape).",
+        fallback: true,
+      }, 200);
+    }
 
     await admin.from("youtube_videos").update({
       transcript,
