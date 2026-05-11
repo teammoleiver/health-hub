@@ -113,38 +113,53 @@ async function runTranscriptActor(token: string, actorId: string, videoUrl: stri
 }
 
 function extractTranscriptFromItems(items: any[]): string | null {
-  // Try direct text fields on the first item
-  for (const it of items) {
-    const direct = it?.transcript ?? it?.text ?? it?.fullText ?? it?.captions ?? it?.subtitles_text;
-    if (typeof direct === "string" && direct.trim().length > 0) return direct.trim();
-  }
-  // Try array-of-segments shape: subtitles[], transcript[], segments[], items[]
-  const collectFromSegments = (arr: any[]): string => {
-    return arr
-      .map((s: any) => {
-        if (typeof s === "string") return s;
-        return s?.text ?? s?.snippet ?? s?.line ?? "";
-      })
+  const TEXT_KEYS = ["transcript", "text", "fullText", "subtitles_text", "plainText", "content", "caption"];
+  const ARRAY_KEYS = ["subtitles", "transcript", "segments", "captions", "lines", "items", "data", "tracks"];
+
+  const joinSegments = (arr: any[]): string =>
+    arr
+      .map((s: any) => (typeof s === "string" ? s : s?.text ?? s?.snippet ?? s?.line ?? s?.content ?? ""))
       .filter(Boolean)
       .join(" ")
       .replace(/\s+/g, " ")
       .trim();
-  };
-  for (const it of items) {
-    for (const key of ["subtitles", "transcript", "segments", "captions", "lines"]) {
-      const v = it?.[key];
-      if (Array.isArray(v) && v.length > 0) {
-        const joined = collectFromSegments(v);
-        if (joined.length > 0) return joined;
+
+  // Recursive search through any nested object
+  const walk = (node: any, depth = 0): string | null => {
+    if (!node || depth > 6) return null;
+    if (typeof node === "string") {
+      return node.trim().length > 50 ? node.trim() : null;
+    }
+    if (Array.isArray(node)) {
+      const joined = joinSegments(node);
+      if (joined.length > 50) return joined;
+      for (const child of node) {
+        const r = walk(child, depth + 1);
+        if (r) return r;
+      }
+      return null;
+    }
+    if (typeof node === "object") {
+      for (const k of TEXT_KEYS) {
+        const v = node[k];
+        if (typeof v === "string" && v.trim().length > 50) return v.trim();
+      }
+      for (const k of ARRAY_KEYS) {
+        const v = node[k];
+        if (Array.isArray(v) && v.length > 0) {
+          const joined = joinSegments(v);
+          if (joined.length > 50) return joined;
+        }
+      }
+      for (const v of Object.values(node)) {
+        const r = walk(v, depth + 1);
+        if (r) return r;
       }
     }
-  }
-  // Last resort: if items themselves are segment objects, join across them
-  if (items.every((x) => typeof x?.text === "string" || typeof x === "string")) {
-    const joined = collectFromSegments(items);
-    if (joined.length > 0) return joined;
-  }
-  return null;
+    return null;
+  };
+
+  return walk(items);
 }
 
 function json(o: any, s = 200) {
