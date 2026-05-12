@@ -11,9 +11,9 @@ import EditorActions from "@/components/designer/EditorActions";
 import { toast } from "sonner";
 import {
   CheatSheetCanvas, CarouselCanvas, SquareCanvas,
-  ACCENT_KEYS, SECTION_KINDS,
+  ACCENT_KEYS, SECTION_KINDS, CAROUSEL_LAYOUTS,
   type CheatSheetData, type CarouselData, type SquareData,
-  type AccentKey, type SectionKind, type SheetSection, type CarouselSlide,
+  type AccentKey, type SectionKind, type SheetSection, type CarouselSlide, type CarouselLayout,
   type Overlay,
 } from "@/components/designer/linkedin/LinkedInCanvas";
 import {
@@ -540,15 +540,24 @@ function PresetTile({ active, onClick, icon, label }: { active: boolean; onClick
 
 /* ---------- Shared form bits ---------- */
 
-function FieldText({ label, value, onChange, placeholder, multiline }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; multiline?: boolean }) {
+function FieldText({ label, value, onChange, placeholder, multiline, max, rows }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; multiline?: boolean; max?: number; rows?: number }) {
+  const len = (value ?? "").length;
+  const over = typeof max === "number" && len > max;
   return (
     <div className="space-y-1">
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-muted-foreground">{label}</label>
+        {typeof max === "number" && (
+          <span className={`text-[10px] tabular-nums ${over ? "text-destructive font-semibold" : len > max * 0.85 ? "text-amber-500" : "text-muted-foreground/60"}`}>
+            {len} / {max}
+          </span>
+        )}
+      </div>
       {multiline ? (
-        <textarea rows={3} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-          className="w-full text-sm p-2 rounded-md border border-border bg-background" />
+        <textarea rows={rows ?? 3} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+          className={`w-full text-sm p-2 rounded-md border bg-background ${over ? "border-destructive/60" : "border-border"}`} />
       ) : (
-        <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+        <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={over ? "border-destructive/60" : undefined} />
       )}
     </div>
   );
@@ -601,7 +610,6 @@ function CheatSheetForm({ data, setData }: { data: CheatSheetData; setData: (d: 
           <FieldText label="Eyebrow" value={data.eyebrow ?? ""} onChange={(v) => update({ eyebrow: v })} />
           <FieldText label="Title" value={data.title} onChange={(v) => update({ title: v })} multiline />
           <FieldText label="Subtitle" value={data.subtitle ?? ""} onChange={(v) => update({ subtitle: v })} multiline />
-          <PhotoPicker value={data.photoKey} onChange={(v) => update({ photoKey: v })} />
         </Card>
 
         <Card className="p-3 space-y-3">
@@ -710,31 +718,23 @@ function TableEditor({ table, onChange }: { table: { headers: string[]; rows: st
   );
 }
 
-function PhotoPicker({ value, onChange }: { value?: AccentKey; onChange: (v: AccentKey) => void }) {
-  const photoKeys: AccentKey[] = ["coral", "teal", "navy", "olive", "sky", "green", "blue", "white", "cream", "light", "slate"];
-  return (
-    <div className="space-y-1">
-      <label className="text-xs font-medium text-muted-foreground">Photo background</label>
-      <div className="grid grid-cols-6 gap-1">
-        {photoKeys.map((k) => (
-          <button key={k} onClick={() => onChange(k)}
-            className={`aspect-square rounded-md border-2 overflow-hidden ${value === k ? "border-primary" : "border-transparent"}`}
-            title={k}>
-            <img src={`/linkedin-templates/photos/${k}.png`} alt={k} className="w-full h-full object-cover" />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /* ---------- Carousel editor ---------- */
+
+const LAYOUT_LABEL: Record<CarouselLayout, string> = {
+  text: "Text — title + body",
+  cover: "Cover — hook slide",
+  stat: "Stat — giant number",
+  quote: "Quote — pull quote",
+  bullets: "Bullets — 3–5 punchy items",
+  comparison: "Comparison — before / after",
+};
 
 function CarouselForm({ data, setData, slideIdx, setSlideIdx }: { data: CarouselData; setData: (d: CarouselData) => void; slideIdx: number; setSlideIdx: (n: number) => void }) {
   const update = (patch: Partial<CarouselData>) => setData({ ...data, ...patch });
   const updateSlide = (i: number, patch: Partial<CarouselSlide>) =>
     setData({ ...data, slides: data.slides.map((s, j) => j === i ? { ...s, ...patch } : s) });
   const slide = data.slides[slideIdx] ?? data.slides[0];
+  const layout: CarouselLayout = slide?.layout || "text";
 
   return (
     <>
@@ -743,7 +743,6 @@ function CarouselForm({ data, setData, slideIdx, setSlideIdx }: { data: Carousel
           <FieldText label="Author" value={data.author} onChange={(v) => update({ author: v })} />
           <FieldText label="Handle" value={data.handleShort ?? ""} onChange={(v) => update({ handleShort: v })} />
           <FieldText label="Type label" value={data.typeLabel ?? "Carousel"} onChange={(v) => update({ typeLabel: v })} />
-          <PhotoPicker value={data.photoKey} onChange={(v) => update({ photoKey: v })} />
         </Card>
 
         <Card className="p-3 space-y-2">
@@ -756,7 +755,7 @@ function CarouselForm({ data, setData, slideIdx, setSlideIdx }: { data: Carousel
             </div>
           </div>
           <div className="flex gap-1">
-            <Button size="sm" variant="outline" onClick={() => { setData({ ...data, slides: [...data.slides, { title: "New slide", body: "", accent: "coral" }] }); setSlideIdx(data.slides.length); }}>
+            <Button size="sm" variant="outline" onClick={() => { setData({ ...data, slides: [...data.slides, { title: "New slide", body: "", accent: "coral", layout: "text" }] }); setSlideIdx(data.slides.length); }}>
               <Plus className="w-3 h-3 mr-1" /> Add slide
             </Button>
             <Button size="sm" variant="ghost" onClick={() => {
@@ -769,10 +768,91 @@ function CarouselForm({ data, setData, slideIdx, setSlideIdx }: { data: Carousel
           </div>
           {slide && (
             <div className="space-y-2 pt-2 border-t border-border">
-              <FieldText label="Eyebrow" value={slide.eyebrow ?? ""} onChange={(v) => updateSlide(slideIdx, { eyebrow: v })} />
-              <FieldText label="Title" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline />
-              <FieldText label="Body" value={slide.body ?? ""} onChange={(v) => updateSlide(slideIdx, { body: v })} multiline />
-              <FieldText label="Closer" value={slide.closer ?? ""} onChange={(v) => updateSlide(slideIdx, { closer: v })} />
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Layout</label>
+                <Select value={layout} onValueChange={(v) => updateSlide(slideIdx, { layout: v as CarouselLayout })}>
+                  <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>{CAROUSEL_LAYOUTS.map((k) => <SelectItem key={k} value={k}>{LAYOUT_LABEL[k]}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+
+              <FieldText label="Eyebrow" value={slide.eyebrow ?? ""} onChange={(v) => updateSlide(slideIdx, { eyebrow: v })} max={20} />
+
+              {layout === "text" && (
+                <>
+                  <FieldText label="Title" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={100} />
+                  <FieldText label="Body" value={slide.body ?? ""} onChange={(v) => updateSlide(slideIdx, { body: v })} multiline max={220} rows={4} />
+                </>
+              )}
+
+              {layout === "cover" && (
+                <>
+                  <FieldText label="Title (hook)" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={120} rows={3} />
+                  <FieldText label="Subtitle (optional)" value={slide.body ?? ""} onChange={(v) => updateSlide(slideIdx, { body: v })} multiline max={120} />
+                </>
+              )}
+
+              {layout === "stat" && (
+                <>
+                  <FieldText label="Stat value (e.g. 80%, 3x, $2M)" value={slide.statValue ?? ""} onChange={(v) => updateSlide(slideIdx, { statValue: v })} max={12} />
+                  <FieldText label="Stat label" value={slide.statLabel ?? ""} onChange={(v) => updateSlide(slideIdx, { statLabel: v })} multiline max={80} />
+                  <FieldText label="Context (optional)" value={slide.body ?? ""} onChange={(v) => updateSlide(slideIdx, { body: v })} multiline max={80} />
+                </>
+              )}
+
+              {layout === "quote" && (
+                <>
+                  <FieldText label="Quote" value={slide.quote ?? slide.title} onChange={(v) => updateSlide(slideIdx, { quote: v, title: v })} multiline max={180} rows={4} />
+                  <FieldText label="Attribution (optional)" value={slide.quoteAuthor ?? ""} onChange={(v) => updateSlide(slideIdx, { quoteAuthor: v })} max={40} />
+                </>
+              )}
+
+              {layout === "bullets" && (
+                <>
+                  <FieldText label="Title" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={80} />
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Bullets (3–5 max)</label>
+                    <ListEditor
+                      items={slide.bullets ?? []}
+                      onChange={(next) => updateSlide(slideIdx, { bullets: next.slice(0, 5) })}
+                      placeholder="Short, punchy line (≤ 70 chars)"
+                      hint="Keep each bullet to one tight idea. Long bullets get truncated."
+                    />
+                  </div>
+                </>
+              )}
+
+              {layout === "comparison" && (
+                <>
+                  <FieldText label="Title" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={70} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <FieldText label="Left label" value={slide.leftLabel ?? "Before"} onChange={(v) => updateSlide(slideIdx, { leftLabel: v })} max={20} />
+                    </div>
+                    <div className="space-y-1">
+                      <FieldText label="Right label" value={slide.rightLabel ?? "After"} onChange={(v) => updateSlide(slideIdx, { rightLabel: v })} max={20} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Left items</label>
+                    <ListEditor
+                      items={slide.leftItems ?? []}
+                      onChange={(next) => updateSlide(slideIdx, { leftItems: next.slice(0, 4) })}
+                      placeholder="Old-way item (≤ 50 chars)"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Right items</label>
+                    <ListEditor
+                      items={slide.rightItems ?? []}
+                      onChange={(next) => updateSlide(slideIdx, { rightItems: next.slice(0, 4) })}
+                      placeholder="New-way item (≤ 50 chars)"
+                    />
+                  </div>
+                </>
+              )}
+
+              <FieldText label="Closer" value={slide.closer ?? ""} onChange={(v) => updateSlide(slideIdx, { closer: v })} max={30} />
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Accent</label>
                 <Select value={slide.accent ?? "coral"} onValueChange={(v) => updateSlide(slideIdx, { accent: v as AccentKey })}>
@@ -798,7 +878,6 @@ function SquareForm({ data, setData }: { data: SquareData; setData: (d: SquareDa
           <FieldText label="Author" value={data.author} onChange={(v) => update({ author: v })} />
           <FieldText label="Handle" value={data.handleShort ?? ""} onChange={(v) => update({ handleShort: v })} />
           <FieldText label="Type label" value={data.typeLabel ?? "Hot Take"} onChange={(v) => update({ typeLabel: v })} />
-          <PhotoPicker value={data.photoKey} onChange={(v) => update({ photoKey: v })} />
         </Card>
 
         <Card className="p-3 space-y-2">

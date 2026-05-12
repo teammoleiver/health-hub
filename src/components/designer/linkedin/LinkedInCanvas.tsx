@@ -97,12 +97,34 @@ export type CheatSheetData = {
   overlays?: Overlay[];
 };
 
+/**
+ * A carousel slide can render in one of several layouts. The `layout` field
+ * picks which renderer to use; each layout reads its own subset of fields.
+ * Shared across all layouts: eyebrow, accent, closer.
+ */
+export type CarouselLayout = "text" | "cover" | "stat" | "quote" | "bullets" | "comparison";
+
 export type CarouselSlide = {
+  layout?: CarouselLayout;
   eyebrow?: string;
   title: string;
+  /** Body copy. For `text` layout the renderer hard-caps at ~220 chars to stop walls of text. */
   body?: string;
   closer?: string;
   accent?: AccentKey;
+  // --- stat ---
+  statValue?: string;
+  statLabel?: string;
+  // --- quote ---
+  quote?: string;
+  quoteAuthor?: string;
+  // --- bullets ---
+  bullets?: string[];
+  // --- comparison ---
+  leftLabel?: string;
+  leftItems?: string[];
+  rightLabel?: string;
+  rightItems?: string[];
 };
 
 export type CarouselData = {
@@ -420,6 +442,103 @@ export function CheatSheetCanvas({
   );
 }
 
+/**
+ * Hard char limits per layout, enforced at render time. The form also nudges
+ * the user toward these limits with a char counter, but trimming here is the
+ * last line of defense — overflow ruins the design more than truncation does.
+ */
+const TEXT_BODY_MAX = 220;
+const STAT_BODY_MAX = 80;
+const QUOTE_MAX = 180;
+const BULLET_MAX = 70;
+const COMP_ITEM_MAX = 50;
+
+function clip(s: string | undefined, n: number): string {
+  if (!s) return "";
+  return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
+}
+
+function CarouselBody({ slide }: { slide: CarouselSlide }) {
+  const layout: CarouselLayout = slide.layout || "text";
+
+  if (layout === "cover") {
+    return (
+      <div className="carousel-body carousel-cover">
+        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
+        <h1 className="carousel-cover-title">{slide.title}</h1>
+        {slide.body && <p className="carousel-cover-sub">{clip(slide.body, 120)}</p>}
+      </div>
+    );
+  }
+
+  if (layout === "stat") {
+    return (
+      <div className="carousel-body carousel-stat">
+        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
+        <div className="carousel-stat-value">{slide.statValue || "—"}</div>
+        {slide.statLabel && <div className="carousel-stat-label">{slide.statLabel}</div>}
+        {slide.body && <p className="carousel-stat-body">{clip(slide.body, STAT_BODY_MAX)}</p>}
+      </div>
+    );
+  }
+
+  if (layout === "quote") {
+    return (
+      <div className="carousel-body carousel-quote">
+        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
+        <div className="carousel-quote-mark" aria-hidden>“</div>
+        <blockquote className="carousel-quote-text">{clip(slide.quote || slide.title, QUOTE_MAX)}</blockquote>
+        {slide.quoteAuthor && <div className="carousel-quote-author">— {slide.quoteAuthor}</div>}
+      </div>
+    );
+  }
+
+  if (layout === "bullets") {
+    const items = (slide.bullets ?? []).filter(Boolean);
+    return (
+      <div className="carousel-body carousel-bullets-layout">
+        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
+        <h2 className="carousel-bullets-title">{slide.title}</h2>
+        <ul className="carousel-bullets-list">
+          {items.slice(0, 5).map((b, i) => (
+            <li key={i}><span className="num">{String(i + 1).padStart(2, "0")}</span><span>{clip(b, BULLET_MAX)}</span></li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  if (layout === "comparison") {
+    const left = (slide.leftItems ?? []).filter(Boolean);
+    const right = (slide.rightItems ?? []).filter(Boolean);
+    return (
+      <div className="carousel-body carousel-compare-layout">
+        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
+        <h2 className="carousel-compare-title">{slide.title}</h2>
+        <div className="carousel-compare-grid">
+          <div className="carousel-compare-col" data-side="left">
+            <div className="lbl">{slide.leftLabel || "Before"}</div>
+            <ul>{left.slice(0, 4).map((it, i) => <li key={i}>{clip(it, COMP_ITEM_MAX)}</li>)}</ul>
+          </div>
+          <div className="carousel-compare-col" data-side="right">
+            <div className="lbl">{slide.rightLabel || "After"}</div>
+            <ul>{right.slice(0, 4).map((it, i) => <li key={i}>{clip(it, COMP_ITEM_MAX)}</li>)}</ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // text (default)
+  return (
+    <div className="carousel-body">
+      {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
+      <h1 className="carousel-title">{slide.title}</h1>
+      {slide.body && <p>{clip(slide.body, TEXT_BODY_MAX)}</p>}
+    </div>
+  );
+}
+
 export function CarouselCanvas({
   data, slideIndex = 0, idForExport = "canvas-export",
   editableOverlays = false, selectedOverlayId = null,
@@ -433,14 +552,11 @@ export function CarouselCanvas({
 }) {
   const slide = data.slides?.[slideIndex] || data.slides?.[0] || ({ title: "" } as CarouselSlide);
   const total = data.slides?.length ?? 0;
+  const accent = slide.accent || "coral";
   return (
-    <div className="canvas" data-format="carousel" id={idForExport}>
+    <div className="canvas" data-format="carousel" data-accent={accent} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Carousel"} />
-      <div className="carousel-body">
-        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <h1 className="carousel-title">{slide.title}</h1>
-        {slide.body && <p>{slide.body}</p>}
-      </div>
+      <CarouselBody slide={slide} />
       <div className="cnv-footer cnv-footer-sig">
         <Signature data={data} size="md" />
         <div className="cnv-footer-right">
@@ -508,3 +624,5 @@ export function SquareCanvas({
 export const ACCENT_KEYS: AccentKey[] = ["coral", "amber", "teal", "indigo", "plum", "olive", "sky", "green", "blue", "white", "cream", "light", "slate", "navy"];
 
 export const SECTION_KINDS: SectionKind[] = ["bullets", "pills", "checklist", "stats", "flags", "bars", "donut", "tools", "table"];
+
+export const CAROUSEL_LAYOUTS: CarouselLayout[] = ["text", "cover", "stat", "quote", "bullets", "comparison"];

@@ -705,7 +705,18 @@
 
 /* =========================================================
    Carousel — single slide layout
+   The carousel root carries data-accent so eyebrow pill, stat color,
+   bullet markers, etc. all theme to the slide's accent.
    ========================================================= */
+
+.canvas[data-format="carousel"] { --accent: var(--accent-coral); --accent-fg: #2A0E08; }
+.canvas[data-format="carousel"][data-accent="amber"]  { --accent: var(--accent-amber);  --accent-fg: #0B0F1A; }
+.canvas[data-format="carousel"][data-accent="coral"]  { --accent: var(--accent-coral);  --accent-fg: #2A0E08; }
+.canvas[data-format="carousel"][data-accent="teal"]   { --accent: var(--accent-teal);   --accent-fg: #04201D; }
+.canvas[data-format="carousel"][data-accent="indigo"] { --accent: var(--accent-indigo); --accent-fg: #F5F1E8; }
+.canvas[data-format="carousel"][data-accent="plum"]   { --accent: var(--accent-plum);   --accent-fg: #F5F1E8; }
+.canvas[data-format="carousel"][data-accent="olive"]  { --accent: var(--accent-olive);  --accent-fg: #0B0F1A; }
+.canvas[data-format="carousel"][data-accent="sky"]    { --accent: var(--accent-sky);    --accent-fg: #04111F; }
 
 .carousel-body {
   flex: 1;
@@ -718,8 +729,8 @@
   display: inline-flex;
   align-self: flex-start;
   padding: 6px 14px;
-  background: var(--accent-coral);
-  color: var(--brand-coral-fg);
+  background: var(--accent);
+  color: var(--accent-fg);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -749,6 +760,223 @@
   max-width: 90%;
   margin: 0;
   text-wrap: pretty;
+}
+
+/* ---------- Cover: hook slide, centered ---------- */
+.carousel-cover {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 24px;
+}
+.carousel-cover-title {
+  font-family: var(--font-display);
+  font-size: 92px;
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  font-weight: 900;
+  color: var(--text-display);
+  margin: 0;
+  text-wrap: balance;
+}
+.carousel-cover-sub {
+  font-size: 22px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  max-width: 92%;
+  margin: 0;
+}
+
+/* ---------- Stat: giant accent number ---------- */
+.carousel-stat {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+}
+.carousel-stat-value {
+  font-family: var(--font-display);
+  font-size: 320px;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  font-weight: 900;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  text-wrap: nowrap;
+}
+.carousel-stat-label {
+  font-family: var(--font-display);
+  font-size: 38px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-weight: 700;
+  color: var(--text-display);
+  max-width: 80%;
+  text-wrap: balance;
+}
+.carousel-stat-body {
+  font-size: 20px !important;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 80%;
+  margin: 8px 0 0 !important;
+}
+
+/* ---------- Quote: pull quote with big mark ---------- */
+.carousel-quote {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+}
+.carousel-quote-mark {
+  font-family: var(--font-display);
+  font-size: 240px;
+  line-height: 0.6;
+  color: var(--accent);
+  opacity: 0.4;
+  font-weight: 900;
+  margin: 0;
+}
+.carousel-quote-text {
+  font-family: var(--font-display);
+  font-size: 58px;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: var(--text-display);
+  font-style: italic;
+  margin: -40px 0 0;
+  max-width: 95%;
+  text-wrap: balance;
+  border: none;
+  padding: 0;
+}
+.carousel-quote-author {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+/* ---------- Bullets: 3-5 punchy items ---------- */
+.carousel-bullets-layout {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 28px;
+}
+.carousel-bullets-title {
+  font-family: var(--font-display);
+  font-size: 56px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  color: var(--text-display);
+  margin: 0;
+  text-wrap: balance;
+}
+.carousel-bullets-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+.carousel-bullets-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  font-size: 26px;
+  line-height: 1.35;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.carousel-bullets-list li .num {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  padding-top: 10px;
+  width: 36px;
+}
+
+/* ---------- Comparison: two columns ---------- */
+.carousel-compare-layout {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 32px;
+}
+.carousel-compare-title {
+  font-family: var(--font-display);
+  font-size: 48px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  color: var(--text-display);
+  margin: 0;
+  text-wrap: balance;
+}
+.carousel-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+}
+.carousel-compare-col {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.carousel-compare-col[data-side="right"] {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.carousel-compare-col[data-side="left"] {
+  opacity: 0.85;
+}
+.carousel-compare-col .lbl {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.carousel-compare-col[data-side="right"] .lbl {
+  color: var(--accent);
+}
+.carousel-compare-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.carousel-compare-col li {
+  font-size: 19px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  display: flex;
+  gap: 10px;
+}
+.carousel-compare-col[data-side="left"] li::before {
+  content: "—";
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.carousel-compare-col[data-side="right"] li::before {
+  content: "✓";
+  color: var(--accent);
+  font-weight: 800;
+  flex-shrink: 0;
 }
 
 /* =========================================================
