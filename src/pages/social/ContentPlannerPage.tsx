@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/supabase-queries";
 import LinkedInReview from "./LinkedInReview";
 import PlatformReview from "./PlatformReview";
+import { PostPreview } from "@/components/social/PostPreview";
 
 const STATUSES = ["planned", "drafting", "ready", "scheduled", "posted", "failed"];
 const PLATFORM_ICONS: Record<string, any> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, twitter: Twitter, youtube: Youtube };
