@@ -804,36 +804,13 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
               </div>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div><Label>Date</Label><Input type="date" value={form.scheduled_date ?? ""} onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })} /></div>
-            <div><Label>Time</Label><Input type="time" value={(form.scheduled_time ?? "").slice(0,5)} onChange={(e) => setForm({ ...form, scheduled_time: e.target.value })} /></div>
-            <div>
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          {form.scheduled_date && form.scheduled_time && (
-            <div className={`text-[11px] flex items-center gap-1.5 px-2.5 py-2 rounded border ${form.status === "scheduled" ? "border-blue-500/40 bg-blue-500/10 text-blue-300" : "border-border text-muted-foreground"}`}>
-              <CalendarClock className="w-3.5 h-3.5" />
-              {(() => {
-                const utc = localDateTimeToUtcIso(form.scheduled_date, form.scheduled_time);
-                if (!utc) return "Pick a valid date and time";
-                const past = new Date(utc).getTime() <= Date.now();
-                const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                if (form.status === "scheduled") {
-                  return past
-                    ? <>Was set to fire <strong>{relativeTime(utc)}</strong> at {formatScheduled(utc)} ({tz})</>
-                    : <>Will fire <strong>{relativeTime(utc)}</strong> at {formatScheduled(utc)} ({tz})</>;
-                }
-                return past
-                  ? <>Date/time is in the past — pick a future moment to schedule</>
-                  : <>Click <strong>Schedule</strong> below to fire {relativeTime(utc)} at {formatScheduled(utc)} ({tz})</>;
-              })()}
-            </div>
-          )}
+          <ScheduleBlock
+            date={form.scheduled_date ?? ""}
+            time={(form.scheduled_time ?? "").slice(0, 5)}
+            status={form.status}
+            onChange={(p) => setForm({ ...form, ...p })}
+            utcIso={localDateTimeToUtcIso(form.scheduled_date, form.scheduled_time)}
+          />
           <div>
             <Label>Platforms</Label>
             <div className="flex flex-wrap gap-2 mt-1">
