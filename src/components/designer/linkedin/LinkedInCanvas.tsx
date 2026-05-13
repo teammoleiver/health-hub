@@ -102,7 +102,7 @@ export type CheatSheetData = {
  * picks which renderer to use; each layout reads its own subset of fields.
  * Shared across all layouts: eyebrow, accent, closer.
  */
-export type CarouselLayout = "text" | "cover" | "stat" | "quote" | "bullets" | "comparison";
+export type CarouselLayout = "text" | "cover" | "stat" | "quote" | "bullets" | "comparison" | "cta";
 
 export type CarouselSlide = {
   layout?: CarouselLayout;
@@ -125,6 +125,9 @@ export type CarouselSlide = {
   leftItems?: string[];
   rightLabel?: string;
   rightItems?: string[];
+  // --- cta (closing slide with big author photo) ---
+  ctaPrompt?: string;
+  ctaAction?: string;
 };
 
 export type CarouselData = {
