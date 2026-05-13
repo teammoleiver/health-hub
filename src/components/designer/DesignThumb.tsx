@@ -49,7 +49,8 @@ export default function DesignThumb({ design, className = "" }: { design: Design
   );
   if (design.kind && design.kind !== "canvas" && td) return linkedInWrap;
 
-  const slide = design.slides?.[0];
+  const slide = Array.isArray(design.slides) ? design.slides[0] : undefined;
+  const elements = Array.isArray(slide?.elements) ? slide!.elements : [];
   if (!slide) {
     return <div className={`w-full h-full bg-muted ${className}`} />;
   }
@@ -69,7 +70,7 @@ export default function DesignThumb({ design, className = "" }: { design: Design
           transform: `scale(${scale})`,
         }}
       >
-        {slide.elements.map((el) => (el.hidden ? null : <ElementView key={el.id} el={el} />))}
+        {elements.map((el) => (el.hidden ? null : <ElementView key={el.id} el={el} />))}
       </div>
     </div>
   );
