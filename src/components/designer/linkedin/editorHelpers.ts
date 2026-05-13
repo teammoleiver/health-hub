@@ -1,5 +1,5 @@
 import { toPng } from "html-to-image";
-import type { CheatSheetData, CarouselData, SquareData } from "./LinkedInCanvas";
+import type { CheatSheetData, CarouselData, SquareData, CarouselSlide, AccentKey } from "./LinkedInCanvas";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
