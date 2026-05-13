@@ -62,6 +62,14 @@ Deno.serve(async (req) => {
       return `## Source ${i + 1}\nCreator: ${ch}\nTitle: ${v.title}\n${desc ? `Description: ${desc}\n` : ""}${tr ? `Transcript excerpt:\n${tr}` : "(no transcript)"}`;
     }).join("\n\n");
 
+    const sources = vids.map((v: any, i: number) => ({
+      n: i + 1,
+      video_id: v.video_id,
+      title: v.title,
+      channel: chMap.get(v.channel_id) ?? v.channel_id,
+      url: `https://www.youtube.com/watch?v=${v.video_id}`,
+    }));
+
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) return json({ error: "LOVABLE_API_KEY missing" }, 500);
 
@@ -104,21 +112,17 @@ Return ${wantIdeas ? `${count} ideas` : ""}${wantIdeas && wantPosts ? " and " : 
     });
     if (!ai.ok) {
       if (ai.status === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
-      if (ai.status === 402) return json({ error: "AI credits exhausted — add funds in Workspace > Usage" }, 402);
+      if (ai.status === 402) return json({
+        ...fallbackSynthesis(vids, chMap, count, platforms, intent, sources),
+        ai_unavailable: true,
+        warning: "AI credits are exhausted, so this draft was generated locally from the selected transcripts.",
+      });
       return json({ error: `AI error: ${await ai.text()}` }, 500);
     }
     const aiBody = await ai.json();
     const content: string = aiBody.choices?.[0]?.message?.content ?? "";
     const parsed = safeParse(content);
     if (!parsed) return json({ error: "AI returned invalid JSON", raw: content }, 500);
-
-    const sources = vids.map((v: any, i: number) => ({
-      n: i + 1,
-      video_id: v.video_id,
-      title: v.title,
-      channel: chMap.get(v.channel_id) ?? v.channel_id,
-      url: `https://www.youtube.com/watch?v=${v.video_id}`,
-    }));
 
     return json({
       themes: Array.isArray(parsed.themes) ? parsed.themes : [],
