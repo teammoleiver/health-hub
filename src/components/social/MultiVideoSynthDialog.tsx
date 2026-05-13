@@ -66,9 +66,9 @@ export default function MultiVideoSynthDialog({
         })),
       });
       setResult(r);
-      setTab(r.ideas?.length ? "ideas" : r.posts?.length ? "posts" : "themes");
+      setTab(r.posts?.length ? "posts" : r.ideas?.length ? "ideas" : "themes");
       if (r.ai_unavailable) toast.warning(r.warning ?? "AI unavailable — local drafts generated instead");
-      else toast.success(`Synthesized ${r.ideas?.length ?? 0} ideas · ${r.posts?.length ?? 0} posts`);
+      else toast.success(`Synthesized ${r.ideas?.length ?? 0} ideas · ${r.posts?.length ?? 0} posts${r.provider ? ` via ${r.provider}` : ""}`);
     } catch (e: any) {
       toast.error(e?.message ?? "Generation failed");
     } finally { setBusy(false); }
@@ -171,8 +171,8 @@ export default function MultiVideoSynthDialog({
                     <div className="mb-3 flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-muted-foreground">
                       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
                       <div>
-                        <div className="font-medium text-foreground">AI credits are exhausted</div>
-                        <div>{result.warning ?? "Showing local draft ideas so the workflow still works. Top up AI balance for deeper creative synthesis."}</div>
+                        <div className="font-medium text-foreground">AI provider unavailable</div>
+                        <div>{result.warning ?? "Showing local drafts so the workflow still works."}</div>
                       </div>
                     </div>
                   )}
