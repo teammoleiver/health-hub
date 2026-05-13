@@ -421,6 +421,7 @@ export function CheatSheetCanvas({
   zoom?: number;
 }) {
   const accentOrder: AccentKey[] = ["coral", "amber", "teal", "indigo", "plum", "olive", "sky"];
+  const sections = safeSections(data.sections);
   return (
     <div className="canvas" data-format="cheatsheet" id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Cheat Sheet"} />
@@ -431,7 +432,7 @@ export function CheatSheetCanvas({
       </div>
       <div className="cnv-divider" />
       <div className="cnv-grid">
-        {(data.sections || []).map((section, idx) => {
+        {sections.map((section, idx) => {
           const accent = section.accent || accentOrder[idx % accentOrder.length];
           const num = String(idx + 1).padStart(2, "0");
           return (
@@ -458,7 +459,7 @@ export function CheatSheetCanvas({
         </div>
       </div>
       <OverlayLayer
-        overlays={data.overlays ?? []}
+        overlays={safeOverlays(data.overlays)}
         editable={editableOverlays}
         selectedId={selectedOverlayId}
         onSelect={onSelectOverlay}
