@@ -117,7 +117,11 @@ Return ${wantIdeas ? `${count} ideas` : ""}${wantIdeas && wantPosts ? " and " : 
     const aiBody = await ai.json();
     const content: string = aiBody.choices?.[0]?.message?.content ?? "";
     const parsed = safeParse(content);
-    if (!parsed) return json({ error: "AI returned invalid JSON", raw: content }, 500);
+    if (!parsed) return json({
+      ...fallbackSynthesis(vids, chMap, count, platforms, intent, sources),
+      ai_unavailable: true,
+      warning: "AI returned an unreadable response, so structured local drafts were generated from the selected transcripts.",
+    });
 
     const normalizedPosts = Array.isArray(parsed.posts)
       ? parsed.posts.map((post: any, index: number) => normalizePost(post, parsed.themes, sources, intent, index))
