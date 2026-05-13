@@ -5,6 +5,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function isPrivateIp(ip: string): boolean {
+  if (ip.includes(":")) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80") || lower.startsWith("::ffff:")) return true;
+    return false;
+  }
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return false;
+  const [a, b] = parts;
+  if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a >= 224) return true;
+  return false;
+}
+async function assertPublicUrl(rawUrl: string): Promise<void> {
+  const u = new URL(rawUrl);
+  if (!/^https?:$/.test(u.protocol)) throw new Error("Only http(s) URLs allowed");
+  const host = u.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal") || host.endsWith(".local")) {
+    throw new Error("URL host is not public");
+  }
+  const a4 = await Deno.resolveDns(host, "A").catch(() => [] as string[]);
+  const a6 = await Deno.resolveDns(host, "AAAA").catch(() => [] as string[]);
+  for (const ip of [...a4, ...a6]) if (isPrivateIp(ip)) throw new Error("URL resolves to a private address");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -17,6 +45,7 @@ Deno.serve(async (req) => {
     const { url, name } = await req.json();
     if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return json({ error: "Valid URL required" }, 400);
 
+    try { await assertPublicUrl(url); } catch (e) { return json({ error: (e as Error).message }, 400); }
     const fetched = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 SyncvidaDesigner" } });
     if (!fetched.ok) return json({ error: `Could not fetch URL (${fetched.status})` }, 400);
     const ct = fetched.headers.get("content-type") ?? "image/png";

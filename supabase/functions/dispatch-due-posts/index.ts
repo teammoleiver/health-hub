@@ -92,21 +92,34 @@ Deno.serve(async (req) => {
   try { bodyJson = await req.json(); } catch { /* GET / cron */ }
   const single_plan_id: string | undefined = bodyJson?.plan_id;
 
-  // For single push: validate caller owns it
+  const authHeader = req.headers.get("Authorization") || "";
+  const bearer = authHeader.replace(/^Bearer\s+/i, "");
+  const isServiceRole = bearer && bearer === serviceKey;
+
+  // For single push: validate caller owns it (user JWT path).
+  // For cron mode (no plan_id): require the service role key.
   let userScope: string | null = null;
   if (single_plan_id) {
-    const auth = req.headers.get("Authorization") || "";
-    if (!auth) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
-    const { data: { user } } = await userClient.auth.getUser();
-    if (!user) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    userScope = user.id;
+    if (!authHeader) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (isServiceRole) {
+      // Service-role caller may dispatch any plan id (used by internal flows).
+    } else {
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user } } = await userClient.auth.getUser();
+      if (!user) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      userScope = user.id;
+    }
+  } else {
+    if (!isServiceRole) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
   }
 
   // Find candidate posts
   let q = admin.from("social_content_plan").select("*");
   if (single_plan_id) {
-    q = q.eq("id", single_plan_id).eq("user_id", userScope!);
+    q = q.eq("id", single_plan_id);
+    if (userScope) q = q.eq("user_id", userScope);
   } else {
     // Cron mode: scheduled posts whose moment has arrived. We check both
     // the new `scheduled_at` (timezone-aware UTC timestamp) and the legacy

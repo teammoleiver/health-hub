@@ -13,10 +13,18 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const body = await req.json().catch(() => ({}));
 
-    let userId: string | null = body?.user_id ?? null;
-    if (!userId) {
+    // Require auth. Only allow body.user_id override when caller presents the
+    // service role key (used by internal cron / fan-out calls).
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const bearer = authHeader.replace(/^Bearer\s+/i, "");
+    const isServiceRole = bearer && bearer === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    let userId: string | null = null;
+    if (isServiceRole) {
+      userId = (body?.user_id as string) ?? null;
+    } else {
       const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-        global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+        global: { headers: { Authorization: authHeader } },
       });
       const { data } = await userClient.auth.getUser();
       userId = data.user?.id ?? null;
