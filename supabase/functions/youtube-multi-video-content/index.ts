@@ -218,10 +218,11 @@ function fallbackSynthesis(vids: any[], chMap: Map<string, string>, count: numbe
   });
   const posts = platforms.slice(0, 3).flatMap((platform, i) => {
     const idea = ideas[i % ideas.length];
+    const postBody = buildStructuredFallbackPost(String(platform), idea, baseTheme, commonWords, intent);
     return [normalizePost({
       platform,
       hook: idea.hook,
-      body: `${idea.hook}\n\n${idea.body}\n\nThe interesting part is not one isolated tactic — it is the pattern across multiple examples.`,
+      body: postBody,
       hashtags: commonWords.slice(0, 3).map((w) => w.replace(/[^a-z0-9]/gi, "")),
       sources: idea.sources,
     })];
@@ -234,9 +235,18 @@ function fallbackSynthesis(vids: any[], chMap: Map<string, string>, count: numbe
     ],
     ideas,
     posts,
-    next_steps: ["Top up AI balance for deeper synthesis", "Review the local drafts and keep the strongest angle", "Push the best idea to the planner"],
+    next_steps: ["Review the strongest cross-video angle", "Personalize the opening line", "Push the best post to the planner"],
     sources,
   };
+}
+
+function buildStructuredFallbackPost(platform: string, idea: any, baseTheme: string, keywords: string[], intent: string) {
+  if (platform === "twitter") {
+    return `${idea.hook}\n\nMost people treat every video as a separate source. The better move is to look for the repeated pattern: ${baseTheme}.\n\nThat is where the original POV comes from — not from summarizing one tactic, but from connecting what multiple creators keep circling around.\n\nTakeaway: turn the overlap into one clear claim, one example, and one next step.`;
+  }
+
+  const topic = titleCase(keywords.slice(0, 2).join(" and ") || "this workflow");
+  return `${idea.hook}\n\nI watched these selected videos as one combined source, not as separate content ideas.\n\nThe pattern that stood out: ${baseTheme}.\n\nThat matters because most LinkedIn posts stop at the obvious summary: “here is what the video said.” But the stronger post is the one that connects the dots and gives the reader a usable point of view.\n\n${intent ? `${intent}\n\n` : ""}Here is the angle I would use:\n\n${idea.body}\n\nThe practical lesson: when several sources point to the same problem, do not repeat the sources. Name the pattern, show the tension, then give the audience one action they can apply immediately.\n\nFor ${topic}, that means asking: what is the repeatable system underneath the tactic?\n\nThat is usually where the best post is hiding.\n\nWhat pattern would you pull from these examples?`;
 }
 const fallbackHooks = [
   "The hidden pattern behind {keyword}",
