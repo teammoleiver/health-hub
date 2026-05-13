@@ -249,6 +249,7 @@ export const SEED_CAROUSEL: CarouselData = {
     {
       layout: "stat",
       eyebrow: "Why now",
+      title: "80% less research time",
       statValue: "80%",
       statLabel: "Less research time, per lead.",
       body: "Once Claude reads Clay live, the manual lookup loop dies.",
