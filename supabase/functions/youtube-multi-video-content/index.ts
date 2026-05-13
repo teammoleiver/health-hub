@@ -119,10 +119,14 @@ Return ${wantIdeas ? `${count} ideas` : ""}${wantIdeas && wantPosts ? " and " : 
     const parsed = safeParse(content);
     if (!parsed) return json({ error: "AI returned invalid JSON", raw: content }, 500);
 
+    const normalizedPosts = Array.isArray(parsed.posts)
+      ? parsed.posts.map((post: any, index: number) => normalizePost(post, parsed.themes, sources, intent, index))
+      : [];
+
     return json({
       themes: Array.isArray(parsed.themes) ? parsed.themes : [],
       ideas: Array.isArray(parsed.ideas) ? parsed.ideas.map(normalizeIdea) : [],
-      posts: Array.isArray(parsed.posts) ? parsed.posts.map(normalizePost) : [],
+      posts: normalizedPosts,
       next_steps: Array.isArray(parsed.next_steps) ? parsed.next_steps.map(String) : [],
       sources,
       provider,
@@ -147,14 +151,26 @@ function normalizeIdea(x: any) {
     sources: Array.isArray(x?.sources) ? x.sources.map((n: any) => Number(n)).filter((n: number) => Number.isFinite(n)) : [],
   };
 }
-function normalizePost(x: any) {
+function normalizePost(x: any, themes: any[] = [], sources: any[] = [], intent = "", index = 0) {
+  const platform = String(x?.platform ?? "linkedin").toLowerCase();
+  const hook = String(x?.hook ?? "").trim();
+  const rawBody = String(x?.body ?? "").trim();
+  const body = platform === "linkedin" && rawBody.length < 700
+    ? expandShortLinkedInPost(hook, rawBody, themes, sources, intent, index)
+    : rawBody;
   return {
-    platform: String(x?.platform ?? "linkedin").toLowerCase(),
-    hook: String(x?.hook ?? "").trim(),
-    body: String(x?.body ?? "").trim(),
+    platform,
+    hook,
+    body,
     hashtags: Array.isArray(x?.hashtags) ? x.hashtags.map(String) : [],
     sources: Array.isArray(x?.sources) ? x.sources.map((n: any) => Number(n)).filter((n: number) => Number.isFinite(n)) : [],
   };
+}
+
+function expandShortLinkedInPost(hook: string, body: string, themes: any[], sources: any[], intent: string, index: number) {
+  const theme = String(themes?.[index % Math.max(themes.length, 1)]?.label ?? themes?.[0]?.label ?? "the repeated pattern across these videos");
+  const sourceTitles = sources.slice(0, 3).map((s) => s.title).filter(Boolean);
+  return `${hook || "The strongest post is hiding between the videos"}\n\n${body || "The obvious move is to summarize each video separately. The better move is to connect them."}\n\nThe pattern that stands out is this: ${theme}.\n\nThat is a stronger LinkedIn angle because it gives the reader a point of view, not just a recap.\n\n${sourceTitles.length ? `You can see it across examples like ${sourceTitles.join("; ")}.\n\n` : ""}${intent ? `${intent}\n\n` : ""}Here is the practical takeaway:\n\nWhen multiple sources point to the same problem, do not publish another generic summary. Name the pattern, explain why it matters, and give the audience one action they can use today.\n\nThat turns the content from “I watched this” into “here is what this changes.”\n\nWhat pattern would you build the post around?`;
 }
 
 async function callBestAiProvider(args: { openAiKey?: string | null; lovableKey?: string | null; systemPrompt: string; userPrompt: string }) {
