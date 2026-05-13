@@ -58,6 +58,12 @@ export default function MultiVideoSynthDialog({
         count,
         platforms,
         intent: intent.trim() || undefined,
+        fallback_videos: transcribed.slice(0, 10).map((v) => ({
+          video_id: v.video_id,
+          title: v.title,
+          description: v.description,
+          channel_id: channelTitleByPk[v.channel_pk] ?? v.channel_id,
+        })),
       });
       setResult(r);
       setTab(r.ideas?.length ? "ideas" : r.posts?.length ? "posts" : "themes");
