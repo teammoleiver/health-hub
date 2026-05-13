@@ -57,6 +57,12 @@ export default function LinkedInTemplatesPage() {
   const [detected, setDetected] = useState<DetectedLogo[]>([]);
   const [lastSaved, setLastSaved] = useState<{ kind: "image" | "pdf"; url: string; filename?: string; pageCount?: number } | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(!!designIdFromUrl);
+  // Tracks whether the user has actually edited anything yet. Without this,
+  // the autosave effect would create a brand-new SEED design every time the
+  // editor mounts without an `?id=` — flooding the library with identical
+  // copies of the cheat sheet seed and making it look like every design is
+  // the same one.
+  const [dirty, setDirty] = useState(false);
   // Carousel state lifted here so the center preview, the right-panel form,
   // and the action buttons in the top header all share the same slide index.
   const [slideIdx, setSlideIdx] = useState(0);
@@ -66,13 +72,32 @@ export default function LinkedInTemplatesPage() {
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
 
+  // Wrapped setters that flip the dirty flag — used everywhere a user can
+  // mutate the template (forms, overlay layer, title, preset switcher).
+  const editCheatData = (next: CheatSheetData | ((d: CheatSheetData) => CheatSheetData)) => {
+    setDirty(true);
+    setCheatData((prev) => (typeof next === "function" ? (next as any)(prev) : next));
+  };
+  const editCarouselData = (next: CarouselData | ((d: CarouselData) => CarouselData)) => {
+    setDirty(true);
+    setCarouselData((prev) => (typeof next === "function" ? (next as any)(prev) : next));
+  };
+  const editSquareData = (next: SquareData | ((d: SquareData) => SquareData)) => {
+    setDirty(true);
+    setSquareData((prev) => (typeof next === "function" ? (next as any)(prev) : next));
+  };
+  const editTitle = (v: string) => { setDirty(true); setTitle(v); };
+  const editActive = (v: TemplateKey) => { setDirty(true); setActive(v); };
+
   // Load existing design (?id=xxx) — restores the form into the editor.
   useEffect(() => {
     if (!designIdFromUrl) return;
+    setLoadingExisting(true);
+    setDirty(false);
     (async () => {
       try {
         const d = await getDesign(designIdFromUrl);
-        if (!d) return;
+        if (!d) { setLoadingExisting(false); return; }
         setTitle(d.title || "");
         const data = (d as any).template_data;
         if (d.kind === "linkedin_cheatsheet" && data) {
@@ -195,10 +220,13 @@ export default function LinkedInTemplatesPage() {
   // Debounced autosave: 1.2s after the last edit.
   useEffect(() => {
     if (loadingExisting) return;
+    // Don't auto-create a new design from the seed — wait until the user
+    // actually edits something. Existing designs (have an id) still autosave.
+    if (!designId && !dirty) return;
     const t = setTimeout(() => { void persist(); }, 1200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cheatData, carouselData, squareData, title, active, loadingExisting]);
+  }, [cheatData, carouselData, squareData, title, active, loadingExisting, designId, dirty]);
 
   async function exportCurrent(extra = "") {
     setExporting(true);
@@ -250,12 +278,12 @@ export default function LinkedInTemplatesPage() {
     const existing = cheatData.sections.find((s) => s.kind === "tools");
     if (existing) {
       const merged = Array.from(new Set([...(existing.items ?? []), ...names]));
-      setCheatData({
+      editCheatData({
         ...cheatData,
         sections: cheatData.sections.map((s) => s === existing ? { ...s, items: merged } : s),
       });
     } else {
-      setCheatData({
+      editCheatData({
         ...cheatData,
         sections: [
           ...cheatData.sections,
@@ -275,9 +303,9 @@ export default function LinkedInTemplatesPage() {
 
   /** Persist a new overlays array back into whichever data shape is active. */
   function setOverlays(next: Overlay[]) {
-    if (active === "cheatsheet") setCheatData({ ...cheatData, overlays: next });
-    else if (active === "square") setSquareData({ ...squareData, overlays: next });
-    else setCarouselData({
+    if (active === "cheatsheet") editCheatData({ ...cheatData, overlays: next });
+    else if (active === "square") editSquareData({ ...squareData, overlays: next });
+    else editCarouselData({
       ...carouselData,
       overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next },
     });
@@ -370,7 +398,7 @@ export default function LinkedInTemplatesPage() {
           </Button>
           <Input
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => editTitle(e.target.value)}
             placeholder={designId ? "Untitled template" : "New LinkedIn template"}
             className="max-w-xs h-8"
           />
@@ -457,9 +485,9 @@ export default function LinkedInTemplatesPage() {
       <div className="flex-1 grid grid-cols-[80px_1fr_360px] min-h-0">
         {/* Left: preset selector */}
         <div className="border-r border-border p-2 flex flex-col gap-1 overflow-auto">
-          <PresetTile active={active === "cheatsheet"} onClick={() => setActive("cheatsheet")} icon={<LayoutGrid className="w-4 h-4" />} label="Sheet" />
-          <PresetTile active={active === "carousel"} onClick={() => setActive("carousel")} icon={<Layers className="w-4 h-4" />} label="Slides" />
-          <PresetTile active={active === "square"} onClick={() => setActive("square")} icon={<SquareIcon className="w-4 h-4" />} label="Square" />
+          <PresetTile active={active === "cheatsheet"} onClick={() => editActive("cheatsheet")} icon={<LayoutGrid className="w-4 h-4" />} label="Sheet" />
+          <PresetTile active={active === "carousel"} onClick={() => editActive("carousel")} icon={<Layers className="w-4 h-4" />} label="Slides" />
+          <PresetTile active={active === "square"} onClick={() => editActive("square")} icon={<SquareIcon className="w-4 h-4" />} label="Square" />
         </div>
 
         {/* Center: live preview */}
@@ -471,7 +499,7 @@ export default function LinkedInTemplatesPage() {
                 editableOverlays
                 selectedOverlayId={selectedOverlayId}
                 onSelectOverlay={setSelectedOverlayId}
-                onChangeOverlays={(next) => setCheatData({ ...cheatData, overlays: next })}
+                onChangeOverlays={(next) => editCheatData({ ...cheatData, overlays: next })}
                 zoom={zoom}
               />
             )}
@@ -482,7 +510,7 @@ export default function LinkedInTemplatesPage() {
                 editableOverlays
                 selectedOverlayId={selectedOverlayId}
                 onSelectOverlay={setSelectedOverlayId}
-                onChangeOverlays={(next) => setCarouselData({ ...carouselData, overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next } })}
+                onChangeOverlays={(next) => editCarouselData({ ...carouselData, overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next } })}
                 zoom={zoom}
               />
             )}
@@ -492,7 +520,7 @@ export default function LinkedInTemplatesPage() {
                 editableOverlays
                 selectedOverlayId={selectedOverlayId}
                 onSelectOverlay={setSelectedOverlayId}
-                onChangeOverlays={(next) => setSquareData({ ...squareData, overlays: next })}
+                onChangeOverlays={(next) => editSquareData({ ...squareData, overlays: next })}
                 zoom={zoom}
               />
             )}
@@ -512,9 +540,9 @@ export default function LinkedInTemplatesPage() {
             onDelete={deleteSelectedOverlay}
           />
           <div className="border-t border-border pt-3">
-            {active === "cheatsheet" && <CheatSheetForm data={cheatData} setData={setCheatData} />}
-            {active === "carousel" && <CarouselForm data={carouselData} setData={setCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />}
-            {active === "square" && <SquareForm data={squareData} setData={setSquareData} />}
+            {active === "cheatsheet" && <CheatSheetForm data={cheatData} setData={editCheatData} />}
+            {active === "carousel" && <CarouselForm data={carouselData} setData={editCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />}
+            {active === "square" && <SquareForm data={squareData} setData={editSquareData} />}
           </div>
         </div>
       </div>
