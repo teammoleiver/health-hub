@@ -66,7 +66,7 @@ export default function MultiVideoSynthDialog({
         })),
       });
       setResult(r);
-      setTab(r.ideas?.length ? "ideas" : r.posts?.length ? "posts" : "themes");
+      setTab(r.posts?.length ? "posts" : r.ideas?.length ? "ideas" : "themes");
       if (r.ai_unavailable) toast.warning(r.warning ?? "AI unavailable — local drafts generated instead");
       else toast.success(`Synthesized ${r.ideas?.length ?? 0} ideas · ${r.posts?.length ?? 0} posts${r.provider ? ` via ${r.provider}` : ""}`);
     } catch (e: any) {
