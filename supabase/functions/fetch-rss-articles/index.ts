@@ -74,6 +74,16 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const { feed_id, all_due, scheduled } = body ?? {};
 
+    // The `scheduled` flag operates across all users — restrict to service role.
+    if (scheduled) {
+      const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+      if (!bearer || bearer !== Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     let feedsQ = admin.from("social_rss_feeds").select("*").eq("active", true);
     if (!scheduled) {
       if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
