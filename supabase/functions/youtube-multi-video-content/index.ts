@@ -102,7 +102,7 @@ ${wantIdeas ? `  "ideas": [{ "hook": string, "body": string, "angle": string, "f
 
 ${sourcesText}
 
-Return ${wantIdeas ? `${count} ideas` : ""}${wantIdeas && wantPosts ? " and " : ""}${wantPosts ? `${Math.min(count, 6)} platform-ready posts (covering: ${platforms.join(", ")})` : ""}.`;
+Return ${wantIdeas ? `exactly ${count} ideas` : ""}${wantIdeas && wantPosts ? " and " : ""}${wantPosts ? `exactly ${Math.min(count, 6)} platform-ready posts. Selected platforms: ${platforms.join(", ")}. If one platform is selected, every post must use that platform. If multiple platforms are selected, distribute posts across them.` : ""}.`;
 
     const { response: ai, provider, errorStatus } = await callBestAiProvider({ openAiKey, lovableKey, systemPrompt, userPrompt });
     if (!ai?.ok) {
@@ -235,16 +235,19 @@ function fallbackSynthesis(vids: any[], chMap: Map<string, string>, count: numbe
       sources: [...new Set([n, secondary])],
     });
   });
-  const posts = platforms.slice(0, 3).flatMap((platform, i) => {
+  const postCount = Math.min(count, 6);
+  const selectedPlatforms = platforms.length ? platforms : ["linkedin"];
+  const posts = Array.from({ length: postCount }, (_, i) => {
+    const platform = selectedPlatforms[i % selectedPlatforms.length];
     const idea = ideas[i % ideas.length];
     const postBody = buildStructuredFallbackPost(String(platform), idea, baseTheme, commonWords, intent);
-    return [normalizePost({
+    return normalizePost({
       platform,
       hook: idea.hook,
       body: postBody,
       hashtags: commonWords.slice(0, 3).map((w) => w.replace(/[^a-z0-9]/gi, "")),
       sources: idea.sources,
-    })];
+    });
   });
   return {
     themes: [
