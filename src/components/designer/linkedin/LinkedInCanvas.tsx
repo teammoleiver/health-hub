@@ -262,7 +262,7 @@ function ToolChip({ raw }: { raw: string }) {
 }
 
 function BarChart({ items }: { items?: string[] }) {
-  const rows = (items || []).map((it) => {
+  const rows = safeStringArray(items).map((it) => {
     const p = String(it).split("::").map((s) => s.trim());
     return { label: p[0] || "", value: parseFloat(p[1] || "0"), suffix: p[2] || "" };
   });
@@ -283,7 +283,7 @@ function BarChart({ items }: { items?: string[] }) {
 }
 
 function DonutChart({ items }: { items?: string[] }) {
-  const rows = (items || []).map((it) => {
+  const rows = safeStringArray(items).map((it) => {
     const p = String(it).split("::").map((s) => s.trim());
     return { label: p[0] || "", value: parseFloat(p[1] || "0") };
   });
@@ -329,6 +329,9 @@ function DonutChart({ items }: { items?: string[] }) {
 
 function SectionContent({ section }: { section: SheetSection }) {
   const { kind, items, table, callout } = section;
+  const itemList = safeStringArray(items);
+  const tableHeaders = safeStringArray(table?.headers);
+  const tableRows = safeRows(table?.rows);
   return (
     <>
       {callout && callout.value ? (
@@ -340,25 +343,25 @@ function SectionContent({ section }: { section: SheetSection }) {
 
       {kind === "bullets" && (
         <ul className="cnv-bullets">
-          {(items || []).map((it, i) => <li key={i}>{it}</li>)}
+          {itemList.map((it, i) => <li key={i}>{it}</li>)}
         </ul>
       )}
 
       {kind === "pills" && (
-        <div className={`cnv-pills${(items || []).length <= 3 ? " single" : ""}`}>
-          {(items || []).map((it, i) => <div key={i} className="pill">{it}</div>)}
+        <div className={`cnv-pills${itemList.length <= 3 ? " single" : ""}`}>
+          {itemList.map((it, i) => <div key={i} className="pill">{it}</div>)}
         </div>
       )}
 
       {kind === "checklist" && (
         <ol className="cnv-checklist">
-          {(items || []).map((it, i) => <li key={i}>{it}</li>)}
+          {itemList.map((it, i) => <li key={i}>{it}</li>)}
         </ol>
       )}
 
       {kind === "stats" && (
         <div className="cnv-stats">
-          {(items || []).map((it, i) => {
+          {itemList.map((it, i) => {
             const parts = String(it).split("::").map((s) => s.trim());
             return (
               <div key={i} className="cnv-stat">
@@ -375,7 +378,7 @@ function SectionContent({ section }: { section: SheetSection }) {
 
       {kind === "flags" && (
         <ul className="cnv-flags">
-          {(items || []).map((it, i) => (
+          {itemList.map((it, i) => (
             <li key={i}><span className="x">✗</span><span>{it}</span></li>
           ))}
         </ul>
@@ -386,17 +389,17 @@ function SectionContent({ section }: { section: SheetSection }) {
 
       {kind === "tools" && (
         <div className="cnv-tools">
-          {(items || []).map((it, i) => <ToolChip key={i} raw={it} />)}
+          {itemList.map((it, i) => <ToolChip key={i} raw={it} />)}
         </div>
       )}
 
       {kind === "table" && table && (
         <table className="cnv-table">
           <thead>
-            <tr>{(table.headers || []).map((h, i) => <th key={i}>{h}</th>)}</tr>
+            <tr>{tableHeaders.map((h, i) => <th key={i}>{h}</th>)}</tr>
           </thead>
           <tbody>
-            {(table.rows || []).map((row, r) => (
+            {tableRows.map((row, r) => (
               <tr key={r}>{row.map((cell, c) => <td key={c}>{cell}</td>)}</tr>
             ))}
           </tbody>
