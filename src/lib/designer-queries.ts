@@ -120,6 +120,27 @@ async function uid() {
   return data.user.id;
 }
 
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function normalizeSlides(value: unknown): Slide[] {
+  return asArray<any>(value).map((slide) => ({
+    ...slide,
+    id: slide?.id ?? crypto.randomUUID(),
+    bg: slide?.bg ?? "#FFFFFF",
+    elements: asArray<DesignElement>(slide?.elements),
+  }));
+}
+
+function normalizeDesignRow(row: any): Design {
+  return { ...row, slides: normalizeSlides(row?.slides) } as Design;
+}
+
+function normalizeTemplateRow(row: any): DesignTemplate {
+  return { ...row, slides: normalizeSlides(row?.slides) } as DesignTemplate;
+}
+
 // ── Brand kit ──
 export async function getBrandKit(): Promise<BrandKit | null> {
   const u = await uid();
@@ -231,11 +252,11 @@ export async function deleteAsset(asset: DesignAsset) {
 export async function listDesigns(): Promise<Design[]> {
   const u = await uid();
   const { data } = await supabase.from("designs" as any).select("*").eq("user_id", u).order("updated_at", { ascending: false });
-  return (data as any) ?? [];
+  return asArray<any>(data).map(normalizeDesignRow);
 }
 export async function getDesign(id: string): Promise<Design | null> {
   const { data } = await supabase.from("designs" as any).select("*").eq("id", id).maybeSingle();
-  return (data as any) ?? null;
+  return data ? normalizeDesignRow(data as any) : null;
 }
 export async function createDesign(input: { type: "single" | "carousel"; platform: Design["platform"]; title?: string; width?: number; height?: number; slides?: Slide[] }): Promise<Design> {
   const u = await uid();
@@ -311,7 +332,7 @@ export async function listTemplates(filter?: { platform?: Design["platform"]; ty
   if (filter?.type) q = q.eq("type", filter.type);
   if (filter?.q) q = q.ilike("title", `%${filter.q}%`);
   const { data } = await q;
-  return (data as any) ?? [];
+  return asArray<any>(data).map(normalizeTemplateRow);
 }
 export async function saveAsTemplate(args: {
   title: string; category?: string | null;
@@ -334,9 +355,9 @@ export async function deleteTemplate(id: string) {
 }
 export async function createDesignFromTemplate(t: DesignTemplate, override?: Partial<Pick<Design, "title">>): Promise<Design> {
   // Re-generate slide/element ids so duplicates aren't tied to the template
-  const slides = (t.slides as any[]).map((s) => ({
+  const slides = normalizeSlides(t.slides).map((s) => ({
     ...s, id: crypto.randomUUID(),
-    elements: (s.elements ?? []).map((e: any) => ({ ...e, id: crypto.randomUUID() })),
+    elements: asArray<any>(s.elements).map((e: any) => ({ ...e, id: crypto.randomUUID() })),
   }));
   return createDesign({
     type: t.type, platform: t.platform,
