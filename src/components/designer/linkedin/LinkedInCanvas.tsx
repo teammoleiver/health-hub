@@ -522,7 +522,7 @@ function CarouselBody({ slide }: { slide: CarouselSlide }) {
   }
 
   if (layout === "bullets") {
-    const items = (slide.bullets ?? []).filter(Boolean);
+    const items = safeStringArray(slide.bullets);
     return (
       <div className="carousel-body carousel-bullets-layout">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
@@ -537,8 +537,8 @@ function CarouselBody({ slide }: { slide: CarouselSlide }) {
   }
 
   if (layout === "comparison") {
-    const left = (slide.leftItems ?? []).filter(Boolean);
-    const right = (slide.rightItems ?? []).filter(Boolean);
+    const left = safeStringArray(slide.leftItems);
+    const right = safeStringArray(slide.rightItems);
     return (
       <div className="carousel-body carousel-compare-layout">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
@@ -578,8 +578,9 @@ export function CarouselCanvas({
   onChangeOverlays?: (next: Overlay[]) => void;
   zoom?: number;
 }) {
-  const slide = data.slides?.[slideIndex] || data.slides?.[0] || ({ title: "" } as CarouselSlide);
-  const total = data.slides?.length ?? 0;
+  const slides = safeSlides(data.slides);
+  const slide = slides[slideIndex] || slides[0] || ({ title: "" } as CarouselSlide);
+  const total = slides.length;
   const accent = slide.accent || "coral";
   return (
     <div className="canvas" data-format="carousel" data-accent={accent} id={idForExport}>
@@ -593,7 +594,7 @@ export function CarouselCanvas({
         </div>
       </div>
       <OverlayLayer
-        overlays={data.overlays?.[slideIndex] ?? []}
+        overlays={safeOverlays(data.overlays?.[slideIndex])}
         editable={editableOverlays}
         selectedId={selectedOverlayId}
         onSelect={onSelectOverlay}
@@ -638,7 +639,7 @@ export function SquareCanvas({
         </div>
       </div>
       <OverlayLayer
-        overlays={data.overlays ?? []}
+        overlays={safeOverlays(data.overlays)}
         editable={editableOverlays}
         selectedId={selectedOverlayId}
         onSelect={onSelectOverlay}
