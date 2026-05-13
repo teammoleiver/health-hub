@@ -249,7 +249,9 @@ function buildLocalMultiVideoFallback(args: { count?: number; platforms?: string
       sources: [...new Set([source?.n ?? 1, other])],
     };
   });
-  const posts: MultiVideoPost[] = (args.platforms?.length ? args.platforms : ["linkedin", "twitter", "instagram"]).slice(0, 3).map((platform, i) => {
+  const selectedPlatforms = args.platforms?.length ? args.platforms : ["linkedin", "twitter", "instagram"];
+  const posts: MultiVideoPost[] = Array.from({ length: Math.min(count, 6) }, (_, i) => {
+    const platform = selectedPlatforms[i % selectedPlatforms.length];
     const idea = ideas[i % ideas.length];
     const body = buildLocalStructuredPost(platform, idea, theme, words, args.intent);
     return {
