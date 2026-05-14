@@ -51,23 +51,23 @@ Deno.serve(async (req) => {
     const W = 1080, H = isCarousel ? 1350 : 1080;
     const imageResults = await Promise.all((copy.slides as any[]).slice(0, n).map(async (s) => {
       try {
-        const r = await fetch("https://api.openai.com/v1/chat/completions", {
+        const r = await fetch("https://api.openai.com/v1/images/generations", {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "gpt-4o-mini-image",
-            messages: [{ role: "user", content: `Aspect ${isCarousel ? "4:5" : "1:1"}. Background image for a ${plat} post. ${s.image_prompt}. Brand palette: primary ${colors.primary}, accent ${colors.accent}. Editorial, high-quality.` }],
-            modalities: ["image", "text"],
+            model: "gpt-image-1",
+            prompt: `Background image for a ${plat} post. ${s.image_prompt}. Brand palette: primary ${colors.primary}, accent ${colors.accent}. Editorial, high-quality.`,
+            size: isCarousel ? "1024x1536" : "1024x1024",
+            n: 1,
           }),
         });
         if (!r.ok) return null;
         const d = await r.json();
-        const dataUrl = d.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-        if (!dataUrl?.startsWith("data:image/")) return null;
-        const [meta, b64] = dataUrl.split(",");
-        const mime = meta.match(/data:([^;]+);/)?.[1] ?? "image/png";
+        const b64 = d.data?.[0]?.b64_json;
+        if (!b64) return null;
+        const mime = "image/png";
         const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-        const path = `${user.id}/ai-${crypto.randomUUID()}.${mime.split("/")[1] ?? "png"}`;
+        const path = `${user.id}/ai-${crypto.randomUUID()}.png`;
         await supabase.storage.from("design-assets").upload(path, bytes, { contentType: mime });
         const { data: signed } = supabase.storage.from("design-assets").getPublicUrl(path);
         const { data: row } = await supabase.from("design_assets").insert({
