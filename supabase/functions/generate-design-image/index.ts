@@ -18,8 +18,8 @@ Deno.serve(async (req) => {
     if (typeof prompt !== "string" || prompt.trim().length < 3) return json({ error: "Prompt required" }, 400);
     const aspectStr = ["1:1", "4:5", "9:16"].includes(aspect) ? aspect : "1:1";
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) return json({ error: "LOVABLE_API_KEY missing" }, 500);
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
 
     // Optional: include reference images so the model can incorporate logos / personal photos.
     let refUrls: string[] = [];
@@ -48,11 +48,11 @@ Deno.serve(async (req) => {
       const content = typeof userContent === "string"
         ? `${userContent}${extraNudge}`
         : [{ type: "text", text: `${userContent[0].text}${extraNudge}` }, ...userContent.slice(1)];
-      const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const r = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
+          model: "gpt-4o-mini-image",
           messages: [{ role: "user", content }],
           modalities: ["image", "text"],
         }),

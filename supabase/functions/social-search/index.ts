@@ -136,14 +136,14 @@ Deno.serve(async (req) => {
 });
 
 async function optimizePrompt(query: string, outputType: string, depth: string): Promise<string> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
   if (!apiKey || !query.trim()) return query;
   try {
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "You rewrite vague user queries into a single, specific, search-engine-friendly query. Reply with ONLY the rewritten query, no quotes, no preamble. Keep it under 200 characters. Preserve the user's intent and named entities. Add precision (timeframe, region, type of source) when obviously useful." },
           { role: "user", content: `Output type: ${outputType}\nDepth: ${depth}\nUser query: ${query}` },

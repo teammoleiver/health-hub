@@ -5,15 +5,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-3-flash-preview";
+const AI_URL = "https://api.openai.com/v1/chat/completions";
+const MODEL = "gpt-4o-mini";
 
 async function callAI(messages: any[], tools?: any[], tool_choice?: any) {
   const body: any = { model: MODEL, messages };
   if (tools) { body.tools = tools; body.tool_choice = tool_choice ?? "auto"; }
   const r = await fetch(AI_URL, {
     method: "POST",
-    headers: { Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${Deno.env.get("OPENAI_API_KEY")}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (r.status === 429) throw new Error("Rate limit reached. Try again in a moment.");

@@ -24,15 +24,15 @@ Deno.serve(async (req) => {
     const colors = brand?.colors ?? { primary: "#1D9E75", secondary: "#0F6E56", accent: "#F5C451", bg: "#FFFFFF", text: "#0B0F0E" };
     const fonts = brand?.fonts ?? { heading: "Inter", body: "Inter" };
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) return json({ error: "LOVABLE_API_KEY missing" }, 500);
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
 
     // 1. Get copy
-    const ai = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const ai = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: `You write social copy. Return ONLY JSON: { "title": string, "slides": [ { "headline": string, "body": string, "image_prompt": string } ] }. Produce exactly ${n} slides. Tone: ${brand?.tone ?? "professional, bold, no fluff"}. Platform: ${plat}.` },
@@ -51,11 +51,11 @@ Deno.serve(async (req) => {
     const W = 1080, H = isCarousel ? 1350 : 1080;
     const imageResults = await Promise.all((copy.slides as any[]).slice(0, n).map(async (s) => {
       try {
-        const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const r = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image",
+            model: "gpt-4o-mini-image",
             messages: [{ role: "user", content: `Aspect ${isCarousel ? "4:5" : "1:1"}. Background image for a ${plat} post. ${s.image_prompt}. Brand palette: primary ${colors.primary}, accent ${colors.accent}. Editorial, high-quality.` }],
             modalities: ["image", "text"],
           }),

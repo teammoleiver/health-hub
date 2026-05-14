@@ -29,8 +29,8 @@ Deno.serve(async (req) => {
     }
 
     const { messages, healthContext } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
     const systemPrompt = `You are Syncvida — a personal AI health intelligence system. You have FULL ACCESS to the user's complete, real-time health data from ALL modules: sleep, nutrition, exercise, fasting, weight, blood tests, and daily habits. ALL these data points are interconnected — they form ONE health system. Syncvida (syncvida.io) is the unified health platform that synchronizes all health data.
 
@@ -54,14 +54,14 @@ CROSS-MODULE ANALYSIS RULES:
 13. Use markdown formatting for clarity
 14. When giving overall health assessment, score each area and show how they interconnect`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,

@@ -70,7 +70,7 @@ Return JSON: {"topics":[{...}]}
 POSTS:
 ${postsForPrompt}`;
 
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    const lovableKey = Deno.env.get("OPENAI_API_KEY");
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
     const provider = settings?.preferred_provider || "lovable";
@@ -104,9 +104,9 @@ ${postsForPrompt}`;
           resultText = d.choices?.[0]?.message?.content ?? ""; usedProvider = p; break;
         }
         if (p === "lovable" && lovableKey) {
-          const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          const r = await fetch("https://api.openai.com/v1/chat/completions", {
             method: "POST", headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ model: settings?.lovable_model || "google/gemini-3-flash-preview", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], response_format: { type: "json_object" } }),
+            body: JSON.stringify({ model: settings?.lovable_model || "gpt-4o-mini", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], response_format: { type: "json_object" } }),
           });
           if (r.status === 429) throw new Error("rate_limited");
           if (r.status === 402) throw new Error("payment_required");

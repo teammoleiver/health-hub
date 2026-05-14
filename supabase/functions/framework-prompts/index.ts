@@ -153,9 +153,9 @@ OUTPUT: Just the post.`,
 };
 
 async function callLovable(systemPrompt: string, userPrompt: string, model: string) {
-  const key = Deno.env.get("LOVABLE_API_KEY");
-  if (!key) throw new Error("LOVABLE_API_KEY not configured");
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const key = Deno.env.get("OPENAI_API_KEY");
+  if (!key) throw new Error("OPENAI_API_KEY not configured");
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }] }),
@@ -233,7 +233,7 @@ ${reference || "(no scraped posts yet)"}
 Return JSON ONLY:
 {"improved_prompt":"...","change_summary":"3-5 bullets explaining what you changed and why, grounded in the reference posts"}`;
 
-      const text = await callLovable(sysP, userP, settings?.lovable_model || "google/gemini-3-flash-preview");
+      const text = await callLovable(sysP, userP, settings?.lovable_model || "gpt-4o-mini");
       const match = text.match(/\{[\s\S]*\}/);
       let parsed: any = {};
       try { parsed = JSON.parse(match?.[0] ?? "{}"); } catch { /* */ }
