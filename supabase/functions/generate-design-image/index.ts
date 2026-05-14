@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
     const { prompt, aspect, reference_asset_ids, reference_urls } = await req.json();
     if (typeof prompt !== "string" || prompt.trim().length < 3) return json({ error: "Prompt required" }, 400);
     const aspectStr = ["1:1", "4:5", "9:16"].includes(aspect) ? aspect : "1:1";
+    const size = aspectStr === "1:1" ? "1024x1024" : aspectStr === "9:16" ? "1024x1536" : "1024x1536";
 
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
@@ -37,57 +38,46 @@ Deno.serve(async (req) => {
     }
     refUrls = refUrls.slice(0, 6);
 
-    const userContent: any = refUrls.length === 0
-      ? `Aspect ratio ${aspectStr}. ${prompt}`
-      : [
-          { type: "text", text: `Aspect ratio ${aspectStr}. Use the attached image(s) as references — incorporate their logos, brand marks, products or the person shown faithfully. ${prompt}` },
-          ...refUrls.map((url) => ({ type: "image_url", image_url: { url } })),
-        ];
-
-    async function callImageModel(extraNudge = "") {
-      const content = typeof userContent === "string"
-        ? `${userContent}${extraNudge}`
-        : [{ type: "text", text: `${userContent[0].text}${extraNudge}` }, ...userContent.slice(1)];
-      const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    let ai: Response;
+    if (refUrls.length === 0) {
+      ai = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "gpt-4o-mini-image",
-          messages: [{ role: "user", content }],
-          modalities: ["image", "text"],
-        }),
+        body: JSON.stringify({ model: "gpt-image-1", prompt, size, n: 1 }),
       });
-      return r;
+    } else {
+      const form = new FormData();
+      form.append("model", "gpt-image-1");
+      form.append("prompt", `Use the attached image(s) as references — incorporate their logos, brand marks, products or the person shown faithfully. ${prompt}`);
+      form.append("size", size);
+      let idx = 0;
+      for (const url of refUrls) {
+        try {
+          const imgRes = await fetch(url);
+          if (!imgRes.ok) continue;
+          const blob = await imgRes.blob();
+          form.append("image[]", blob, `ref-${idx++}.png`);
+        } catch { /* ignore */ }
+      }
+      ai = await fetch("https://api.openai.com/v1/images/edits", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
+      });
     }
-
-    let ai = await callImageModel();
     if (!ai.ok) {
       if (ai.status === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
       if (ai.status === 402) return json({ error: "AI credits exhausted" }, 402);
       return json({ error: `AI error: ${await ai.text()}` }, 500);
     }
-    let data = await ai.json();
-    let dataUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (!dataUrl?.startsWith("data:image/")) {
-      // Retry once with an explicit instruction to return an image
-      ai = await callImageModel(" Return ONLY an image. Do not respond with text.");
-      if (ai.ok) {
-        data = await ai.json();
-        dataUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-      }
+    const data = await ai.json();
+    const b64 = data.data?.[0]?.b64_json;
+    if (!b64) {
+      return json({ error: "The image model didn't return an image. Try a more visual prompt.", fallback: true }, 200);
     }
-    if (!dataUrl?.startsWith("data:image/")) {
-      const textOut = data.choices?.[0]?.message?.content;
-      console.warn("No image returned. Text response:", typeof textOut === "string" ? textOut.slice(0, 300) : "");
-      return json({
-        error: "The image model didn't return an image. Try a more visual prompt (e.g. include a subject and style), or try again.",
-        fallback: true,
-      }, 200);
-    }
-    const [meta, b64] = dataUrl.split(",");
-    const mime = meta.match(/data:([^;]+);/)?.[1] ?? "image/png";
+    const mime = "image/png";
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const ext = mime.split("/")[1] ?? "png";
+    const ext = "png";
     const path = `${user.id}/ai-${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage.from("design-assets").upload(path, bytes, { contentType: mime, upsert: false });
     if (upErr) return json({ error: upErr.message }, 500);
