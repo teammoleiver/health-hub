@@ -676,7 +676,7 @@ export function CarouselCanvas({
   const total = slides.length;
   const accent = slide.accent || "coral";
   return (
-    <div className="canvas" data-format="carousel" data-accent={accent} id={idForExport}>
+    <div className="canvas" data-format="carousel" data-accent={accent} data-theme={data.themeKey || undefined} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Carousel"} />
       <CarouselBody slide={slide} ctx={{ author: data.author, handleShort: data.handleShort, avatarUrl: data.avatarUrl, photoKey: data.photoKey }} />
       <div className="cnv-footer cnv-footer-sig">
@@ -717,7 +717,7 @@ export function SquareCanvas({
     });
   };
   return (
-    <div className="canvas" data-format="square" id={idForExport}>
+    <div className="canvas" data-format="square" data-theme={data.themeKey || undefined} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Hot Take"} />
       <div className="square-body">
         {data.eyebrow && <span className="square-eyebrow">{data.eyebrow}</span>}
