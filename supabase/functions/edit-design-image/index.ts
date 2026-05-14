@@ -23,39 +23,30 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
 
-    async function callModel(extra = "") {
-      return await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "gpt-4o-mini-image",
-          messages: [{ role: "user", content: [
-            { type: "text", text: `${prompt}${extra}` },
-            { type: "image_url", image_url: { url: src.public_url } },
-          ] }],
-          modalities: ["image", "text"],
-        }),
-      });
-    }
-    let ai = await callModel();
+    const srcImg = await fetch(src.public_url);
+    if (!srcImg.ok) return json({ error: "Could not fetch source image" }, 500);
+    const srcBlob = await srcImg.blob();
+    const form = new FormData();
+    form.append("model", "gpt-image-1");
+    form.append("prompt", prompt);
+    form.append("size", "1024x1024");
+    form.append("image[]", srcBlob, "source.png");
+    const ai = await fetch("https://api.openai.com/v1/images/edits", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    });
     if (!ai.ok) {
       if (ai.status === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
       if (ai.status === 402) return json({ error: "AI credits exhausted" }, 402);
       return json({ error: `AI error: ${await ai.text()}`, fallback: true }, 200);
     }
-    let data = await ai.json();
-    let dataUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (!dataUrl?.startsWith("data:image/")) {
-      ai = await callModel(" Return ONLY an image. Do not respond with text.");
-      if (ai.ok) { data = await ai.json(); dataUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url; }
-    }
-    if (!dataUrl?.startsWith("data:image/")) {
-      return json({ error: "The image model didn't return an image. Try a more specific edit instruction.", fallback: true }, 200);
-    }
-    const [meta, b64] = dataUrl.split(",");
-    const mime = meta.match(/data:([^;]+);/)?.[1] ?? "image/png";
+    const data = await ai.json();
+    const b64 = data.data?.[0]?.b64_json;
+    if (!b64) return json({ error: "The image model didn't return an image. Try a more specific edit instruction.", fallback: true }, 200);
+    const mime = "image/png";
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const ext = mime.split("/")[1] ?? "png";
+    const ext = "png";
     const path = `${user.id}/edit-${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage.from("design-assets").upload(path, bytes, { contentType: mime });
     if (upErr) return json({ error: upErr.message }, 500);
