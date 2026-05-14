@@ -56,8 +56,8 @@ Deno.serve(async (req) => {
       return `[${i + 1}] ${dt} · ${ch}: "${v.title}"${desc ? ` — ${desc}` : ""} (https://www.youtube.com/watch?v=${v.video_id})`;
     }).join("\n");
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) return json({ error: "LOVABLE_API_KEY missing" }, 500);
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
 
     const systemPrompt = `You are an assistant for a content creator who tracks other YouTubers for inspiration.
 You will receive a list of recent videos (title + short description + URL + date) from creators they follow.
@@ -72,11 +72,11 @@ Output guidelines:
 
     const userPrompt = `Videos in my library (${videos.length} total):\n${corpus}\n\n---\n\nQuestion: ${question}`;
 
-    const ai = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const ai = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

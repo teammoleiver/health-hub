@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    const lovableKey = Deno.env.get("OPENAI_API_KEY");
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
     const { data: userRes } = await userClient.auth.getUser();
     const user = userRes.user;
     if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    if (!lovableKey) return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!lovableKey) return new Response(JSON.stringify({ error: "OPENAI_API_KEY missing" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const admin = createClient(supabaseUrl, serviceKey);
 
@@ -91,11 +91,11 @@ Return JSON with keys:
 
 Rules: no generic filler ("versatile skill set", "passionate professional", "exploring opportunities"). If a key cannot be supported by the posts, return empty string.`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         messages: [{ role: "user", content: voicePrompt }],
         response_format: { type: "json_object" },
       }),
@@ -159,11 +159,11 @@ Framework specs (preserve their structures):
 Every template MUST end with: "HARD CONSTRAINTS: Max {{wordLimit}} words. No emojis, no hashtags, no labels. Forbidden: {{banned}}" then the input fields then "OUTPUT: Just the post."`;
 
       try {
-        const fwRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const fwRes = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "gpt-4o-mini",
             messages: [{ role: "user", content: fwPrompt }],
             response_format: { type: "json_object" },
           }),

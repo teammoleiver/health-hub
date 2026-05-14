@@ -84,7 +84,7 @@ serve(async (req) => {
     const userMessage = `${userInstruction}\n\n--- ORIGINAL POST ---\n${postBody}`;
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
     let rewrite = "";
 
@@ -112,12 +112,12 @@ serve(async (req) => {
       }
       const j = await r.json();
       rewrite = j?.content?.[0]?.text ?? "";
-    } else if (LOVABLE_API_KEY) {
-      const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    } else if (OPENAI_API_KEY) {
+      const r = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: "gpt-4o",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: userMessage },

@@ -20,14 +20,14 @@ Deno.serve(async (req) => {
     const { data: src } = await supabase.from("design_assets").select("*").eq("id", asset_id).eq("user_id", user.id).maybeSingle();
     if (!src) return json({ error: "Asset not found" }, 404);
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) return json({ error: "LOVABLE_API_KEY missing" }, 500);
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
 
-    const ai = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const ai = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [{
           role: "user",
           content: [

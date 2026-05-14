@@ -201,9 +201,9 @@ async function callOpenAI(systemPrompt: string, userPrompt: string, model: strin
 }
 
 async function callLovable(systemPrompt: string, userPrompt: string, model: string) {
-  const key = Deno.env.get("LOVABLE_API_KEY");
+  const key = Deno.env.get("OPENAI_API_KEY");
   if (!key) throw new Error("lovable_not_configured");
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }] }),
   });
@@ -223,7 +223,7 @@ async function callAIWithFallback(provider: string, settings: any, systemPrompt:
     try {
       if (p === "anthropic") return { provider: p, text: await callAnthropic(systemPrompt, userPrompt, settings?.anthropic_model || "claude-sonnet-4-20250514") };
       if (p === "openai") return { provider: p, text: await callOpenAI(systemPrompt, userPrompt, settings?.openai_model || "gpt-5-mini") };
-      if (p === "lovable") return { provider: p, text: await callLovable(systemPrompt, userPrompt, settings?.lovable_model || "google/gemini-3-flash-preview") };
+      if (p === "lovable") return { provider: p, text: await callLovable(systemPrompt, userPrompt, settings?.lovable_model || "gpt-4o-mini") };
     } catch (e) { lastErr = e; }
   }
   throw lastErr ?? new Error("all_providers_failed");

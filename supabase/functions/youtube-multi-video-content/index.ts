@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     }));
 
     const openAiKey = Deno.env.get("OPENAI_API_KEY");
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    const lovableKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAiKey && !lovableKey) return json({ error: "No AI provider key configured" }, 500);
 
     const wantIdeas = mode === "ideas" || mode === "both";
@@ -199,11 +199,11 @@ async function callBestAiProvider(args: { openAiKey?: string | null; lovableKey?
         lastResponse = response; lastStatus = response.status;
       }
       if (provider === "lovable" && args.lovableKey) {
-        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${args.lovableKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "gpt-4o-mini",
             messages: [{ role: "system", content: args.systemPrompt }, { role: "user", content: args.userPrompt }],
             response_format: { type: "json_object" },
             max_tokens: 5000,

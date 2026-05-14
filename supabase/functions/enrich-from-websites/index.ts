@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    const lovableKey = Deno.env.get("OPENAI_API_KEY");
     const linkupKey = Deno.env.get("LINKUP_API_KEY");
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -117,10 +117,10 @@ Produce a tight context block (max ~450 words) with these sections:
 Rules: be concrete, no filler, no marketing speak. If a section has nothing supported by the sources, omit it. Output plain text only (no markdown headers prefixed with #).`;
 
       try {
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
-          body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: [{ role: "user", content: prompt }] }),
+          body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }] }),
         });
         if (aiRes.ok) {
           const j = await aiRes.json();

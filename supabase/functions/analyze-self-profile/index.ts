@@ -39,7 +39,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    const lovableKey = Deno.env.get("OPENAI_API_KEY");
     const linkupKey = Deno.env.get("LINKUP_API_KEY");
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -99,11 +99,11 @@ WEB CONTEXT — POSTS SEARCH:
 ${postsSearch.answer.slice(0, 6000)}`;
 
       try {
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "gpt-4o-mini",
             messages: [{ role: "user", content: prompt }],
             response_format: { type: "json_object" },
           }),

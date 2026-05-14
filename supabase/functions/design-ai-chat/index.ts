@@ -29,8 +29,8 @@ Deno.serve(async (req) => {
 
     const { data: brand } = await supabase.from("brand_kits").select("*").eq("user_id", user.id).maybeSingle();
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) return json({ error: "LOVABLE_API_KEY missing" }, 500);
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
 
     const slide = (design.slides as any[])[slideIndex] ?? (design.slides as any[])[0];
     const compactSlide = slide ? {
@@ -83,11 +83,11 @@ Selected ids: ${JSON.stringify(selectedIds)}
 Current slide #${slideIndex} of ${(design.slides as any[]).length}:
 ${JSON.stringify(compactSlide)}`;
 
-    const ai = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const ai = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: systemPrompt },
