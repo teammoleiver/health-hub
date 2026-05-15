@@ -157,7 +157,8 @@ export async function askYouTubeAi(question: string, channelPks: string[] = [], 
 }
 
 export type VideoIdea = { hook: string; body: string; angle: string; format: string };
-export type VideoPost = { platform: "linkedin" | "twitter" | "instagram"; hook: string; body: string; hashtags: string[]; length: number };
+export type PostLength = "short" | "long";
+export type VideoPost = { platform: "linkedin" | "twitter" | "instagram"; hook: string; body: string; hashtags: string[]; length: number; variant?: PostLength };
 export type SummaryPoint = { headline: string; detail: string };
 
 export async function fetchVideoTranscript(video_id: string, refresh = false): Promise<{ transcript: string; cached: boolean }> {
@@ -168,8 +169,14 @@ export async function generateVideoIdeas(video_id: string, count = 7, refresh = 
   return callEdge("youtube-video-ideas", { video_id, count, refresh });
 }
 
-export async function generateVideoPosts(video_id: string, count = 5, platforms: string[] = ["linkedin", "twitter", "instagram"], refresh = false): Promise<{ posts: VideoPost[]; cached?: boolean; source_video: { video_id: string; title: string; channel: string } }> {
-  return callEdge("youtube-video-posts", { video_id, count, platforms, refresh });
+export async function generateVideoPosts(
+  video_id: string,
+  count = 5,
+  platforms: string[] = ["linkedin", "twitter", "instagram"],
+  refresh = false,
+  length: "short" | "long" | "both" = "both",
+): Promise<{ posts: VideoPost[]; cached?: boolean; source_video: { video_id: string; title: string; channel: string } }> {
+  return callEdge("youtube-video-posts", { video_id, count, platforms, refresh, length });
 }
 
 export async function generateVideoSummary(video_id: string, refresh = false): Promise<{ points: SummaryPoint[]; cached: boolean }> {

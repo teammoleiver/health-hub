@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ExternalLink, FileText, Sparkles, Plus, RefreshCw, Check, ChevronDown, ChevronUp, Copy, Clock, Linkedin, Twitter, Instagram, Send, Heart, ListChecks, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -39,6 +40,7 @@ export default function VideoDetailDialog({
   const [generatingPosts, setGeneratingPosts] = useState(false);
   const [savedPostIds, setSavedPostIds] = useState<Set<number>>(new Set());
   const [savingPostIdx, setSavingPostIdx] = useState<number | null>(null);
+  const [postLength, setPostLength] = useState<"short" | "long" | "both">("both");
 
   const [summary, setSummary] = useState<SummaryPoint[] | null>(null);
   const [summarizing, setSummarizing] = useState(false);
@@ -151,7 +153,7 @@ export default function VideoDetailDialog({
     if (!video) return;
     setGeneratingPosts(true);
     try {
-      const r = await generateVideoPosts(video.video_id, 5, ["linkedin", "twitter", "instagram"], refresh);
+      const r = await generateVideoPosts(video.video_id, 3, ["linkedin", "twitter", "instagram"], refresh, postLength);
       setPosts(r.posts);
       setSource(r.source_video);
       setSavedPostIds(new Set());
@@ -270,10 +272,20 @@ export default function VideoDetailDialog({
                   {generating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
                   {ideas && ideas.length > 0 ? "View ideas" : "Generate ideas"}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => genPosts(false)} disabled={generatingPosts}>
-                  {generatingPosts ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
-                  {posts && posts.length > 0 ? "View posts" : "Generate social posts"}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Select value={postLength} onValueChange={(v) => setPostLength(v as any)}>
+                    <SelectTrigger className="h-8 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="short">Short</SelectItem>
+                      <SelectItem value="long">Long</SelectItem>
+                      <SelectItem value="both">Short + Long</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" variant="outline" onClick={() => genPosts(false)} disabled={generatingPosts}>
+                    {generatingPosts ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
+                    {posts && posts.length > 0 ? "View posts" : "Generate social posts"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -389,6 +401,9 @@ export default function VideoDetailDialog({
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-[10px] gap-1 capitalize"><Icon className="w-3 h-3" />{p.platform}</Badge>
+                          {p.variant && (
+                            <Badge variant={p.variant === "long" ? "default" : "secondary"} className="text-[10px] capitalize">{p.variant}</Badge>
+                          )}
                           <span className="text-[10px] text-muted-foreground">{p.length} chars</span>
                         </div>
                         <div className="flex gap-1">
