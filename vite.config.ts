@@ -19,4 +19,20 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "query-vendor": ["@tanstack/react-query"],
+          "motion-vendor": ["framer-motion"],
+          "charts-vendor": ["recharts"],
+          "pdf-vendor": ["pdfjs-dist", "jspdf"],
+          "image-vendor": ["html-to-image"],
+          "markdown-vendor": ["react-markdown"],
+          "supabase-vendor": ["@supabase/supabase-js"],
+        },
+      },
+    },
+  },
 }));

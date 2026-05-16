@@ -107,9 +107,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       setWaterMl(w?.ml_total ?? (w?.glasses ?? 0) * 250);
     });
     load();
-    const id = setInterval(load, 10000);
     const unsub = onSync("water:updated", load);
-    return () => { clearInterval(id); unsub(); };
+    return () => { unsub(); };
   }, []);
 
   return (
