@@ -452,6 +452,16 @@ export default function YouTubePage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="md:col-span-12">
+            <Select value={transcriptFilter} onValueChange={(v) => setTranscriptFilter(v as any)}>
+              <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All videos (transcript or not)</SelectItem>
+                <SelectItem value="with">Only with transcript</SelectItem>
+                <SelectItem value="without">Only without transcript</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         {(search || yearFilter !== "all" || monthFilter !== "all" || transcriptFilter !== "all" || pickedChannels.size > 0) && (
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
