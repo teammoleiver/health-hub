@@ -424,24 +424,35 @@ export default function VideoDetailDialog({
             </Card>
           )}
 
-          {/* Summary points */}
-          {summary && summary.length > 0 && (
-            <Card className="p-3 space-y-3">
+          {/* Summary points — historical runs */}
+          {summaryRuns.map((run, runIdx) => (
+            <Card key={run.id} className="p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ListChecks className="w-4 h-4 text-primary" />
                   <h3 className="font-medium text-sm">Key points</h3>
-                  <Badge variant="secondary" className="text-[10px]">{summary.length}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{run.items.length}</Badge>
+                  <span className="text-[10px] text-muted-foreground">
+                    Run {summaryRuns.length - runIdx} · {timeAgo(run.createdAt)}
+                  </span>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => summarize(true)} disabled={summarizing} title="Regenerate">
-                  {summarizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                </Button>
+                <div className="flex items-center gap-1">
+                  {runIdx === 0 && (
+                    <Button size="sm" variant="ghost" onClick={() => summarize()} disabled={summarizing} title="Generate new summary">
+                      {summarizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={() => deleteSummaryRun(run.id)} title="Delete this run">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
               <ol className="space-y-2">
-                {summary.map((p, i) => {
-                  const tasked = taskedPoints.has(i);
+                {run.items.map((p, i) => {
+                  const key = `${run.id}:${i}`;
+                  const tasked = taskedKeys.has(key);
                   return (
-                    <li key={i} className="rounded-md border border-border p-3">
+                    <li key={key} className="rounded-md border border-border p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-baseline gap-2">
@@ -453,11 +464,11 @@ export default function VideoDetailDialog({
                         <Button
                           size="sm"
                           variant={tasked ? "secondary" : "outline"}
-                          onClick={() => pointToTask(i)}
-                          disabled={tasked || savingTaskIdx === i}
+                          onClick={() => pointToTask(p, key)}
+                          disabled={tasked || savingTaskKey === key}
                           title="Send to Tasks → Inbox"
                         >
-                          {savingTaskIdx === i ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tasked ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <CheckSquare className="w-3.5 h-3.5" />}
+                          {savingTaskKey === key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tasked ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <CheckSquare className="w-3.5 h-3.5" />}
                           {tasked ? " Added" : " To Tasks"}
                         </Button>
                       </div>
@@ -466,27 +477,38 @@ export default function VideoDetailDialog({
                 })}
               </ol>
             </Card>
-          )}
+          ))}
 
-          {/* Generated social posts */}
-          {posts && posts.length > 0 && (
-            <Card className="p-3 space-y-3">
+          {/* Generated social posts — historical runs */}
+          {postRuns.map((run, runIdx) => (
+            <Card key={run.id} className="p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Send className="w-4 h-4 text-primary" />
                   <h3 className="font-medium text-sm">Ready-to-publish social posts</h3>
-                  <Badge variant="secondary" className="text-[10px]">{posts.length}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{run.items.length}</Badge>
+                  <span className="text-[10px] text-muted-foreground">
+                    Run {postRuns.length - runIdx} · {timeAgo(run.createdAt)}
+                  </span>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => genPosts(true)} disabled={generatingPosts} title="Regenerate">
-                  {generatingPosts ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                </Button>
+                <div className="flex items-center gap-1">
+                  {runIdx === 0 && (
+                    <Button size="sm" variant="ghost" onClick={() => genPosts()} disabled={generatingPosts} title="Generate more">
+                      {generatingPosts ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={() => deletePostRun(run.id)} title="Delete this run">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
-                {posts.map((p, i) => {
-                  const saved = savedPostIds.has(i);
+                {run.items.map((p, i) => {
+                  const key = `${run.id}:${i}`;
+                  const saved = savedPostKeys.has(key);
                   const Icon = p.platform === "linkedin" ? Linkedin : p.platform === "twitter" ? Twitter : Instagram;
                   return (
-                    <div key={i} className="rounded-md border border-border p-3 space-y-2">
+                    <div key={key} className="rounded-md border border-border p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-[10px] gap-1 capitalize"><Icon className="w-3 h-3" />{p.platform}</Badge>
@@ -500,9 +522,9 @@ export default function VideoDetailDialog({
                             <Copy className="w-3.5 h-3.5" />
                           </Button>
                           <SchedulePicker
-                            busy={savingPostIdx === i}
+                            busy={savingPostKey === key}
                             saved={saved}
-                            onSchedule={(s) => savePost(i, s)}
+                            onSchedule={(s) => savePost(p, key, s)}
                           />
                         </div>
                       </div>
@@ -517,65 +539,78 @@ export default function VideoDetailDialog({
                 })}
               </div>
             </Card>
-          )}
+          ))}
 
-          {/* Ideas */}
-          {ideas && ideas.length > 0 && (
-            <Card className="p-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <h3 className="font-medium text-sm">Content ideas based on this video</h3>
-                  <Badge variant="secondary" className="text-[10px]">{ideas.length}</Badge>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => genIdeas(true)} disabled={generating} title="Regenerate">
-                    {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                  </Button>
-                  <SchedulePicker
-                    busy={savingIdx !== null}
-                    saved={savedIds.size === ideas.length}
-                    onSchedule={(s) => saveAll(s)}
-                    trigger={
-                      <Button size="sm" variant="outline" disabled={savingIdx !== null || savedIds.size === ideas.length}>
-                        <Plus className="w-3.5 h-3.5 mr-1" /> Add all to planner
+          {/* Ideas — historical runs */}
+          {ideaRuns.map((run, runIdx) => {
+            const allSaved = run.items.every((_, i) => savedIdeaKeys.has(`${run.id}:${i}`));
+            const busyAll = savingIdeaKey === `__all:${run.id}`;
+            return (
+              <Card key={run.id} className="p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <h3 className="font-medium text-sm">Content ideas based on this video</h3>
+                    <Badge variant="secondary" className="text-[10px]">{run.items.length}</Badge>
+                    <span className="text-[10px] text-muted-foreground">
+                      Run {ideaRuns.length - runIdx} · {timeAgo(run.createdAt)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {runIdx === 0 && (
+                      <Button size="sm" variant="ghost" onClick={() => genIdeas()} disabled={generating} title="Generate more ideas">
+                        {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                       </Button>
-                    }
-                  />
+                    )}
+                    <SchedulePicker
+                      busy={busyAll}
+                      saved={allSaved}
+                      onSchedule={(s) => saveAllInRun(run, s)}
+                      trigger={
+                        <Button size="sm" variant="outline" disabled={busyAll || allSaved}>
+                          <Plus className="w-3.5 h-3.5 mr-1" /> Add all
+                        </Button>
+                      }
+                    />
+                    <Button size="sm" variant="ghost" onClick={() => deleteIdeaRun(run.id)} title="Delete this run">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                {ideas.map((it, i) => {
-                  const saved = savedIds.has(i);
-                  return (
-                    <div key={i} className="rounded-md border border-border p-3 space-y-1.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium">{it.hook}</div>
-                          {it.body && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{it.body}</p>}
-                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                            <Badge variant="outline" className="text-[10px]">{it.format}</Badge>
-                            {it.angle && <span className="text-[10px] text-muted-foreground italic line-clamp-1">{it.angle}</span>}
+                <div className="space-y-2">
+                  {run.items.map((it, i) => {
+                    const key = `${run.id}:${i}`;
+                    const saved = savedIdeaKeys.has(key);
+                    return (
+                      <div key={key} className="rounded-md border border-border p-3 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium">{it.hook}</div>
+                            {it.body && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{it.body}</p>}
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              <Badge variant="outline" className="text-[10px]">{it.format}</Badge>
+                              {it.angle && <span className="text-[10px] text-muted-foreground italic line-clamp-1">{it.angle}</span>}
+                            </div>
                           </div>
+                          <SchedulePicker
+                            busy={savingIdeaKey === key}
+                            saved={saved}
+                            onSchedule={(s) => saveIdea(it, key, s)}
+                            trigger={
+                              <Button size="sm" variant={saved ? "secondary" : "outline"} disabled={saved || savingIdeaKey === key}>
+                                {savingIdeaKey === key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved ? <Check className="w-3.5 h-3.5 text-primary" /> : <Plus className="w-3.5 h-3.5" />}
+                                {saved ? " Saved" : " Add"}
+                              </Button>
+                            }
+                          />
                         </div>
-                        <SchedulePicker
-                          busy={savingIdx === i}
-                          saved={saved}
-                          onSchedule={(s) => saveIdea(i, s)}
-                          trigger={
-                            <Button size="sm" variant={saved ? "secondary" : "outline"} disabled={saved || savingIdx === i}>
-                              {savingIdx === i ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved ? <Check className="w-3.5 h-3.5 text-primary" /> : <Plus className="w-3.5 h-3.5" />}
-                              {saved ? " Saved" : " Add"}
-                            </Button>
-                          }
-                        />
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          )}
+                    );
+                  })}
+                </div>
+              </Card>
+            );
+          })}
         </div>
       </DialogContent>
     </Dialog>
