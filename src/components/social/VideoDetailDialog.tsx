@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ExternalLink, FileText, Sparkles, Plus, RefreshCw, Check, ChevronDown, ChevronUp, Copy, Clock, Linkedin, Twitter, Instagram, Send, Heart, ListChecks, CheckSquare } from "lucide-react";
+import { Loader2, ExternalLink, FileText, Sparkles, Plus, RefreshCw, Check, ChevronDown, ChevronUp, Copy, Clock, Linkedin, Twitter, Instagram, Send, Heart, ListChecks, CheckSquare, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   fetchVideoTranscript, generateVideoIdeas, generateVideoPosts, generateVideoSummary, getVideoDetail, addIdeaToPlanner, addPostToPlanner, addPointToTasks, toggleVideoLike,
@@ -13,6 +13,31 @@ import {
 import SchedulePicker from "@/components/social/SchedulePicker";
 
 type SourceVideo = { video_id: string; title: string; channel: string };
+
+type Run<T> = { id: string; createdAt: string; items: T[] };
+
+const HISTORY_KEY = (vid: string) => `yt-history-v1:${vid}`;
+
+function loadHistory(vid: string): { ideas: Run<VideoIdea>[]; posts: Run<VideoPost>[]; summary: Run<SummaryPoint>[] } {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY(vid));
+    if (!raw) return { ideas: [], posts: [], summary: [] };
+    const p = JSON.parse(raw);
+    return {
+      ideas: Array.isArray(p?.ideas) ? p.ideas : [],
+      posts: Array.isArray(p?.posts) ? p.posts : [],
+      summary: Array.isArray(p?.summary) ? p.summary : [],
+    };
+  } catch { return { ideas: [], posts: [], summary: [] }; }
+}
+
+function saveHistory(vid: string, h: { ideas: Run<VideoIdea>[]; posts: Run<VideoPost>[]; summary: Run<SummaryPoint>[] }) {
+  try { localStorage.setItem(HISTORY_KEY(vid), JSON.stringify(h)); } catch { /* quota */ }
+}
+
+function makeRun<T>(items: T[]): Run<T> {
+  return { id: (crypto as any)?.randomUUID?.() ?? `r_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, createdAt: new Date().toISOString(), items };
+}
 
 export default function VideoDetailDialog({
   open, onClose, video, channelTitle, onTranscriptFetched, onLikeToggled,
@@ -29,23 +54,23 @@ export default function VideoDetailDialog({
   const [loadingTranscript, setLoadingTranscript] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
 
-  const [ideas, setIdeas] = useState<VideoIdea[] | null>(null);
+  const [ideaRuns, setIdeaRuns] = useState<Run<VideoIdea>[]>([]);
   const [generating, setGenerating] = useState(false);
-  const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
-  const [savingIdx, setSavingIdx] = useState<number | null>(null);
+  const [savedIdeaKeys, setSavedIdeaKeys] = useState<Set<string>>(new Set());
+  const [savingIdeaKey, setSavingIdeaKey] = useState<string | null>(null);
   const [source, setSource] = useState<SourceVideo | null>(null);
   const [transcriptDebug, setTranscriptDebug] = useState<any>(null);
 
-  const [posts, setPosts] = useState<VideoPost[] | null>(null);
+  const [postRuns, setPostRuns] = useState<Run<VideoPost>[]>([]);
   const [generatingPosts, setGeneratingPosts] = useState(false);
-  const [savedPostIds, setSavedPostIds] = useState<Set<number>>(new Set());
-  const [savingPostIdx, setSavingPostIdx] = useState<number | null>(null);
+  const [savedPostKeys, setSavedPostKeys] = useState<Set<string>>(new Set());
+  const [savingPostKey, setSavingPostKey] = useState<string | null>(null);
   const [postLength, setPostLength] = useState<"short" | "long" | "both">("both");
 
-  const [summary, setSummary] = useState<SummaryPoint[] | null>(null);
+  const [summaryRuns, setSummaryRuns] = useState<Run<SummaryPoint>[]>([]);
   const [summarizing, setSummarizing] = useState(false);
-  const [taskedPoints, setTaskedPoints] = useState<Set<number>>(new Set());
-  const [savingTaskIdx, setSavingTaskIdx] = useState<number | null>(null);
+  const [taskedKeys, setTaskedKeys] = useState<Set<string>>(new Set());
+  const [savingTaskKey, setSavingTaskKey] = useState<string | null>(null);
 
   const [liked, setLiked] = useState(false);
   const [likingBusy, setLikingBusy] = useState(false);
@@ -55,12 +80,9 @@ export default function VideoDetailDialog({
     if (!open || !video) return;
     setTranscript(null);
     setTranscriptFetchedAt(null);
-    setIdeas(null);
-    setPosts(null);
-    setSummary(null);
-    setSavedIds(new Set());
-    setSavedPostIds(new Set());
-    setTaskedPoints(new Set());
+    setSavedIdeaKeys(new Set());
+    setSavedPostKeys(new Set());
+    setTaskedKeys(new Set());
     setTranscriptOpen(false);
     setLiked(!!video.is_liked);
     setSource({
@@ -68,17 +90,39 @@ export default function VideoDetailDialog({
       title: video.title,
       channel: channelTitle || video.channel_id,
     });
+    // Load persisted history first
+    const hist = loadHistory(video.video_id);
+    setIdeaRuns(hist.ideas);
+    setPostRuns(hist.posts);
+    setSummaryRuns(hist.summary);
     void getVideoDetail(video.video_id).then((d) => {
       if (d?.transcript) {
         setTranscript(d.transcript);
         setTranscriptFetchedAt((d as any).transcript_fetched_at ?? null);
       }
+      // If we have no local history but the DB has a cached snapshot,
+      // seed it as the first historical run so the user always sees prior work.
       const cachedSummary = (d as any)?.summary_points;
-      if (Array.isArray(cachedSummary) && cachedSummary.length > 0) setSummary(cachedSummary);
       const cachedIdeas = (d as any)?.generated_ideas;
-      if (Array.isArray(cachedIdeas) && cachedIdeas.length > 0) setIdeas(cachedIdeas);
       const cachedPosts = (d as any)?.generated_posts;
-      if (Array.isArray(cachedPosts) && cachedPosts.length > 0) setPosts(cachedPosts);
+      const seeded = { ...hist };
+      let changed = false;
+      if (hist.summary.length === 0 && Array.isArray(cachedSummary) && cachedSummary.length > 0) {
+        seeded.summary = [makeRun<SummaryPoint>(cachedSummary)];
+        setSummaryRuns(seeded.summary);
+        changed = true;
+      }
+      if (hist.ideas.length === 0 && Array.isArray(cachedIdeas) && cachedIdeas.length > 0) {
+        seeded.ideas = [makeRun<VideoIdea>(cachedIdeas)];
+        setIdeaRuns(seeded.ideas);
+        changed = true;
+      }
+      if (hist.posts.length === 0 && Array.isArray(cachedPosts) && cachedPosts.length > 0) {
+        seeded.posts = [makeRun<VideoPost>(cachedPosts)];
+        setPostRuns(seeded.posts);
+        changed = true;
+      }
+      if (changed) saveHistory(video.video_id, seeded);
       if (typeof (d as any)?.is_liked === "boolean") setLiked((d as any).is_liked);
     }).catch(() => { /* ignore */ });
   }, [open, video?.video_id, channelTitle]);
@@ -86,6 +130,15 @@ export default function VideoDetailDialog({
   if (!video) return null;
 
   const ytUrl = `https://www.youtube.com/watch?v=${video.video_id}`;
+
+  function persist(next: Partial<{ ideas: Run<VideoIdea>[]; posts: Run<VideoPost>[]; summary: Run<SummaryPoint>[] }>) {
+    if (!video) return;
+    saveHistory(video.video_id, {
+      ideas: next.ideas ?? ideaRuns,
+      posts: next.posts ?? postRuns,
+      summary: next.summary ?? summaryRuns,
+    });
+  }
 
   async function getTranscript(refresh = false) {
     if (!video) return;
@@ -104,73 +157,87 @@ export default function VideoDetailDialog({
     } finally { setLoadingTranscript(false); }
   }
 
-  async function genIdeas(refresh = false) {
+  async function genIdeas() {
     if (!video) return;
     setGenerating(true);
     try {
-      const r = await generateVideoIdeas(video.video_id, 7, refresh);
-      setIdeas(r.ideas);
+      // Always force-refresh so each click is a fresh batch, kept alongside prior runs.
+      const r = await generateVideoIdeas(video.video_id, 7, true);
       setSource(r.source_video);
-      setSavedIds(new Set());
-      toast.success(r.cached ? `Loaded ${r.ideas.length} saved ideas` : `${r.ideas.length} ideas generated`);
+      if (Array.isArray(r.ideas) && r.ideas.length > 0) {
+        const run = makeRun<VideoIdea>(r.ideas);
+        const next = [run, ...ideaRuns];
+        setIdeaRuns(next);
+        persist({ ideas: next });
+        toast.success(`${r.ideas.length} new ideas added`);
+      } else {
+        toast.info("No new ideas returned — previous runs kept");
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "Ideas failed");
     } finally { setGenerating(false); }
   }
 
-  async function saveIdea(i: number, schedule: Schedule) {
-    if (!ideas || !source) return;
-    setSavingIdx(i);
+  async function saveIdea(idea: VideoIdea, key: string, schedule: Schedule) {
+    if (!source) return;
+    setSavingIdeaKey(key);
     try {
-      await addIdeaToPlanner(ideas[i], source, schedule);
-      setSavedIds((cur) => new Set(cur).add(i));
+      await addIdeaToPlanner(idea, source, schedule);
+      setSavedIdeaKeys((cur) => new Set(cur).add(key));
       toast.success(schedule.scheduled_date ? `Scheduled for ${schedule.scheduled_date}` : "Added to Content Planner");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save");
-    } finally { setSavingIdx(null); }
+    } finally { setSavingIdeaKey(null); }
   }
 
-  async function saveAll(schedule: Schedule) {
-    if (!ideas || !source) return;
-    setSavingIdx(-1);
+  async function saveAllInRun(run: Run<VideoIdea>, schedule: Schedule) {
+    if (!source) return;
+    setSavingIdeaKey(`__all:${run.id}`);
     let saved = 0;
     try {
-      for (let i = 0; i < ideas.length; i++) {
-        if (savedIds.has(i)) continue;
+      for (let i = 0; i < run.items.length; i++) {
+        const key = `${run.id}:${i}`;
+        if (savedIdeaKeys.has(key)) continue;
         try {
-          await addIdeaToPlanner(ideas[i], source, schedule);
-          setSavedIds((cur) => new Set(cur).add(i));
+          await addIdeaToPlanner(run.items[i], source, schedule);
+          setSavedIdeaKeys((cur) => new Set(cur).add(key));
           saved++;
         } catch { /* continue */ }
       }
       toast.success(schedule.scheduled_date
         ? `Scheduled ${saved} idea${saved === 1 ? "" : "s"} for ${schedule.scheduled_date}`
         : `Added ${saved} idea${saved === 1 ? "" : "s"} to planner`);
-    } finally { setSavingIdx(null); }
+    } finally { setSavingIdeaKey(null); }
   }
 
-  async function genPosts(refresh = false) {
+  async function genPosts() {
     if (!video) return;
     setGeneratingPosts(true);
     try {
-      const r = await generateVideoPosts(video.video_id, 3, ["linkedin", "twitter", "instagram"], refresh, postLength);
-      setPosts(r.posts);
+      const r = await generateVideoPosts(video.video_id, 3, ["linkedin", "twitter", "instagram"], true, postLength);
       setSource(r.source_video);
-      setSavedPostIds(new Set());
-      toast.success(r.cached ? `Loaded ${r.posts.length} saved posts` : `${r.posts.length} posts ready`);
+      if (Array.isArray(r.posts) && r.posts.length > 0) {
+        const run = makeRun<VideoPost>(r.posts);
+        const next = [run, ...postRuns];
+        setPostRuns(next);
+        persist({ posts: next });
+        toast.success(`${r.posts.length} new posts added`);
+      } else {
+        toast.info("No new posts returned — previous runs kept");
+      }
     } catch (e: any) { toast.error(e?.message ?? "Posts failed"); }
     finally { setGeneratingPosts(false); }
   }
 
-  async function savePost(i: number, schedule: Schedule) {
-    if (!posts || !source) return;
-    setSavingPostIdx(i);
+  async function savePost(post: VideoPost, key: string, schedule: Schedule) {
+    if (!source) return;
+    setSavingPostKey(key);
     try {
-      await addPostToPlanner(posts[i], source, schedule);
-      setSavedPostIds((cur) => new Set(cur).add(i));
+      await addPostToPlanner(post, source, schedule);
+      setSavedPostKeys((cur) => new Set(cur).add(key));
       toast.success(schedule.scheduled_date ? `Scheduled for ${schedule.scheduled_date}` : "Post added to planner");
     } catch (e: any) { toast.error(e?.message ?? "Failed to save"); }
-    finally { setSavingPostIdx(null); }
+    finally { setSavingPostKey(null); }
   }
 
   async function copyPost(p: VideoPost) {
@@ -181,27 +248,49 @@ export default function VideoDetailDialog({
     } catch { /* */ }
   }
 
-  async function summarize(refresh = false) {
+  async function summarize() {
     if (!video) return;
     setSummarizing(true);
     try {
-      const r = await generateVideoSummary(video.video_id, refresh);
-      setSummary(r.points);
-      setTaskedPoints(new Set());
-      toast.success(r.cached ? "Loaded cached summary" : `${r.points.length} key points`);
+      const r = await generateVideoSummary(video.video_id, true);
+      if (Array.isArray(r.points) && r.points.length > 0) {
+        const run = makeRun<SummaryPoint>(r.points);
+        const next = [run, ...summaryRuns];
+        setSummaryRuns(next);
+        persist({ summary: next });
+        toast.success(`${r.points.length} new key points added`);
+      } else {
+        toast.info("No new summary returned — previous runs kept");
+      }
     } catch (e: any) { toast.error(e?.message ?? "Summary failed"); }
     finally { setSummarizing(false); }
   }
 
-  async function pointToTask(i: number) {
-    if (!summary || !source) return;
-    setSavingTaskIdx(i);
+  async function pointToTask(point: SummaryPoint, key: string) {
+    if (!source) return;
+    setSavingTaskKey(key);
     try {
-      await addPointToTasks(summary[i], source);
-      setTaskedPoints((cur) => new Set(cur).add(i));
+      await addPointToTasks(point, source);
+      setTaskedKeys((cur) => new Set(cur).add(key));
       toast.success("Added to Tasks → Inbox");
     } catch (e: any) { toast.error(e?.message ?? "Failed to add task"); }
-    finally { setSavingTaskIdx(null); }
+    finally { setSavingTaskKey(null); }
+  }
+
+  function deleteIdeaRun(runId: string) {
+    const next = ideaRuns.filter((r) => r.id !== runId);
+    setIdeaRuns(next);
+    persist({ ideas: next });
+  }
+  function deletePostRun(runId: string) {
+    const next = postRuns.filter((r) => r.id !== runId);
+    setPostRuns(next);
+    persist({ posts: next });
+  }
+  function deleteSummaryRun(runId: string) {
+    const next = summaryRuns.filter((r) => r.id !== runId);
+    setSummaryRuns(next);
+    persist({ summary: next });
   }
 
   async function toggleLike() {
