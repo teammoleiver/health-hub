@@ -18,6 +18,7 @@ type SourceVideo = { video_id: string; title: string; channel: string };
 type Run<T> = { id: string; createdAt: string; items: T[] };
 
 const HISTORY_KEY = (vid: string) => `yt-history-v1:${vid}`;
+const MAX_RUNS = 10;
 
 function loadHistory(vid: string): { ideas: Run<VideoIdea>[]; posts: Run<VideoPost>[]; summary: Run<SummaryPoint>[] } {
   try {
@@ -189,7 +190,7 @@ export default function VideoDetailDialog({
       setSource(r.source_video);
       if (Array.isArray(r.ideas) && r.ideas.length > 0) {
         const run = makeRun<VideoIdea>(r.ideas);
-        const next = [run, ...ideaRuns];
+        const next = [run, ...ideaRuns].slice(0, MAX_RUNS);
         setIdeaRuns(next);
         persist({ ideas: next });
         toast.success(`${r.ideas.length} new ideas added`);
@@ -241,7 +242,7 @@ export default function VideoDetailDialog({
       setSource(r.source_video);
       if (Array.isArray(r.posts) && r.posts.length > 0) {
         const run = makeRun<VideoPost>(r.posts);
-        const next = [run, ...postRuns];
+        const next = [run, ...postRuns].slice(0, MAX_RUNS);
         setPostRuns(next);
         persist({ posts: next });
         toast.success(`${r.posts.length} new posts added`);
@@ -278,7 +279,7 @@ export default function VideoDetailDialog({
       const r = await generateVideoSummary(video.video_id, true);
       if (Array.isArray(r.points) && r.points.length > 0) {
         const run = makeRun<SummaryPoint>(r.points);
-        const next = [run, ...summaryRuns];
+        const next = [run, ...summaryRuns].slice(0, MAX_RUNS);
         setSummaryRuns(next);
         persist({ summary: next });
         toast.success(`${r.points.length} new key points added`);
@@ -314,6 +315,15 @@ export default function VideoDetailDialog({
     const next = summaryRuns.filter((r) => r.id !== runId);
     setSummaryRuns(next);
     persist({ summary: next });
+  }
+
+  function clearAllRuns() {
+    if (!video) return;
+    setIdeaRuns([]);
+    setPostRuns([]);
+    setSummaryRuns([]);
+    saveHistory(video.video_id, { ideas: [], posts: [], summary: [] });
+    toast.success("All runs cleared");
   }
 
   async function toggleLike() {
@@ -404,23 +414,28 @@ export default function VideoDetailDialog({
 
           {/* Search across all generated content */}
           {(ideaRuns.length > 0 || postRuns.length > 0 || summaryRuns.length > 0) && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search ideas, key points, or posts…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-9"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  title="Clear search"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search ideas, key points, or posts…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <Button size="sm" variant="ghost" onClick={clearAllRuns} title="Clear all runs for this video">
+                <Trash2 className="w-4 h-4 mr-1" /> Clear all
+              </Button>
             </div>
           )}
 
