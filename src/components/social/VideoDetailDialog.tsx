@@ -600,6 +600,10 @@ export default function VideoDetailDialog({
 
           {/* Ideas — historical runs */}
           {ideaRuns.map((run, runIdx) => {
+            const visibleItems = searchQuery.trim()
+              ? run.items.filter((it) => itemMatches(searchQuery, it, "idea"))
+              : run.items;
+            if (visibleItems.length === 0) return null;
             const allSaved = run.items.every((_, i) => savedIdeaKeys.has(`${run.id}:${i}`));
             const busyAll = savingIdeaKey === `__all:${run.id}`;
             return (
@@ -608,7 +612,7 @@ export default function VideoDetailDialog({
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-primary" />
                     <h3 className="font-medium text-sm">Content ideas based on this video</h3>
-                    <Badge variant="secondary" className="text-[10px]">{run.items.length}</Badge>
+                    <Badge variant="secondary" className="text-[10px]">{visibleItems.length}</Badge>
                     <span className="text-[10px] text-muted-foreground">
                       Run {ideaRuns.length - runIdx} · {timeAgo(run.createdAt)}
                     </span>
