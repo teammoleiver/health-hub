@@ -317,6 +317,15 @@ export default function VideoDetailDialog({
     persist({ summary: next });
   }
 
+  function clearAllRuns() {
+    if (!video) return;
+    setIdeaRuns([]);
+    setPostRuns([]);
+    setSummaryRuns([]);
+    saveHistory(video.video_id, { ideas: [], posts: [], summary: [] });
+    toast.success("All runs cleared");
+  }
+
   async function toggleLike() {
     if (!video) return;
     const next = !liked;
