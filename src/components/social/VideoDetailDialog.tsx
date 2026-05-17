@@ -527,7 +527,8 @@ export default function VideoDetailDialog({
                 })}
               </ol>
             </Card>
-          ))}
+          );
+        })}
 
           {/* Generated social posts — historical runs */}
           {postRuns.map((run, runIdx) => (
