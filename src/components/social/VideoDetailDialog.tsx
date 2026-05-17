@@ -40,6 +40,26 @@ function makeRun<T>(items: T[]): Run<T> {
   return { id: (crypto as any)?.randomUUID?.() ?? `r_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, createdAt: new Date().toISOString(), items };
 }
 
+function itemMatches(query: string, item: any, type: "idea" | "post" | "summary"): boolean {
+  const t = query.trim().toLowerCase();
+  if (!t) return true;
+  if (type === "idea") {
+    return (item.hook ?? "").toLowerCase().includes(t)
+        || (item.body ?? "").toLowerCase().includes(t)
+        || (item.angle ?? "").toLowerCase().includes(t)
+        || (item.format ?? "").toLowerCase().includes(t);
+  }
+  if (type === "post") {
+    return (item.hook ?? "").toLowerCase().includes(t)
+        || (item.body ?? "").toLowerCase().includes(t)
+        || (item.platform ?? "").toLowerCase().includes(t)
+        || (item.variant ?? "").toLowerCase().includes(t)
+        || (item.hashtags ?? []).some((h: string) => h.toLowerCase().includes(t));
+  }
+  return (item.headline ?? "").toLowerCase().includes(t)
+      || (item.detail ?? "").toLowerCase().includes(t);
+}
+
 export default function VideoDetailDialog({
   open, onClose, video, channelTitle, onTranscriptFetched, onLikeToggled,
 }: {
