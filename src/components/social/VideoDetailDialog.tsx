@@ -76,6 +76,8 @@ export default function VideoDetailDialog({
   const [liked, setLiked] = useState(false);
   const [likingBusy, setLikingBusy] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Reset and load existing transcript when video changes
   useEffect(() => {
     if (!open || !video) return;
