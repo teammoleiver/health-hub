@@ -99,7 +99,7 @@ export default function BrandKitPage() {
 
       <Card className="p-5 space-y-3">
         <Label>Colors</Label>
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {(["primary", "secondary", "accent", "bg", "text"] as const).map((k) => (
             <div key={k} className="space-y-1">
               <div className="text-xs text-muted-foreground capitalize">{k}</div>
